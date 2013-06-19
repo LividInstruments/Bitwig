@@ -41,6 +41,7 @@ var LOCAL_OFF = function()
 }
 
 var script = this;
+var session;
 
 var DEBUG = true;
 
@@ -82,6 +83,8 @@ function init()
 	post('BASE8 script loading ------------------------------------------------');
 	setup_controls();
 	resetAll();
+	setupTests();
+	setup_session();
 	setup_modes();
 
 	track_volumes = new Array(8);
@@ -114,7 +117,7 @@ function init()
 	//cursorClip.addPlayingStepObserver(seqPage.onStepPlay);
 	LOCAL_OFF();
  	host.scheduleTask(updateDisplay, null, 100);
-	MainModes.change_mode(0, true);
+	MainModes.change_mode(1, true);
 	post('BASE8 script loaded! ------------------------------------------------');
 }
 
@@ -153,7 +156,12 @@ function setup_controls()
 			grid.add_button(i, j, buttons[i][j]);
 		}
 	}
-	println('setup_controls successful');
+	post('setup_controls successful');
+}
+
+function setup_session()
+{
+	session = new SessionComponent('Session', 8, 4, trackBank);
 }
 
 function setup_modes()
@@ -165,11 +173,14 @@ function setup_modes()
 	clipPage.enter_mode = function()
 	{
 		post('clipPage entered');
-		clipPage.faders.set_target(wrap_callback(clipPage, clipPage.receive_faders));
-		clipPage.grid.set_target(wrap_callback(clipPage, clipPage.receive_grid));
+		//clipPage.faders.set_target(wrap_callback(clipPage, clipPage.receive_faders));
+		clipPage.faders.set_target([clipPage.receive_faders,clipPage]);
+		//clipPage.grid.set_target(wrap_callback(clipPage, clipPage.receive_grid));
+		clipPage.grid.set_target([clipPage.receive_grid,clipPage]);
 		for(var i in track_volumes)
 		{
-			track_volumes[i].set_target(wrap_callback(clipPage, clipPage.receive_volume));
+			//track_volumes[i].set_target(wrap_callback(clipPage, clipPage.receive_volume));
+			track_volumes[i].set_target([clipPage.receive_volume,clipPage]);
 		}
 		clipPage.active = true;
 		clipPage.update_grid();
@@ -223,7 +234,7 @@ function setup_modes()
 	}
 	clipPage.receive_volume = function(param)
 	{
-		//post(this._name, 'received volume from BW:', param._index, param._value);
+		post(this._name, 'received volume from BW:', param._index, param._value);
 		if(clipPage.active)
 		{
 			clipPage.faders.send(param._index, param._value);
@@ -249,7 +260,8 @@ function setup_modes()
 		post('sendPage entered');
 		sendPage.grid.reset();
 		sendPage.faders.reset();
-		sendPage.faders.set_target(sendPage.controlInput);
+		//sendPage.faders.set_target(['controlInput',sendPage]);
+		session.assign_grid(grid);
 		sendPage.active = true;
 	}
 	sendPage.exit_mode = function()
@@ -261,7 +273,7 @@ function setup_modes()
 	{
 		post('sendPage received fader', fader._name, fader._value);
 	}
-	sendPage.register_control(sendPage.faders, wrap_callback(sendPage, sendPage.receive_faders));
+	//sendPage.register_control(sendPage.faders, wrap_callback(sendPage, sendPage.receive_faders));
 
 
 	//Page 2:  Device Control and Mod control
@@ -305,6 +317,16 @@ function onMidi(status, data1, data2)
 function onSysex(data)
 {
 	printSysex(data);
+}
+
+function setupTests()
+{
+	function_buttons[0].add_listener([poster, script]);
+}
+
+function poster(obj)
+{
+	post('poster', obj._name, obj._value);
 }
 
 
