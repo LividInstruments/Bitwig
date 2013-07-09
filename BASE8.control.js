@@ -1,4 +1,83 @@
 
+const _base_translations =	{'0': 0,
+						'1': 1,
+						'2': 2,
+						'3': 3,
+						'4': 4,
+						'5': 5,
+						'6': 6,
+						'7': 7,
+						'8': 8,
+						'9': 9,
+						'A': 10,
+						'B': 11,
+						'C': 12,
+						'D': 13,
+						'E': 14,
+						'F': 15,
+						'G': 16,
+						'H': 17,
+						'I': 18,
+						'J': 19,
+						'K': 20,
+						'L': 21,
+						'M': 22,
+						'N': 23,
+						'O': 24,
+						'P': 25,
+						'Q': 26,
+						'R': 27,
+						'S': 28,
+						'T': 29,
+						'U': 30,
+						'V': 31,
+						'W': 32,
+						'X': 33,
+						'Y': 34,
+						'Z': 35,
+						'a': 10,
+						'b': 11,
+						'c': 12,
+						'd': 13,
+						'e': 14,
+						'f': 15,
+						'g': 16,
+						'h': 17,
+						'i': 18,
+						'j': 19,
+						'k': 20,
+						'l': 21,
+						'm': 22,
+						'n': 23,
+						'o': 24,
+						'p': 25,
+						'q': 26,
+						'r': 27,
+						's': 28,
+						't': 29,
+						'u': 30,
+						'v': 31,
+						'w': 32,
+						'x': 33,
+						'y': 34,
+						'z': 35,
+						'_': 39, 
+						'-': 42};
+
+
+const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
+const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
+const LAYERSPLASH = [63, 69, 70, 65]
+const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
+const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
+const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
+const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
+const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
+const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
+const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
+const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
+//const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
+
 isShift = false;
 
 loadAPI(1);
@@ -43,84 +122,57 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = true;
+var DEBUG = true;		//post() doesn't work without this
 
-var isPlaying = initArray(false, 32);
-var isQueued = initArray(false, 32);
-var isRecording = initArray(false, 32);
-var hasContent = initArray(false, 32);
-var clipArm = initArray(false, 8);
-
-var isSelected = initArray(false, 8);
-var isMute = initArray(false, 8);
-var isSolo = initArray(false, 8);
-var isArm = initArray(false, 8);
-var isShift = false;
 
 load("Prototypes.js");
 
 function init()
 {
-	registerControlDicts();
 
-	host.getMidiInPort(0).setMidiCallback(onMidi);
-	host.getMidiInPort(0).setSysexCallback(onSysex);
-
-	// //////////////////////////////////////////////////////////////////////*Host*/
+	////////////////////////////////////////////////////////////////////////////////
+	// Everything here is taken from the BW script, just leaving it for reference //
 	application = host.createApplicationSection();
 	cursorDevice = host.createCursorDeviceSection(8);
-	cursorTrack = host.createCursorTrackSection(3, 8);
+	cursorTrack = host.createCursorTrackSection(4, 8);
 	cursorClip = host.createCursorClipSection(128, 1);
 	groove = host.createGrooveSection();
 	masterTrack = host.createMasterTrackSection(0);
 	transport = host.createTransportSection();
 	//clipGrid = host.createTrackBankSection(8, 0, 4);
 	trackBank = host.createTrackBankSection(8, 4, 4);
-	mixer = host.createMixerSection("MIX", 0);
+	_mixer = host.createMixerSection("MIX", 0);
 	arranger = host.createArrangerSection(0);
 	primaryInstrument = cursorTrack.getPrimaryInstrument();
+	////////////////////////////////////////////////////////////////////////////////
 	
 	post('BASE8 script loading ------------------------------------------------');
+
+	registerControlDicts();
+	host.getMidiInPort(0).setMidiCallback(onMidi);
+	host.getMidiInPort(0).setSysexCallback(onSysex);
+
+	initialize_surface();
 	setup_controls();
 	resetAll();
 	setupTests();
 	setup_session();
+	setup_mixer();
+	//setup_tasks();
 	setup_modes();
+	setup_master();
 
-	track_volumes = new Array(8);
-	track_pans = new Array(8);
-	for ( var t = 0; t < 8; t++)
-	{
-		var track = trackBank.getTrack(t);
-
- 		var clipLauncher = track.getClipLauncher();
-		clipLauncher.addHasContentObserver(clipPage.stateBuffer(t, hasContent));
-		clipLauncher.addIsPlayingObserver(clipPage.stateBuffer(t, isPlaying));
-		clipLauncher.addIsQueuedObserver(clipPage.stateBuffer(t, isQueued));
-		clipLauncher.addIsRecordingObserver(clipPage.stateBuffer(t, isRecording));
-
-		var param = track.getVolume();
-		track_volumes[t] = new ParameterHolder('Volume_'+t, {'_index':t, '_parameter':param});
-		track_volumes[t]._parameter.addValueObserver(128, track_volumes[t].receive);
-
-		/*var param = track.getPan();
-		track_pans[t] = new ParameterHolder('Pan_'+t, {'_index':t, '_parameter':param});
-		track_pans[t]._parameter.addValueObserver(128, track_pans[t].receive);*/
-
-		//track.addIsSelectedObserver(tracksPage.selectBuffer(i, isSelected));
-		//track.getMute().addValueObserver(tracksPage.muteBuffer(i, isMute));
-		//track.getSolo().addValueObserver(tracksPage.soloBuffer(i, isSolo));
-		//track.getArm().addValueObserver(tracksPage.armBuffer(i, isArm));
-	}
-	//cursorClip = host.createCursorClipSection(32, 1);
-	//cursorClip.addStepDataObserver(seqPage.onStepExists);
-	//cursorClip.addPlayingStepObserver(seqPage.onStepPlay);
 	LOCAL_OFF();
  	host.scheduleTask(updateDisplay, null, 100);
-	MainModes.change_mode(1, true);
+	MainModes.change_mode(0, true);
 	post('BASE8 script loaded! ------------------------------------------------');
 }
 
+function initialize_surface()
+{
+	sendSysex(LINKFUNCBUTTONS);
+	sendSysex(DISABLECAPFADERNOTES);
+}
 
 function setup_controls()
 {
@@ -164,117 +216,145 @@ function setup_session()
 	session = new SessionComponent('Session', 8, 4, trackBank);
 }
 
+function setup_mixer()
+{
+	mixer = new MixerComponent('Mixer', 8, 4, trackBank, cursorTrack, masterTrack);
+}
+
+function setup_tasks()
+{
+	tasks = new TaskServer(100);
+}
+
 function setup_modes()
 {
-	//Page 0: Clip control and Volume Faders.
+	//Page 0:  Send Control and Instrument throughput
 	clipPage = new Page('ClipPage');
 	clipPage.grid = grid;
 	clipPage.faders = faderbank;
 	clipPage.enter_mode = function()
 	{
 		post('clipPage entered');
-		//clipPage.faders.set_target(wrap_callback(clipPage, clipPage.receive_faders));
-		clipPage.faders.set_target([clipPage.receive_faders,clipPage]);
-		//clipPage.grid.set_target(wrap_callback(clipPage, clipPage.receive_grid));
-		clipPage.grid.set_target([clipPage.receive_grid,clipPage]);
-		for(var i in track_volumes)
+		sendSysex(LIVEBUTTONMODE);
+		grid.reset();
+		faderbank.reset();
+		session.assign_grid(grid);
+		mixer.assign_volume_controls(faderbank);
+		for(var i=0;i<8;i++)
 		{
-			//track_volumes[i].set_target(wrap_callback(clipPage, clipPage.receive_volume));
-			track_volumes[i].set_target([clipPage.receive_volume,clipPage]);
+			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
 		}
+		clipPage.set_shift_button(function_buttons[0]);
 		clipPage.active = true;
-		clipPage.update_grid();
-		clipPage.update_faders();
-	}
-	clipPage.receive_grid = function(button)
-	{
-		post('clipPage grid in', button._name);
-		trackBank.getTrack(button._x).getClipLauncher().launch(button._y);
-	}
-	clipPage.send_grid = function(track, scene, value)
-	{
-		if(clipPage.active)
-		{
-			clipPage.grid.send(track, scene, value);
-		}
-	}
-	clipPage.stateBuffer = function(track, clipstate)
-	{
-		return function(scene, value)
-		{	
-			var index = track * 4 + scene;
-			clipstate[index] = value;
-			var state = isRecording[index] ? color.RED : isPlaying[index] ? color.GREEN : isQueued[index] ? color.YELLOW : hasContent[index] ? color.WHITE : color.OFF;
-			clipPage.send_grid(track, scene, state);
-		};
-	}
-	clipPage.update_grid = function()
-	{
-		for(var x = 0; x < 8; x ++)
-		{
-			for(var y = 0; y < 4; y++)
-			{
-				var index = x * 4 + y;
-				var state = isRecording[index] ? color.RED : isPlaying[index] ? color.GREEN : isQueued[index] ? color.YELLOW : hasContent[index] ? color.WHITE : color.OFF;
-				clipPage.send_grid(x, y, state);
-			}
-		}
-	}
-	clipPage.update_faders = function()
-	{
-		for(var i in track_volumes)
-		{
-			track_volumes[i].notify();
-		}
-	}
-	clipPage.receive_faders = function(fader)
-	{
-		trackBank.getTrack(fader._x).getVolume().set(fader._value, 128);
-		//post('clipPage received fader', fader._name, fader._value);
-	}
-	clipPage.receive_volume = function(param)
-	{
-		post(this._name, 'received volume from BW:', param._index, param._value);
-		if(clipPage.active)
-		{
-			clipPage.faders.send(param._index, param._value);
-		}
 	}
 	clipPage.exit_mode = function()
 	{
+		session.assign_grid(null);
+		mixer.assign_volume_controls(null);
+		for(var i=0;i<8;i++)
+		{
+			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+		}
+		clipPage.set_shift_button();
 		clipPage.active = false;
 		post('clipPage exited');
 	}
-	//clipPage.register_control(grid, wrap_callback(clipPage, clipPage.receive_grid));
-	//clipPage.register_control(faders, wrap_callback(clipPage, clipPage.receive_faders));
+	clipPage.update_mode = function()
+	{
+		post('clipPage updated');
+		if(clipPage._shifted)
+		{
+			session.assign_grid(null);
+			grid.reset();
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i).set_mute_button(grid.get_button(i, 0));
+				mixer.channelstrip(i).set_solo_button(grid.get_button(i, 1));
+				mixer.channelstrip(i).set_arm_button(grid.get_button(i, 2));
+				mixer.channelstrip(i).set_stop_button(grid.get_button(i, 3));
+			}
+		}
+		else
+		{
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i).set_mute_button();
+				mixer.channelstrip(i).set_solo_button();
+				mixer.channelstrip(i).set_arm_button();
+				mixer.channelstrip(i).set_stop_button();
+			}
+			grid.reset();
+			session.assign_grid(grid);
+		}
+	}
+	//clipPage.register_control(function_buttons[0], clipPage.shiftValue);
 
-
-
-
-	//Page 1:  Send Control and Instrument throughput
+	//Page 1:  Send and Return Controls
 	sendPage = new Page('SendPage');
-	sendPage.grid = grid;
-	sendPage.faders = faderbank;
 	sendPage.enter_mode = function()
 	{
 		post('sendPage entered');
-		sendPage.grid.reset();
-		sendPage.faders.reset();
-		//sendPage.faders.set_target(['controlInput',sendPage]);
+		sendSysex(LIVEBUTTONMODE);
+		grid.reset();
+		faderbank.reset();
 		session.assign_grid(grid);
+		for(var i=0;i<4;i++)
+		{
+			mixer.selectedstrip().set_send_control(i, faders[i]);
+			mixer.set_return_control(i, faders[i+4]);
+		}
+		for(var i=0;i<8;i++)
+		{
+			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+		}
+		sendPage.set_shift_button(function_buttons[1]);
 		sendPage.active = true;
 	}
 	sendPage.exit_mode = function()
 	{
+		session.assign_grid(null);
+		mixer.assign_volume_controls(null);
+		for(var i=0;i<4;i++)
+		{
+			mixer._selectedstrip.set_send_control(i);
+			mixer.set_return_control(i);
+		}
+		for(var i=0;i<8;i++)
+		{
+			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+		}
+		sendPage.set_shift_button();
 		sendPage.active = false;
 		post('sendPage exited');
 	}
-	sendPage.receive_faders = function(fader)
+	sendPage.update_mode = function()
 	{
-		post('sendPage received fader', fader._name, fader._value);
+		post('sendPage updated');
+		if(sendPage._shifted)
+		{
+			session.assign_grid(null);
+			grid.reset();
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i).set_mute_button(grid.get_button(i, 0));
+				mixer.channelstrip(i).set_solo_button(grid.get_button(i, 1));
+				mixer.channelstrip(i).set_arm_button(grid.get_button(i, 2));
+				mixer.channelstrip(i).set_stop_button(grid.get_button(i, 3));
+			}
+		}
+		else
+		{
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i).set_mute_button();
+				mixer.channelstrip(i).set_solo_button();
+				mixer.channelstrip(i).set_arm_button();
+				mixer.channelstrip(i).set_stop_button();
+			}
+			grid.reset();
+			session.assign_grid(grid);
+		}
 	}
-	//sendPage.register_control(sendPage.faders, wrap_callback(sendPage, sendPage.receive_faders));
-
 
 	//Page 2:  Device Control and Mod control
 	devicePage = new Page('DevicePage');
@@ -290,6 +370,11 @@ function setup_modes()
 	MainModes.add_mode(3, seqPage);
 	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
 
+}
+
+function setup_master()
+{
+	mixer._masterstrip.set_volume_control(faders[8]);
 }
 
 function updateDisplay(){}
@@ -319,9 +404,13 @@ function onSysex(data)
 	printSysex(data);
 }
 
+
+
 function setupTests()
 {
-	function_buttons[0].add_listener([poster, script]);
+	//function_buttons[0].add_listener(poster);
+	//trackBank.getTrack(0).getMute().addValueObserver(tester);
+	//cursorTrack.addNameObserver(10, 'None', tester);
 }
 
 function poster(obj)
@@ -329,5 +418,9 @@ function poster(obj)
 	post('poster', obj._name, obj._value);
 }
 
+function tester(value)
+{
+	post('tester', value);
+}
 
 

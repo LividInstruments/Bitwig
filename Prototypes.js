@@ -4,6 +4,7 @@ const NOTE_TYPE = 'NOTE_TYPE';
 const CC_TYPE = 'CC_TYPE';
 const NONE_TYPE = 'NONE_TYPE';
 const CHANNEL = 0;
+const NONE = 'NONE';
 
 const colors = {OFF : 0, WHITE : 1, CYAN : 5, MAGENTA : 9, RED : 17, BLUE : 33, YELLOW : 65, GREEN : 127};
 
@@ -11,7 +12,7 @@ NOTE_OBJECTS = new Array(128);
 CC_OBJECTS = new Array(128);
 	
 //simple utility function to flatten incoming arguments to a function
-function arraytoargs(args)
+function arrayfromargs(args)
 {
 	return Array.prototype.slice.call(args, 0);
 }
@@ -19,7 +20,7 @@ function arraytoargs(args)
 //use this for debug messages instead of println, it can be turned off with DEBUG flag.
 function post()
 {
-	println('> '+arraytoargs(arguments).join(' '));
+	println('> '+arrayfromargs(arguments).join(' '));
 }
 
 //we need to use this when adding notifier targets or listeners so that the proper context is maintained.
@@ -111,9 +112,13 @@ Notifier.prototype.remove_target = function(target)
 {
 	if (target)
 	{
-		if (target in this._target_heap)
+		for(item in this._target_heap)
 		{
-			this._target_heap.splice(this._target_heap.indexOf(target), 1);
+			if(target == this._target_heap[item])
+			{
+				this._target_heap.splice(item, 1);
+				break;
+			}
 		}
 	}
 	else
@@ -137,7 +142,7 @@ Notifier.prototype.add_listener = function(callback)
 
 Notifier.prototype.remove_listener = function(callback)
 {
-	if(callback in self._listeners){self._listeners.slice(self._listeners.indexOf(callback), 1);}
+	if(callback in this._listeners){this._listeners.slice(this._listeners.indexOf(callback), 1);}
 }
 
 Notifier.prototype.notify = function(obj)
@@ -175,16 +180,60 @@ Notifier.prototype.notify = function(obj)
 	}
 }
 
+Notifier.prototype.notify = function(obj)
+{
+	if(!obj)
+	{
+		obj = this;
+	}
+	//post('notify', this._name, obj._name);
+	if(this._target_heap[0])
+	{
+		var cb = this._target_heap[0];
+		try
+		{
+			cb(obj);
+		}
+		catch(err)
+		{
+			post('target callback exception:', err);
+			post('-> for', this._name,' : ',cb);
+		}
+	}
+	for (var i in this._listeners)
+	{
+		var cb = this._listeners[i];
+		try
+		{
+			cb(obj);
+		}
+		catch(err)
+		{
+			post('listener callback exception:', err);
+			post('-> for', this._name,' : ',cb);
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 //A Notifier representing a physical control that can send and receive MIDI 
 
 function Control(identifier, name)
 {
 	Notifier.call( this, name );
-	var this_control = this;
+	var self = this;
 	this._type = NONE_TYPE;
 	this._id = identifier;
 	this._channel = CHANNEL;
+	this.receive = function(value)
+	{
+		self._value = value;
+		self.notify();
+	}
+	this.receive_notifier = function(notification)
+	{
+		self.send(notification._value);
+	}
 }
 
 Control.prototype = new Notifier();
@@ -200,17 +249,17 @@ Control.prototype.reset = function()
 	this.send(0);
 }
 
-Control.prototype.receive = function(value)
+/*Control.prototype.receive = function(value)
 {
 	this._value = value;
 	this.notify();
-}
+}*/
 
-Control.prototype.receive_notifier = function(notification)
+/*Control.prototype.receive_notifier = function(notification)
 {
 	//post(this._name, 'received notifier', notification._value);
 	this.send(notification._value);
-}
+}*/
 
 //////////////////////////////////////////////////////////////////////////
 //A NOTE_TYPE Control
@@ -310,9 +359,10 @@ TouchFader.prototype.set_mode = function(){}//not implemented
 function FaderBank(width, name)
 {
 	Notifier.call( this, name );
-	var faderbank = this;
+	var self = this;
 	this._name = name;
 	this._faders = new Array(width);
+	this.receive = function(fader){self.notify(fader);}
 }
 
 FaderBank.prototype = new Notifier();
@@ -336,7 +386,8 @@ FaderBank.prototype.add_fader = function(x, fader)
 			return [fader._x, fader._y];
 		}
 		fader._faderbank = this;
-		fader.add_listener([this.receive,this]);
+		//fader.add_listener([this.receive,this]);
+		fader.add_listener(this.receive);
 	}
 }
 
@@ -361,7 +412,7 @@ FaderBank.prototype.reset = function()
 	}
 }
 
-FaderBank.prototype.receive = function(fader){this.notify(fader);}
+//FaderBank.prototype.receive = function(fader){this.notify(fader);}
 
 ////////////////////////////////////////////////////////////////////////////
 //A notifier that collects a grid of buttons
@@ -383,7 +434,7 @@ function Grid(width, height, name)
 		}
 	}
 	this._grid = contents;
-	//this.receive = function(button){grid.notify(button);}
+	this.receive = function(button){self.notify(button);}
 	/*this.notify = function(button)
 	{
 		if(this_grid._target_heap[0])
@@ -435,8 +486,7 @@ Grid.prototype.add_button = function(x, y, button)
 				return [button._x, button._y];
 			}
 			button._grid = this;
-			//button.add_listener(wrap_callback(this, this.receive));
-			button.add_listener([this.receive,this]);
+			button.set_target(this.receive);
 		}
 	}
 }
@@ -468,8 +518,6 @@ Grid.prototype.reset = function()
 	}
 }
 
-Grid.prototype.receive = function(button){this.notify(button);}
-
 /////////////////////////////////////////////////////////////////////////////
 //Mode is a notifier that automatically updates buttons when its state changes
 
@@ -480,19 +528,26 @@ function Mode(number_of_modes, name)
 	this._value = 0;
 	this._mode_callbacks = new Array(number_of_modes);
 	this.mode_buttons = [];
+	this.mode_value = function(button)
+	{
+		if(button.pressed())
+		{
+			self.change_mode(self.mode_buttons.indexOf(button));
+		}
+	}
 }
 
 Mode.prototype = new Notifier();
 
 Mode.prototype.constructor = Mode;
 
-Mode.prototype.mode_value = function(button)
+/*Mode.prototype.mode_value = function(button)
 {
 	if(button.pressed())
 	{
 		this.change_mode(this.mode_buttons.indexOf(button));
 	}
-}
+}*/
 
 Mode.prototype.change_mode = function(value, force)
 {
@@ -554,7 +609,8 @@ Mode.prototype.set_mode_buttons = function(buttons)
 		for (var i in buttons)
 		{
 			this.mode_buttons.push(buttons[i]);
-			buttons[i].set_target([this.mode_value,this]);
+			//buttons[i].set_target([this.mode_value,this]);
+			buttons[i].set_target(this.mode_value);
 		}
 		post('mode buttons length: ' + this._name + ' ' + this.mode_buttons.length)
 	}
@@ -629,12 +685,26 @@ PageStack.prototype.change_mode = function(value, force)
 
 function Page(name)
 {
-	var page = this;
+	var self = this;
 	this._name = name;
 	this._this = this;
 	this._controls = {};
 	this.active = false;
-	this.controlInput = function(button){page.control_input(button);}
+	this._shifted = false;
+	this.controlInput = function(control){self.control_input(control);}
+	this._shiftValue = function(obj)
+	{
+		var new_shift = false;
+		if(obj)
+		{
+			new_shift = obj._value > 0;
+		}
+		if(new_shift != self._shifted)
+		{
+			self._shifted = new_shift;
+			self.update_mode();
+		}
+	}
 }
 
 Page.prototype.enter_mode = function()
@@ -645,6 +715,27 @@ Page.prototype.enter_mode = function()
 Page.prototype.exit_mode = function()
 {
 	post(this._name, ' exited!');
+}
+
+Page.prototype.update_mode = function()
+{
+	post(this._name, ' updated!');
+}
+
+Page.prototype.set_shift_button = function(button)
+{
+	if ((button != this._shift_button)&&(button instanceof(Notifier) || !button))
+	{
+		if(this._shift_button)
+		{
+			this._shift_button.remove_target(this._shiftValue);
+		}
+		this._shift_button = button;
+		if(this._shift_button)
+		{
+			this._shift_button.set_target(this._shiftValue);
+		}
+	}
 }
 
 Page.prototype.control_input = function(control)
@@ -794,21 +885,21 @@ function SessionComponent(name, width, height, trackBank)
 	this.receive_grid = function(button){if(button.pressed()){this_session._tracks[button._x].launch(button._y);}}
 }
 
-SessionComponent.prototype = new SessionComponent();
+//SessionComponent.prototype = new SessionComponent();
 
 SessionComponent.prototype.assign_grid = function(new_grid)
 {
 	if ((new_grid instanceof Grid) && (new_grid.width() == this.width()) && (new_grid.height() == this.height()))
 	{
 		this._grid = new_grid;
-		this._grid.set_target([this.receive_grid, this]);
+		this._grid.set_target(this.receive_grid);
 		for (var track in this._tracks)
 		{
 			for(var slot in this._tracks[track]._clipslots)
 			{
 				var clipslot = this._tracks[track]._clipslots[slot];
 				var button = this._grid.get_button(track, slot);
-				clipslot.set_target([button.receive_notifier,button]);
+				clipslot.set_target(button.receive_notifier);
 				clipslot.update();
 			}
 		}
@@ -820,12 +911,377 @@ SessionComponent.prototype.colors = function()
 	return this._colors;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+//Component containing tracks from trackbank and their corresponding ChannelStrips
+
+function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack, masterTrack)
+{
+	var self = this;
+	this._name = name;
+	this._trackBank = trackBank;
+	this._cursorTrack = cursorTrack;
+	this._masterTrack = masterTrack;
+	this._channelstrips = [];
+	for (var cs = 0;cs < num_channels; cs++)
+	{
+		this._channelstrips[cs] = new ChannelStripComponent(this._name + '_ChannelStrip_' + cs, cs, trackBank.getTrack(cs), num_returns);
+	}
+	this._selectedstrip = new ChannelStripComponent(this._name + '_SelectedStrip', -1, this._cursorTrack, num_returns);
+	this._masterstrip = new ChannelStripComponent(this._name + '_MasterStrip', -2, this._masterTrack, 0);
+}
+
+MixerComponent.prototype.channelstrip = function(num)
+{
+	if(num < this._channelstrips.length)
+	{
+		return this._channelstrips[num];
+	}
+}
+
+MixerComponent.prototype.returnstrip = function(num)
+{
+	if(num < this._returnstrips)
+	{
+		return this._returnstrips[num];
+	}
+}
+
+MixerComponent.prototype.selectedstrip = function()
+{
+	return this._selectedstrip;
+}
+
+MixerComponent.prototype.assign_volume_controls = function(controls)
+{
+	if((controls instanceof(FaderBank))&&(controls.controls().length == this._channelstrips.length))
+	{
+		for (var i in this._channelstrips)
+		{
+			this._channelstrips[i].set_volume_control(controls.get_fader(i));
+		}
+	}
+	else
+	{
+		for (var i in this._channelstrips)
+		{
+			this._channelstrips[i].set_volume_control(null);
+		}
+	}
+}
+
+MixerComponent.prototype.assign_return_controls = function(controls){}
+
+MixerComponent.prototype.set_return_control = function(num, controls){}
+
+/////////////////////////////////////////////////////////////////////////////
+//Component containing tracks from trackbank and their corresponding controls, values
+
+function ChannelStripComponent(name, num, track, num_sends)
+{
+	var self = this;
+	this._name = name;
+	this._num = num;
+	this._num_sends = num_sends;
+	this._track = track;
+	this._volumeValue = 0;
+	this._muteValue = false;
+	this._soloValue = false;
+	this._armValue = false;
+	this._selectValue = false;
+	this._volume_control;
+	this._mute_button;
+	this._solo_button;
+	this._arm_button;
+	this._select_button;
+	this._stop_button;
+	this._colors = {'muteColor': colors.YELLOW, 
+					'soloColor':colors.CYAN, 
+					'armColor' : colors.RED,
+					'selectColor' : colors.WHITE};
+
+	this._volumeCallback = function(obj){if(obj._value){self._track.getVolume().set(obj._value, 128);}}
+	this.volumeListener = function(value)
+	{
+		self._volumeValue = value;
+		if(self._volume_control)
+		{
+			self._volume_control.send(value);
+		}	
+	}
+	this.set_volume_control = function(control)
+	{
+		if ((control != self._volume_control)&&(control instanceof(Notifier) || !control))
+		{
+			if(self._volume_control)
+			{
+				self._volume_control.remove_target(self._volumeCallback);
+			}
+			self._volume_control = control;
+			if(self._volume_control)
+			{
+				self._volume_control.set_target(self._volumeCallback);
+				self.volumeListener(self._volumeValue);
+			}
+		}
+	}
+	this._track.getVolume().addValueObserver(128, this.volumeListener);
+
+	this._muteCallback = function(obj){if(obj._value){self._track.getMute().toggle();}}
+	this.muteListener = function(value)
+	{
+		self._muteValue = value;
+		//post('mute listener:', self._name, value, this._muteValue, self._muteValue);
+		if(self._mute_button)
+		{
+			if(value)
+			{
+				self._mute_button.send(self._colors.muteColor);
+			}
+			else
+			{
+				self._mute_button.turn_off();
+			}
+		}	
+	}
+	this.set_mute_button = function(button)
+	{
+		if ((button != self._mute_button)&&(button instanceof(Notifier) || !button))
+		{
+			if(self._mute_button)
+			{
+				self._mute_button.remove_target(self._muteCallback);
+			}
+			self._mute_button = button;
+			if(self._mute_button)
+			{
+				self._mute_button.set_target(self._muteCallback);
+				self.muteListener(self._muteValue);
+			}
+		}
+	}
+	this._track.getMute().addValueObserver(this.muteListener);
+	
+	this._soloCallback = function(obj){if(obj._value){self._track.getSolo().toggle();}}
+	this.soloListener = function(value)
+	{
+		self._soloValue = value;
+		if(self._solo_button)
+		{
+			if(value)
+			{
+				self._solo_button.send(self._colors.soloColor);
+			}
+			else
+			{
+				self._solo_button.turn_off();
+			}
+		}
+	}
+	this.set_solo_button = function(button)
+	{
+		if ((button != self._solo_button)&&(button instanceof(Notifier) || !button))
+		{
+			if(self._solo_button)
+			{
+				self._solo_button.remove_target(self._soloCallback);
+			}
+			self._solo_button = button;
+			if(self._solo_button)
+			{
+				self._solo_button.set_target(self._soloCallback);
+				self.soloListener(self._soloValue);
+			}
+		}
+	}
+	this._track.getSolo().addValueObserver(this.soloListener);
+
+	this._armCallback = function(obj){if(obj._value){self._track.getArm().toggle();}}
+	this.armListener = function(value)
+	{
+		self._armValue = value;
+		if(self._arm_button)
+		{
+			if(value)
+			{
+				self._arm_button.send(self._colors.armColor);
+			}
+			else
+			{
+				self._arm_button.turn_off();
+			}
+		}
+	}
+	this.set_arm_button = function(button)
+	{
+		if ((button != self._arm_button)&&(button instanceof(Notifier) || !button))
+		{
+			if(self._arm_button)
+			{
+				self._arm_button.remove_target(self._armCallback);
+			}
+			self._arm_button = button;
+			if(self._arm_button)
+			{
+				self._arm_button.set_target(self._armCallback);
+				self.armListener(self._armValue);
+			}
+		}
+	}
+	this._track.getArm().addValueObserver(this.armListener);
+
+	this._selectCallback = function(obj){if(obj._value){self._track.select();}}
+	this.selectListener = function(value)
+	{
+		//post(self._name, 'selected', value);
+		self._selectValue = value;
+		if(self._select_button)
+		{
+			if(value)
+			{
+				self._select_button.send(self._colors.selectColor);
+			}
+			else
+			{
+				self._select_button.turn_off();
+			}
+		}
+	}
+	this.set_select_button = function(button)
+	{
+		if ((button != self._select_button)&&(button instanceof(Notifier) || !button))
+		{
+			if(self._select_button)
+			{
+				self._select_button.remove_target(self._selectCallback);
+			}
+			self._select_button = button;
+			if(self._select_button)
+			{
+				self._select_button.set_target(self._selectCallback);
+				self.selectListener(self._selectValue);
+			}
+		}
+	}
+	this._track.addIsSelectedObserver(this.selectListener);
+
+	this._stopCallback = function(obj){if(obj._value){self._track.stop();}}
+	this.set_stop_button = function(button)
+	{
+		if ((button != self._stop_button)&&(button instanceof(Notifier) || !button))
+		{
+			if(self._stop_button)
+			{
+				self._stop_button.remove_target(self._stopCallback);
+			}
+			self._stop_button = button;
+			if(self._stop_button)
+			{
+				self._stop_button.set_target(self._stopCallback);
+			}
+		}
+	}	
+
+	this._send = [];
+	for(var i=0;i<num_sends;i++)
+	{
+		this._send[i] = new SendComponent(i, this._track.getSend(i));
+		this._track.getSend(i).addValueObserver(128, this._send[i]._Listener);
+	}
+	this.set_send_control = function(num, control)
+	{
+		if(num < self._num_sends)
+		{
+			if ((control != self._send[num]._control)&&(control instanceof(Notifier) || !control))
+			{
+				if(self._send[num]._control)
+				{
+					self._send[num]._control.remove_target(self._send[num]._Callback);
+				}
+				self._send[num]._control = control;
+				if(self._send[num]._control)
+				{
+					self._send[num]._control.set_target(self._send[num]._Callback);
+					self._send[num]._Listener(self._send[num]._Value);
+				}
+			}
+		}
+	}			
+
+	this.updateControls = function()
+	{
+		//post('vals:', self._volumeValue, self._muteValue, self._soloValue, self._armValue);
+		self.volumeListener(self._volumeValue);
+		self.muteListener(self._muteValue);
+		self.soloListener(self._soloValue);
+		self.armListener(self._armValue);
+	}
 
 
+}
 
+function SendComponent(num, send)
+{
+	var self = this;
+	this._control;
+	this._num = num;
+	this._Send = send;
+	this._Value = 0;
+	this._Callback = function(obj){if(obj._value){self._Send.set(obj._value, 128);}}
+	this._Listener = function(value)
+	{
+		self._Value = value;
+		if(self._control)
+		{
+			self._control.send(value);
+		}
+	}
+}
 
+/////////////////////////////////////////////////////////////////////////////
+//Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
 
+function TaskServer(interval, script)
+{
+	var self = this;
+	var script = script;
+	this._singleQeue = {};
+	this._repeatQeue = {};
+	var run = function()
+	{
+		for(var task in this._singleQeue)
+		{
+			task(arrayfromargs(arguments));
+			delete this._singleQeue[task];
+		}
+		for(var task in this._singleQeue)
+		{
+			this._repeatQeue[task](arrayfromargs(arguments));
+		}
+	}
+	host.scheduleTask(run, null, interval);
+}
 
+TaskServer.prototype.addSingleTask = function(callback, arguments)
+{
+	if(typeof(callback)==='function')
+	{
+		this._singleQeue[callback] = arguments;
+	}
+}
 
+TaskServer.prototype.addRepeatTask = function(callback, arguments)
+{
+	if(typeof(callback)==='function')
+	{
+		this._repeatQeue[callback] = arguments;
+	}
+}
 
+TaskServer.prototype.removeRepeatTask = function(callback)
+{
+	if(callback in this._repeatQeue)
+	{
+		delete this._repeatQeue[callback];
+	}
+}
 
