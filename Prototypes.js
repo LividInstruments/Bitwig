@@ -564,13 +564,16 @@ Mode.prototype.change_mode = function(value, force)
 Mode.prototype.update = function()
 {
 	var callback = this._mode_callbacks[this._value];
-	try
+	if(callback)
 	{
-		callback();
-	}
-	catch(err)
-	{
-		post('callback error:', err, 'for mode index', this._value,'for', this._name, 'mode component');
+		try
+		{
+			callback();
+		}
+		catch(err)
+		{
+			post('callback error:', err, 'for mode index', this._value,'for', this._name, 'mode component');
+		}
 	}
 	for(var i in this.mode_buttons)
 	{
@@ -599,9 +602,9 @@ Mode.prototype.set_mode_buttons = function(buttons)
 	{
 		for (var i in this.mode_buttons)
 		{
-			this.mode_buttons[i].remove_target([this.mode_value,this]);
+			this.mode_buttons[i].remove_target(this.mode_value);
 		}
-		if (buttons == undefined)
+		if(!buttons)
 		{
 			buttons = [];
 		}
@@ -609,10 +612,9 @@ Mode.prototype.set_mode_buttons = function(buttons)
 		for (var i in buttons)
 		{
 			this.mode_buttons.push(buttons[i]);
-			//buttons[i].set_target([this.mode_value,this]);
 			buttons[i].set_target(this.mode_value);
 		}
-		post('mode buttons length: ' + this._name + ' ' + this.mode_buttons.length)
+		//post('mode buttons length: ' + this._name + ' ' + this.mode_buttons.length)
 	}
 }
 
@@ -875,6 +877,7 @@ function SessionComponent(name, width, height, trackBank)
 					'isEmptyColor' : colors.OFF};
 	this._trackBank = trackBank;
 	this._tracks = [];
+	this._nav_buttons = [];
 	this.width = function(){return width}
 	this.height = function(){return height}
 	for (var t = 0; t < width; t++)
@@ -883,6 +886,12 @@ function SessionComponent(name, width, height, trackBank)
 		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncher(), this);
 	}
 	this.receive_grid = function(button){if(button.pressed()){this_session._tracks[button._x].launch(button._y);}}
+	
+	this._navUp = new GenericParameterComponent(this._name + '_NavUp', 0, this._trackBank, 'scrollScenesUp', 'addCanScrollScenesUpObserver');
+	this._navDn = new GenericParameterComponent(this._name + '_NavDown', 1, this._trackBank, 'scrollScenesDown', 'addCanScrollScenesDownObserver');
+	this._navLt = new GenericParameterComponent(this._name + '_NavLeft', 2, this._trackBank, 'scrollTracksDown', 'addCanScrollTracksDownObserver');
+	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._trackBank, 'scrollTracksUp', 'addCanScrollTracksUpObserver');
+
 }
 
 //SessionComponent.prototype = new SessionComponent();
@@ -910,6 +919,10 @@ SessionComponent.prototype.colors = function()
 {
 	return this._colors;
 }
+
+SessionComponent.prototype.set_navigation_buttons = function(upBtn, dnBtn, ltBtn, rtBtn)
+{
+}	
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding ChannelStrips
@@ -1075,6 +1088,58 @@ function ParameterComponent(name, num, javaObj)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+//Base class for BitWig java container
+
+function GenericParameterComponent(name, num, javaObj, action, monitor, onValue, offValue)
+{
+	ParameterComponent.call( this, name, num, javaObj )
+	var self = this;
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+	if(action){
+		this._Callback = function(obj){if(obj._value){self._Obj[action]();}}
+	}
+	this._Listener = function(value)
+	{
+		self._Value = value;
+		if(self._control)
+		{
+			if(value)
+			{
+				self._control.send(self._onValue);
+			}
+			else
+			{
+				self._control.send(self._offValue);
+			}
+		}
+	}
+	this.set_control = function(control)
+	{
+		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		{
+			if(self._control)
+			{
+				self._control.remove_target(self._Callback);
+			}
+			self._control = control;
+			if(self._control)
+			{
+				self._control.set_target(self._Callback);
+				self._Listener(self._Value);
+			}
+		}
+	}	
+	if(monitor){
+		this._Obj[monitor](this._Listener);
+	}
+}
+
+GenericParameterComponent.prototype = new ParameterComponent();
+
+GenericParameterComponent.prototype.constructor = ParameterComponent;
+
+/////////////////////////////////////////////////////////////////////////////
 //Subclass of ParameterComponent that expects to contain RangedValues
 
 function RangedParameterComponent(name, num, javaObj, range)
@@ -1110,18 +1175,22 @@ function RangedParameterComponent(name, num, javaObj, range)
 	javaObj.addValueObserver(this._Range, this._Listener);
 }
 
+RangedParameterComponent.prototype = new ParameterComponent();
+
 RangedParameterComponent.prototype.constructor = ParameterComponent;
 
 /////////////////////////////////////////////////////////////////////////////
 //Subclass of ParameterComponent that expects to contain Bool values
 
-function ToggledParameterComponent(name, num, javaObj, onValue, offValue)
+function ToggledParameterComponent(name, num, javaObj, onValue, offValue, action, monitor)
 {
 	ParameterComponent.call( this, name, num, javaObj )
 	var self = this;
 	this._onValue = onValue||127;
 	this._offValue = offValue||0;
-	this._Callback = function(obj){if(obj._value){self._Obj.toggle();}}
+	var action = action||'toggle';
+	var monitor = monitor||'addValueObserver';
+	this._Callback = function(obj){if(obj._value){self._Obj[action]();}}
 	this._Listener = function(value)
 	{
 		self._Value = value;
@@ -1153,8 +1222,11 @@ function ToggledParameterComponent(name, num, javaObj, onValue, offValue)
 			}
 		}
 	}
-	javaObj.addValueObserver(this._Listener);
+	//javaObj.addValueObserver(this._Listener);
+	this._Obj[monitor](this._Listener);
 }
+
+ToggledParameterComponent.prototype = new ParameterComponent();
 
 ToggledParameterComponent.prototype.constructor = ParameterComponent;
 
@@ -1171,7 +1243,13 @@ function DeviceComponent(name, size, cursorDevice)
 	for(var i=0;i<size;i++)
 	{
 		this._parameter[i] = new RangedParameterComponent(this._name + '_Parameter_' + i, i, this._cursorDevice.getParameter(i), 128);
-	}	
+	}
+	this._navUp = new GenericParameterComponent(this._name + '_NavUp', 0, this._cursorDevice, 'nextParameterPage');
+	this._navDn = new GenericParameterComponent(this._name + '_NavDown', 1, this._cursorDevice, 'previousParameterPage');
+	this._navLt = new GenericParameterComponent(this._name + '_NavLeft', 2, this._cursorDevice, 'selectNext');
+	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._cursorDevice, 'selectPrevious');
+
+	
 }
 
 /////////////////////////////////////////////////////////////////////////////

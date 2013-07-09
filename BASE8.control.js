@@ -161,7 +161,7 @@ function init()
 	setup_device();
 	setup_tasks();
 	setup_modes();
-	setup_master();
+	setup_fixed_controls();
 
 	LOCAL_OFF();
  	host.scheduleTask(updateDisplay, null, 100);
@@ -243,6 +243,10 @@ function setup_modes()
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
+		session._navUp.set_control(function_buttons[4]);
+		session._navDn.set_control(function_buttons[5]);
+		session._navLt.set_control(function_buttons[6]);
+		session._navRt.set_control(function_buttons[7]);
 		mixer.assign_volume_controls(faderbank);
 		for(var i=0;i<8;i++)
 		{
@@ -255,6 +259,10 @@ function setup_modes()
 	{
 		session.assign_grid(null);
 		mixer.assign_volume_controls(null);
+		session._navUp.set_control();
+		session._navDn.set_control();
+		session._navLt.set_control();
+		session._navRt.set_control();
 		for(var i=0;i<8;i++)
 		{
 			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
@@ -301,10 +309,13 @@ function setup_modes()
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
+		session._navUp.set_control(function_buttons[4]);
+		session._navDn.set_control(function_buttons[5]);
+		session._navLt.set_control(function_buttons[6]);
+		session._navRt.set_control(function_buttons[7]);
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control(faders[i]);
-			//mixer.set_return_control(i, faders[i+4]);
 		}
 		for(var i=0;i<8;i++)
 		{
@@ -317,6 +328,10 @@ function setup_modes()
 	{
 		session.assign_grid(null);
 		mixer.assign_volume_controls(null);
+		session._navUp.set_control();
+		session._navDn.set_control();
+		session._navLt.set_control();
+		session._navRt.set_control();
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control();
@@ -368,7 +383,10 @@ function setup_modes()
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
-		//device.set_parameter_controls(faderbank);
+		device._navUp.set_control(function_buttons[4]);
+		device._navDn.set_control(function_buttons[5]);
+		device._navLt.set_control(function_buttons[6]);
+		device._navRt.set_control(function_buttons[7]);
 		for(var i=0;i<8;i++)
 		{
 			device._parameter[i].set_control(faders[i]);
@@ -381,7 +399,10 @@ function setup_modes()
 	{
 		session.assign_grid(null);
 		mixer.assign_volume_controls(null);
-		//device.set_parameter_controls();
+		device._navUp.set_control();
+		device._navDn.set_control();
+		device._navLt.set_control();
+		device._navRt.set_control();
 		for(var i=0;i<8;i++)
 		{
 			device._parameter[i].set_control(faders[i]);
@@ -433,7 +454,7 @@ function setup_modes()
 
 }
 
-function setup_master()
+function setup_fixed_controls()
 {
 	mixer._masterstrip.set_volume_control(faders[8]);
 }
