@@ -158,7 +158,8 @@ function init()
 	setupTests();
 	setup_session();
 	setup_mixer();
-	//setup_tasks();
+	setup_device();
+	setup_tasks();
 	setup_modes();
 	setup_master();
 
@@ -221,17 +222,20 @@ function setup_mixer()
 	mixer = new MixerComponent('Mixer', 8, 4, trackBank, cursorTrack, masterTrack);
 }
 
+function setup_device()
+{
+	device = new DeviceComponent('Device', 8, cursorDevice);
+}
+
 function setup_tasks()
 {
-	tasks = new TaskServer(100);
+	tasks = new TaskServer(script, 100);
 }
 
 function setup_modes()
 {
 	//Page 0:  Send Control and Instrument throughput
 	clipPage = new Page('ClipPage');
-	clipPage.grid = grid;
-	clipPage.faders = faderbank;
 	clipPage.enter_mode = function()
 	{
 		post('clipPage entered');
@@ -287,7 +291,6 @@ function setup_modes()
 			session.assign_grid(grid);
 		}
 	}
-	//clipPage.register_control(function_buttons[0], clipPage.shiftValue);
 
 	//Page 1:  Send and Return Controls
 	sendPage = new Page('SendPage');
@@ -300,12 +303,12 @@ function setup_modes()
 		session.assign_grid(grid);
 		for(var i=0;i<4;i++)
 		{
-			mixer.selectedstrip().set_send_control(i, faders[i]);
-			mixer.set_return_control(i, faders[i+4]);
+			mixer.selectedstrip()._send[i].set_control(faders[i]);
+			//mixer.set_return_control(i, faders[i+4]);
 		}
 		for(var i=0;i<8;i++)
 		{
-			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+			mixer.channelstrip(i).set_select_button(touch_buttons[i]);
 		}
 		sendPage.set_shift_button(function_buttons[1]);
 		sendPage.active = true;
@@ -316,8 +319,8 @@ function setup_modes()
 		mixer.assign_volume_controls(null);
 		for(var i=0;i<4;i++)
 		{
-			mixer._selectedstrip.set_send_control(i);
-			mixer.set_return_control(i);
+			mixer.selectedstrip()._send[i].set_control();
+			//mixer.set_return_control(i);
 		}
 		for(var i=0;i<8;i++)
 		{
@@ -358,6 +361,64 @@ function setup_modes()
 
 	//Page 2:  Device Control and Mod control
 	devicePage = new Page('DevicePage');
+	devicePage.enter_mode = function()
+	{
+		post('devicePage entered');
+		sendSysex(LIVEBUTTONMODE);
+		grid.reset();
+		faderbank.reset();
+		session.assign_grid(grid);
+		//device.set_parameter_controls(faderbank);
+		for(var i=0;i<8;i++)
+		{
+			device._parameter[i].set_control(faders[i]);
+			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+		}
+		devicePage.set_shift_button(function_buttons[2]);
+		devicePage.active = true;
+	}
+	devicePage.exit_mode = function()
+	{
+		session.assign_grid(null);
+		mixer.assign_volume_controls(null);
+		//device.set_parameter_controls();
+		for(var i=0;i<8;i++)
+		{
+			device._parameter[i].set_control(faders[i]);
+			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+		}
+		devicePage.set_shift_button();
+		devicePage.active = false;
+		post('devicePage exited');
+	}
+	devicePage.update_mode = function()
+	{
+		post('devicePage updated');
+		if(devicePage._shifted)
+		{
+			session.assign_grid(null);
+			grid.reset();
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i).set_mute_button(grid.get_button(i, 0));
+				mixer.channelstrip(i).set_solo_button(grid.get_button(i, 1));
+				mixer.channelstrip(i).set_arm_button(grid.get_button(i, 2));
+				mixer.channelstrip(i).set_stop_button(grid.get_button(i, 3));
+			}
+		}
+		else
+		{
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i).set_mute_button();
+				mixer.channelstrip(i).set_solo_button();
+				mixer.channelstrip(i).set_arm_button();
+				mixer.channelstrip(i).set_stop_button();
+			}
+			grid.reset();
+			session.assign_grid(grid);
+		}
+	}
 
 	//Page 3:  Step Sequencing
 	seqPage = new Page('SequencerPage');

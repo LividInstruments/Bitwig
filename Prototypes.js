@@ -622,7 +622,7 @@ Mode.prototype.set_mode_buttons = function(buttons)
 function ParameterHolder(name, args)
 {
 	Notifier.call( this, name );
-	var this_parameter = this;
+	var self = this;
 	this._parameter = undefined;
 	this._value = 0;
 	for (var i in args)
@@ -983,229 +983,53 @@ function ChannelStripComponent(name, num, track, num_sends)
 	this._num = num;
 	this._num_sends = num_sends;
 	this._track = track;
-	this._volumeValue = 0;
-	this._muteValue = false;
-	this._soloValue = false;
-	this._armValue = false;
-	this._selectValue = false;
-	this._volume_control;
-	this._mute_button;
-	this._solo_button;
-	this._arm_button;
-	this._select_button;
-	this._stop_button;
+
 	this._colors = {'muteColor': colors.YELLOW, 
 					'soloColor':colors.CYAN, 
 					'armColor' : colors.RED,
 					'selectColor' : colors.WHITE};
 
-	this._volumeCallback = function(obj){if(obj._value){self._track.getVolume().set(obj._value, 128);}}
-	this.volumeListener = function(value)
-	{
-		self._volumeValue = value;
-		if(self._volume_control)
-		{
-			self._volume_control.send(value);
-		}	
-	}
-	this.set_volume_control = function(control)
-	{
-		if ((control != self._volume_control)&&(control instanceof(Notifier) || !control))
-		{
-			if(self._volume_control)
-			{
-				self._volume_control.remove_target(self._volumeCallback);
-			}
-			self._volume_control = control;
-			if(self._volume_control)
-			{
-				self._volume_control.set_target(self._volumeCallback);
-				self.volumeListener(self._volumeValue);
-			}
-		}
-	}
-	this._track.getVolume().addValueObserver(128, this.volumeListener);
+	this._volume = new RangedParameterComponent(this._name + '_Volume', 0, this._track.getVolume(), 128);
+	this.set_volume_control = this._volume.set_control;
 
-	this._muteCallback = function(obj){if(obj._value){self._track.getMute().toggle();}}
-	this.muteListener = function(value)
+	this._mute = new ToggledParameterComponent(this._name + '_Mute', 0, this._track.getMute(), this._colors.muteColor);
+	this.set_mute_button = this._mute.set_control;
+
+	this._solo = new ToggledParameterComponent(this._name + '_Solo', 0, this._track.getSolo(), this._colors.soloColor);
+	this.set_solo_button = this._solo.set_control;
+
+	this._arm = new ToggledParameterComponent(this._name + '_Arm', 0, this._track.getArm(), this._colors.armColor);
+	this.set_arm_button = this._arm.set_control;
+
+	this._select = new ParameterComponent(this._name + '_Select', 0, self._track);
+	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
+	this._select._Listener = function(value)
 	{
-		self._muteValue = value;
-		//post('mute listener:', self._name, value, this._muteValue, self._muteValue);
-		if(self._mute_button)
+		self._select._Value = value;
+		if(self._select._control)
 		{
 			if(value)
 			{
-				self._mute_button.send(self._colors.muteColor);
+				self._select._control.send(self._colors.selectColor);
 			}
 			else
 			{
-				self._mute_button.turn_off();
-			}
-		}	
-	}
-	this.set_mute_button = function(button)
-	{
-		if ((button != self._mute_button)&&(button instanceof(Notifier) || !button))
-		{
-			if(self._mute_button)
-			{
-				self._mute_button.remove_target(self._muteCallback);
-			}
-			self._mute_button = button;
-			if(self._mute_button)
-			{
-				self._mute_button.set_target(self._muteCallback);
-				self.muteListener(self._muteValue);
+				self._select._control.turn_off();
 			}
 		}
 	}
-	this._track.getMute().addValueObserver(this.muteListener);
-	
-	this._soloCallback = function(obj){if(obj._value){self._track.getSolo().toggle();}}
-	this.soloListener = function(value)
-	{
-		self._soloValue = value;
-		if(self._solo_button)
-		{
-			if(value)
-			{
-				self._solo_button.send(self._colors.soloColor);
-			}
-			else
-			{
-				self._solo_button.turn_off();
-			}
-		}
-	}
-	this.set_solo_button = function(button)
-	{
-		if ((button != self._solo_button)&&(button instanceof(Notifier) || !button))
-		{
-			if(self._solo_button)
-			{
-				self._solo_button.remove_target(self._soloCallback);
-			}
-			self._solo_button = button;
-			if(self._solo_button)
-			{
-				self._solo_button.set_target(self._soloCallback);
-				self.soloListener(self._soloValue);
-			}
-		}
-	}
-	this._track.getSolo().addValueObserver(this.soloListener);
+	this._track.addIsSelectedObserver(this._select._Listener);
+	this.set_select_button = this._select.set_control;
 
-	this._armCallback = function(obj){if(obj._value){self._track.getArm().toggle();}}
-	this.armListener = function(value)
-	{
-		self._armValue = value;
-		if(self._arm_button)
-		{
-			if(value)
-			{
-				self._arm_button.send(self._colors.armColor);
-			}
-			else
-			{
-				self._arm_button.turn_off();
-			}
-		}
-	}
-	this.set_arm_button = function(button)
-	{
-		if ((button != self._arm_button)&&(button instanceof(Notifier) || !button))
-		{
-			if(self._arm_button)
-			{
-				self._arm_button.remove_target(self._armCallback);
-			}
-			self._arm_button = button;
-			if(self._arm_button)
-			{
-				self._arm_button.set_target(self._armCallback);
-				self.armListener(self._armValue);
-			}
-		}
-	}
-	this._track.getArm().addValueObserver(this.armListener);
-
-	this._selectCallback = function(obj){if(obj._value){self._track.select();}}
-	this.selectListener = function(value)
-	{
-		//post(self._name, 'selected', value);
-		self._selectValue = value;
-		if(self._select_button)
-		{
-			if(value)
-			{
-				self._select_button.send(self._colors.selectColor);
-			}
-			else
-			{
-				self._select_button.turn_off();
-			}
-		}
-	}
-	this.set_select_button = function(button)
-	{
-		if ((button != self._select_button)&&(button instanceof(Notifier) || !button))
-		{
-			if(self._select_button)
-			{
-				self._select_button.remove_target(self._selectCallback);
-			}
-			self._select_button = button;
-			if(self._select_button)
-			{
-				self._select_button.set_target(self._selectCallback);
-				self.selectListener(self._selectValue);
-			}
-		}
-	}
-	this._track.addIsSelectedObserver(this.selectListener);
-
-	this._stopCallback = function(obj){if(obj._value){self._track.stop();}}
-	this.set_stop_button = function(button)
-	{
-		if ((button != self._stop_button)&&(button instanceof(Notifier) || !button))
-		{
-			if(self._stop_button)
-			{
-				self._stop_button.remove_target(self._stopCallback);
-			}
-			self._stop_button = button;
-			if(self._stop_button)
-			{
-				self._stop_button.set_target(self._stopCallback);
-			}
-		}
-	}	
+	this._stop = new ParameterComponent(this._name + '_Stop', 0, self._track);
+	this._stop._Callback = function(obj){if(obj._value){self._track.stop();}}
+	this.set_stop_button = this._stop.set_control;
 
 	this._send = [];
 	for(var i=0;i<num_sends;i++)
 	{
-		this._send[i] = new SendComponent(i, this._track.getSend(i));
-		this._track.getSend(i).addValueObserver(128, this._send[i]._Listener);
+		this._send[i] = new RangedParameterComponent(this._name + '_Send_' + i, i, this._track.getSend(i), 128);
 	}
-	this.set_send_control = function(num, control)
-	{
-		if(num < self._num_sends)
-		{
-			if ((control != self._send[num]._control)&&(control instanceof(Notifier) || !control))
-			{
-				if(self._send[num]._control)
-				{
-					self._send[num]._control.remove_target(self._send[num]._Callback);
-				}
-				self._send[num]._control = control;
-				if(self._send[num]._control)
-				{
-					self._send[num]._control.set_target(self._send[num]._Callback);
-					self._send[num]._Listener(self._send[num]._Value);
-				}
-			}
-		}
-	}			
 
 	this.updateControls = function()
 	{
@@ -1219,14 +1043,46 @@ function ChannelStripComponent(name, num, track, num_sends)
 
 }
 
-function SendComponent(num, send)
+/////////////////////////////////////////////////////////////////////////////
+//Base class for BitWig java container
+
+function ParameterComponent(name, num, javaObj)
 {
 	var self = this;
-	this._control;
+	this._name = name;
 	this._num = num;
-	this._Send = send;
+	this._control;
+	this._Obj = javaObj;
 	this._Value = 0;
-	this._Callback = function(obj){if(obj._value){self._Send.set(obj._value, 128);}}
+	this._Listener = function(value){}
+	this._Callback = function(obj){if(obj._value){self._Obj.set(obj._value);}}
+	this.set_control = function(control)
+	{
+		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		{
+			if(self._control)
+			{
+				self._control.remove_target(self._Callback);
+			}
+			self._control = control;
+			if(self._control)
+			{
+				self._control.set_target(self._Callback);
+				self._Listener(self._Value);
+			}
+		}
+	}	
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//Subclass of ParameterComponent that expects to contain RangedValues
+
+function RangedParameterComponent(name, num, javaObj, range)
+{
+	ParameterComponent.call( this, name, num, javaObj )
+	var self = this;
+	this._Range = range||128;
+	this._Callback = function(obj){if(obj._value){self._Obj.set(obj._value, self._Range);}}
 	this._Listener = function(value)
 	{
 		self._Value = value;
@@ -1235,27 +1091,107 @@ function SendComponent(num, send)
 			self._control.send(value);
 		}
 	}
+	this.set_control = function(control)
+	{
+		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		{
+			if(self._control)
+			{
+				self._control.remove_target(self._Callback);
+			}
+			self._control = control;
+			if(self._control)
+			{
+				self._control.set_target(self._Callback);
+				self._Listener(self._Value);
+			}
+		}
+	}
+	javaObj.addValueObserver(this._Range, this._Listener);
+}
+
+RangedParameterComponent.prototype.constructor = ParameterComponent;
+
+/////////////////////////////////////////////////////////////////////////////
+//Subclass of ParameterComponent that expects to contain Bool values
+
+function ToggledParameterComponent(name, num, javaObj, onValue, offValue)
+{
+	ParameterComponent.call( this, name, num, javaObj )
+	var self = this;
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+	this._Callback = function(obj){if(obj._value){self._Obj.toggle();}}
+	this._Listener = function(value)
+	{
+		self._Value = value;
+		if(self._control)
+		{
+			if(value)
+			{
+				self._control.send(self._onValue);
+			}
+			else
+			{
+				self._control.send(self._offValue);
+			}
+		}
+	}
+	this.set_control = function(control)
+	{
+		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		{
+			if(self._control)
+			{
+				self._control.remove_target(self._Callback);
+			}
+			self._control = control;
+			if(self._control)
+			{
+				self._control.set_target(self._Callback);
+				self._Listener(self._Value);
+			}
+		}
+	}
+	javaObj.addValueObserver(this._Listener);
+}
+
+ToggledParameterComponent.prototype.constructor = ParameterComponent;
+
+/////////////////////////////////////////////////////////////////////////////
+//Component containing controls for currently controlled cursorDevice
+
+function DeviceComponent(name, size, cursorDevice)
+{
+	var self = this;
+	this._name = name;
+	this._size = size;
+	this._cursorDevice = cursorDevice;
+	this._parameter = [];
+	for(var i=0;i<size;i++)
+	{
+		this._parameter[i] = new RangedParameterComponent(this._name + '_Parameter_' + i, i, this._cursorDevice.getParameter(i), 128);
+	}	
 }
 
 /////////////////////////////////////////////////////////////////////////////
 //Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
 
-function TaskServer(interval, script)
+function TaskServer(script, interval)
 {
 	var self = this;
-	var script = script;
-	this._singleQeue = {};
-	this._repeatQeue = {};
+	this._singleQeue = [];
+	this._repeatQeue = [];
 	var run = function()
 	{
 		for(var task in this._singleQeue)
 		{
-			task(arrayfromargs(arguments));
+			script[task].call(script, this._singleQeue[task]);
 			delete this._singleQeue[task];
 		}
 		for(var task in this._singleQeue)
 		{
-			this._repeatQeue[task](arrayfromargs(arguments));
+			script[task].call(script, this._repeatQeue[task]);
 		}
 	}
 	host.scheduleTask(run, null, interval);
@@ -1265,7 +1201,7 @@ TaskServer.prototype.addSingleTask = function(callback, arguments)
 {
 	if(typeof(callback)==='function')
 	{
-		this._singleQeue[callback] = arguments;
+		this._singleQeue.push([callback, arguments]);
 	}
 }
 
@@ -1273,15 +1209,18 @@ TaskServer.prototype.addRepeatTask = function(callback, arguments)
 {
 	if(typeof(callback)==='function')
 	{
-		this._repeatQeue[callback] = arguments;
+		this._repeatQeue.push([callback, arguments]);
 	}
 }
 
-TaskServer.prototype.removeRepeatTask = function(callback)
+TaskServer.prototype.removeRepeatTask = function(callback, arguments)
 {
-	if(callback in this._repeatQeue)
+	for(var i in this._repeatQeue)
 	{
-		delete this._repeatQeue[callback];
+		if(this._repeatQeue[i]==[callback, arguments])
+		{
+			delete this._repeatQeue[i];
+		}
 	}
 }
 
