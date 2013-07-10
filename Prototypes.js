@@ -865,19 +865,19 @@ ClipLaunchComponent.prototype.get_clipslot = function(slot)
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks and scenes, assignable to grid
 
-function SessionComponent(name, width, height, trackBank)
+function SessionComponent(name, width, height, trackBank, _colors)
 {
 	var this_session = this;
 	this._name = name;
 	this._grid = undefined;
-	this._colors = {'hasContentColor': colors.WHITE, 
+	this._colors = _colors||{'hasContentColor': colors.WHITE, 
 					'isPlayingColor':colors.GREEN, 
 					'isQueuedColor' : colors.YELLOW,
 					'isRecordingColor' : colors.RED,
-					'isEmptyColor' : colors.OFF};
+					'isEmptyColor' : colors.OFF,
+					'navColor' : colors.BLUE};
 	this._trackBank = trackBank;
 	this._tracks = [];
-	this._nav_buttons = [];
 	this.width = function(){return width}
 	this.height = function(){return height}
 	for (var t = 0; t < width; t++)
@@ -887,10 +887,10 @@ function SessionComponent(name, width, height, trackBank)
 	}
 	this.receive_grid = function(button){if(button.pressed()){this_session._tracks[button._x].launch(button._y);}}
 	
-	this._navUp = new GenericParameterComponent(this._name + '_NavUp', 0, this._trackBank, 'scrollScenesUp', 'addCanScrollScenesUpObserver');
-	this._navDn = new GenericParameterComponent(this._name + '_NavDown', 1, this._trackBank, 'scrollScenesDown', 'addCanScrollScenesDownObserver');
-	this._navLt = new GenericParameterComponent(this._name + '_NavLeft', 2, this._trackBank, 'scrollTracksDown', 'addCanScrollTracksDownObserver');
-	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._trackBank, 'scrollTracksUp', 'addCanScrollTracksUpObserver');
+	this._navUp = new GenericParameterComponent(this._name + '_NavUp', 0, this._trackBank, 'scrollScenesUp', 'addCanScrollScenesUpObserver', this._colors.navColor);
+	this._navDn = new GenericParameterComponent(this._name + '_NavDown', 1, this._trackBank, 'scrollScenesDown', 'addCanScrollScenesDownObserver', this._colors.navColor);
+	this._navLt = new GenericParameterComponent(this._name + '_NavLeft', 2, this._trackBank, 'scrollTracksDown', 'addCanScrollTracksDownObserver', this._colors.navColor);
+	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._trackBank, 'scrollTracksUp', 'addCanScrollTracksUpObserver', this._colors.navColor);
 
 }
 
@@ -920,14 +920,12 @@ SessionComponent.prototype.colors = function()
 	return this._colors;
 }
 
-SessionComponent.prototype.set_navigation_buttons = function(upBtn, dnBtn, ltBtn, rtBtn)
-{
-}	
+SessionComponent.prototype.set_navigation_buttons = function(upBtn, dnBtn, ltBtn, rtBtn){}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding ChannelStrips
 
-function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack, masterTrack)
+function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack, masterTrack, _colors)
 {
 	var self = this;
 	this._name = name;
@@ -937,10 +935,10 @@ function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack,
 	this._channelstrips = [];
 	for (var cs = 0;cs < num_channels; cs++)
 	{
-		this._channelstrips[cs] = new ChannelStripComponent(this._name + '_ChannelStrip_' + cs, cs, trackBank.getTrack(cs), num_returns);
+		this._channelstrips[cs] = new ChannelStripComponent(this._name + '_ChannelStrip_' + cs, cs, trackBank.getTrack(cs), num_returns, _colors);
 	}
-	this._selectedstrip = new ChannelStripComponent(this._name + '_SelectedStrip', -1, this._cursorTrack, num_returns);
-	this._masterstrip = new ChannelStripComponent(this._name + '_MasterStrip', -2, this._masterTrack, 0);
+	this._selectedstrip = new ChannelStripComponent(this._name + '_SelectedStrip', -1, this._cursorTrack, num_returns, _colors);
+	this._masterstrip = new ChannelStripComponent(this._name + '_MasterStrip', -2, this._masterTrack, 0, _colors);
 }
 
 MixerComponent.prototype.channelstrip = function(num)
@@ -989,7 +987,7 @@ MixerComponent.prototype.set_return_control = function(num, controls){}
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding controls, values
 
-function ChannelStripComponent(name, num, track, num_sends)
+function ChannelStripComponent(name, num, track, num_sends, _colors)
 {
 	var self = this;
 	this._name = name;
@@ -997,7 +995,7 @@ function ChannelStripComponent(name, num, track, num_sends)
 	this._num_sends = num_sends;
 	this._track = track;
 
-	this._colors = {'muteColor': colors.YELLOW, 
+	this._colors = _colors||{'muteColor': colors.YELLOW, 
 					'soloColor':colors.CYAN, 
 					'armColor' : colors.RED,
 					'selectColor' : colors.WHITE};
@@ -1005,13 +1003,13 @@ function ChannelStripComponent(name, num, track, num_sends)
 	this._volume = new RangedParameterComponent(this._name + '_Volume', 0, this._track.getVolume(), 128);
 	this.set_volume_control = this._volume.set_control;
 
-	this._mute = new ToggledParameterComponent(this._name + '_Mute', 0, this._track.getMute(), this._colors.muteColor);
+	this._mute = new GenericParameterComponent(this._name + '_Mute', 0, this._track.getMute(), 'toggle', 'addValueObserver', this._colors.muteColor);
 	this.set_mute_button = this._mute.set_control;
 
-	this._solo = new ToggledParameterComponent(this._name + '_Solo', 0, this._track.getSolo(), this._colors.soloColor);
+	this._solo = new GenericParameterComponent(this._name + '_Solo', 0, this._track.getSolo(), 'toggle', 'addValueObserver', this._colors.soloColor);
 	this.set_solo_button = this._solo.set_control;
 
-	this._arm = new ToggledParameterComponent(this._name + '_Arm', 0, this._track.getArm(), this._colors.armColor);
+	this._arm = new GenericParameterComponent(this._name + '_Arm', 0, this._track.getArm(), 'toggle', 'addValueObserver', this._colors.armColor);
 	this.set_arm_button = this._arm.set_control;
 
 	this._select = new ParameterComponent(this._name + '_Select', 0, self._track);
@@ -1093,25 +1091,16 @@ function ParameterComponent(name, num, javaObj)
 function GenericParameterComponent(name, num, javaObj, action, monitor, onValue, offValue)
 {
 	ParameterComponent.call( this, name, num, javaObj )
+	//post('colors:', this._name, onValue, offValue);
 	var self = this;
 	this._onValue = onValue||127;
 	this._offValue = offValue||0;
-	if(action){
-		this._Callback = function(obj){if(obj._value){self._Obj[action]();}}
-	}
-	this._Listener = function(value)
-	{
+	if(action){this._Callback = function(obj){if(obj._value){self._Obj[action]();}}}
+	this._Listener = function(value){
 		self._Value = value;
-		if(self._control)
-		{
-			if(value)
-			{
-				self._control.send(self._onValue);
-			}
-			else
-			{
-				self._control.send(self._offValue);
-			}
+		if(self._control){
+			if(value){self._control.send(self._onValue);}
+			else{self._control.send(self._offValue);}
 		}
 	}
 	this.set_control = function(control)
@@ -1130,14 +1119,18 @@ function GenericParameterComponent(name, num, javaObj, action, monitor, onValue,
 			}
 		}
 	}	
-	if(monitor){
-		this._Obj[monitor](this._Listener);
-	}
+	if(monitor){this._Obj[monitor](this._Listener);}
 }
 
 GenericParameterComponent.prototype = new ParameterComponent();
 
 GenericParameterComponent.prototype.constructor = ParameterComponent;
+
+GenericParameterComponent.prototype.set_on_off_colors = function(onValue, offValue)
+{
+	this._onValue = onValue;
+	this._offValue = offValue;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Subclass of ParameterComponent that expects to contain RangedValues
@@ -1184,7 +1177,7 @@ RangedParameterComponent.prototype.constructor = ParameterComponent;
 
 function ToggledParameterComponent(name, num, javaObj, onValue, offValue, action, monitor)
 {
-	ParameterComponent.call( this, name, num, javaObj )
+	GenericParameterComponent.call( this, name, num, javaObj )
 	var self = this;
 	this._onValue = onValue||127;
 	this._offValue = offValue||0;
@@ -1222,13 +1215,13 @@ function ToggledParameterComponent(name, num, javaObj, onValue, offValue, action
 			}
 		}
 	}
-	//javaObj.addValueObserver(this._Listener);
 	this._Obj[monitor](this._Listener);
 }
 
 ToggledParameterComponent.prototype = new ParameterComponent();
 
 ToggledParameterComponent.prototype.constructor = ParameterComponent;
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing controls for currently controlled cursorDevice
