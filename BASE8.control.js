@@ -234,12 +234,46 @@ function setup_tasks()
 
 function setup_modes()
 {
+	
+	volumeFadersSub = new Page('VolumeFadersSub');
+	volumeFadersSub.enter_mode = function()
+	{
+		post('volumeFadersSub entered');
+		sendSysex('F0 00 01 61 0C 3D 07 07 07 07 07 07 07 07 02 F7');
+		faderbank.reset();
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._mute.set_control(grid.get_button(i, 0));
+			mixer.channelstrip(i)._solo.set_control(grid.get_button(i, 1));
+			mixer.channelstrip(i)._arm.set_control(grid.get_button(i, 2));
+			mixer.channelstrip(i)._stop.set_control(grid.get_button(i, 3));
+		}
+		volumeFadersSub.active = true;
+	}
+	volumeFadersSub.exit_mode = function()
+	{
+		post('volumeFadersSub exit');
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control();
+			mixer.channelstrip(i)._mute.set_control();
+			mixer.channelstrip(i)._solo.set_control();
+			mixer.channelstrip(i)._arm.set_control();
+			mixer.channelstrip(i)._stop.set_control();
+		}
+		volumeFadersSub.active = false;
+	}
+
+
+		
 	//Page 0:  Send Control and Instrument throughput
 	clipPage = new Page('ClipPage');
 	clipPage.enter_mode = function()
 	{
 		post('clipPage entered');
 		sendSysex(LIVEBUTTONMODE);
+		sendSysex('F0 00 01 61 0C 3D 07 07 07 07 07 07 07 07 02 F7');
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
@@ -247,10 +281,10 @@ function setup_modes()
 		session._navDn.set_control(function_buttons[5]);
 		session._navLt.set_control(function_buttons[6]);
 		session._navRt.set_control(function_buttons[7]);
-		mixer.assign_volume_controls(faderbank);
 		for(var i=0;i<8;i++)
 		{
-			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		clipPage.set_shift_button(function_buttons[0]);
 		clipPage.active = true;
@@ -258,14 +292,14 @@ function setup_modes()
 	clipPage.exit_mode = function()
 	{
 		session.assign_grid(null);
-		mixer.assign_volume_controls(null);
 		session._navUp.set_control();
 		session._navDn.set_control();
 		session._navLt.set_control();
 		session._navRt.set_control();
 		for(var i=0;i<8;i++)
 		{
-			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		clipPage.set_shift_button();
 		clipPage.active = false;
@@ -274,29 +308,28 @@ function setup_modes()
 	clipPage.update_mode = function()
 	{
 		post('clipPage updated');
+		grid.reset();
 		if(clipPage._shifted)
 		{
 			session.assign_grid(null);
-			grid.reset();
 			for(var i=0;i<8;i++)
 			{
-				mixer.channelstrip(i).set_mute_button(grid.get_button(i, 0));
-				mixer.channelstrip(i).set_solo_button(grid.get_button(i, 1));
-				mixer.channelstrip(i).set_arm_button(grid.get_button(i, 2));
-				mixer.channelstrip(i).set_stop_button(grid.get_button(i, 3));
+				mixer.channelstrip(i)._mute.set_control(grid.get_button(i, 0));
+				mixer.channelstrip(i)._solo.set_control(grid.get_button(i, 1));
+				mixer.channelstrip(i)._arm.set_control(grid.get_button(i, 2));
+				mixer.channelstrip(i)._stop.set_control(grid.get_button(i, 3));
 			}
 		}
 		else
 		{
 			for(var i=0;i<8;i++)
 			{
-				mixer.channelstrip(i).set_mute_button();
-				mixer.channelstrip(i).set_solo_button();
-				mixer.channelstrip(i).set_arm_button();
-				mixer.channelstrip(i).set_stop_button();
+				mixer.channelstrip(i)._mute.set_control();
+				mixer.channelstrip(i)._solo.set_control();
+				mixer.channelstrip(i)._arm.set_control();
+				mixer.channelstrip(i)._stop.set_control();
 			}
-			grid.reset();
-			session.assign_grid(grid);
+			clipPage.enter_mode();
 		}
 	}
 
@@ -306,8 +339,9 @@ function setup_modes()
 	{
 		post('sendPage entered');
 		sendSysex(LIVEBUTTONMODE);
-		grid.reset();
-		faderbank.reset();
+		sendSysex('F0 00 01 61 0C 3D 05 05 05 05 04 04 04 04 02 F7');
+		//grid.reset();
+		//faderbank.reset();
 		session.assign_grid(grid);
 		session._navUp.set_control(function_buttons[4]);
 		session._navDn.set_control(function_buttons[5]);
@@ -319,7 +353,7 @@ function setup_modes()
 		}
 		for(var i=0;i<8;i++)
 		{
-			mixer.channelstrip(i).set_select_button(touch_buttons[i]);
+			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		sendPage.set_shift_button(function_buttons[1]);
 		sendPage.active = true;
@@ -327,7 +361,6 @@ function setup_modes()
 	sendPage.exit_mode = function()
 	{
 		session.assign_grid(null);
-		mixer.assign_volume_controls(null);
 		session._navUp.set_control();
 		session._navDn.set_control();
 		session._navLt.set_control();
@@ -337,40 +370,23 @@ function setup_modes()
 			mixer.selectedstrip()._send[i].set_control();
 			//mixer.set_return_control(i);
 		}
-		for(var i=0;i<8;i++)
-		{
-			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
-		}
 		sendPage.set_shift_button();
 		sendPage.active = false;
 		post('sendPage exited');
 	}
 	sendPage.update_mode = function()
 	{
-		post('sendPage updated');
+		grid.reset();
+		faderbank.reset();
+		post('sendPage shift');
 		if(sendPage._shifted)
 		{
-			session.assign_grid(null);
-			grid.reset();
-			for(var i=0;i<8;i++)
-			{
-				mixer.channelstrip(i).set_mute_button(grid.get_button(i, 0));
-				mixer.channelstrip(i).set_solo_button(grid.get_button(i, 1));
-				mixer.channelstrip(i).set_arm_button(grid.get_button(i, 2));
-				mixer.channelstrip(i).set_stop_button(grid.get_button(i, 3));
-			}
+			volumeFadersSub.enter_mode();
 		}
 		else
 		{
-			for(var i=0;i<8;i++)
-			{
-				mixer.channelstrip(i).set_mute_button();
-				mixer.channelstrip(i).set_solo_button();
-				mixer.channelstrip(i).set_arm_button();
-				mixer.channelstrip(i).set_stop_button();
-			}
-			grid.reset();
-			session.assign_grid(grid);
+			volumeFadersSub.exit_mode();	
+			sendPage.enter_mode();
 		}
 	}
 
@@ -380,6 +396,7 @@ function setup_modes()
 	{
 		post('devicePage entered');
 		sendSysex(LIVEBUTTONMODE);
+		sendSysex('F0 00 01 61 0C 3D 06 06 06 06 06 06 06 06 02 F7');
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
@@ -390,7 +407,7 @@ function setup_modes()
 		for(var i=0;i<8;i++)
 		{
 			device._parameter[i].set_control(faders[i]);
-			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		devicePage.set_shift_button(function_buttons[2]);
 		devicePage.active = true;
@@ -398,7 +415,6 @@ function setup_modes()
 	devicePage.exit_mode = function()
 	{
 		session.assign_grid(null);
-		mixer.assign_volume_controls(null);
 		device._navUp.set_control();
 		device._navDn.set_control();
 		device._navLt.set_control();
@@ -406,7 +422,7 @@ function setup_modes()
 		for(var i=0;i<8;i++)
 		{
 			device._parameter[i].set_control(faders[i]);
-			mixer._channelstrips[i].set_select_button(touch_buttons[i]);
+			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		devicePage.set_shift_button();
 		devicePage.active = false;
@@ -415,29 +431,16 @@ function setup_modes()
 	devicePage.update_mode = function()
 	{
 		post('devicePage updated');
+		grid.reset();
+		faderbank.reset();
 		if(devicePage._shifted)
 		{
-			session.assign_grid(null);
-			grid.reset();
-			for(var i=0;i<8;i++)
-			{
-				mixer.channelstrip(i).set_mute_button(grid.get_button(i, 0));
-				mixer.channelstrip(i).set_solo_button(grid.get_button(i, 1));
-				mixer.channelstrip(i).set_arm_button(grid.get_button(i, 2));
-				mixer.channelstrip(i).set_stop_button(grid.get_button(i, 3));
-			}
+			volumeFadersSub.enter_mode();
 		}
 		else
 		{
-			for(var i=0;i<8;i++)
-			{
-				mixer.channelstrip(i).set_mute_button();
-				mixer.channelstrip(i).set_solo_button();
-				mixer.channelstrip(i).set_arm_button();
-				mixer.channelstrip(i).set_stop_button();
-			}
-			grid.reset();
-			session.assign_grid(grid);
+			volumeFadersSub.exit_mode();
+			devicePage.enter_mode();
 		}
 	}
 
@@ -452,11 +455,15 @@ function setup_modes()
 	MainModes.add_mode(3, seqPage);
 	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
 
+	function_buttons[0].set_on_off_values(colors.WHITE);
+	function_buttons[1].set_on_off_values(colors.CYAN);
+	function_buttons[2].set_on_off_values(colors.BLUE);
+	function_buttons[3].set_on_off_values(colors.RED);
 }
 
 function setup_fixed_controls()
 {
-	mixer._masterstrip.set_volume_control(faders[8]);
+	mixer._masterstrip._volume.set_control(faders[8]);
 }
 
 function updateDisplay(){}
@@ -485,6 +492,7 @@ function onSysex(data)
 {
 	printSysex(data);
 }
+
 
 
 

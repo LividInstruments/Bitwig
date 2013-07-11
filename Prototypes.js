@@ -269,8 +269,8 @@ function Button(identifier, name)
 	Control.call( this, identifier, name );
 	var this_button = this;
 	this._type = NOTE_TYPE;
-	this._on_value = 127;
-	this._off_value = 0;
+	this._onValue = 127;
+	this._offValue = 0;
 	register_control(this);
 }
 
@@ -290,12 +290,18 @@ Button.prototype.send = function(value)
 
 Button.prototype.turn_on = function()
 {
-	this.send(this._on_value);
+	this.send(this._onValue);
 }
 
 Button.prototype.turn_off = function()
 {
-	this.send(this._off_value);
+	this.send(this._offValue);
+}
+
+Button.prototype.set_on_off_values = function(onValue, offValue)
+{
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -349,9 +355,9 @@ TouchFader.prototype = new Slider();
 
 TouchFader.prototype.constructor = TouchFader;
 
-TouchFader.prototype.set_color = function(){}//not implemented
+TouchFader.prototype.set_color = function(color){}//not implemented
 
-TouchFader.prototype.set_mode = function(){}//not implemented
+TouchFader.prototype.set_mode = function(mode){}//not implemented
 
 ////////////////////////////////////////////////////////////////////////////
 //A notifier that collects a bank of Sliders
@@ -968,14 +974,14 @@ MixerComponent.prototype.assign_volume_controls = function(controls)
 	{
 		for (var i in this._channelstrips)
 		{
-			this._channelstrips[i].set_volume_control(controls.get_fader(i));
+			this._channelstrips[i]._volume.set_control(controls.get_fader(i));
 		}
 	}
 	else
 	{
 		for (var i in this._channelstrips)
 		{
-			this._channelstrips[i].set_volume_control(null);
+			this._channelstrips[i]._volume.set_control();
 		}
 	}
 }
@@ -1001,40 +1007,18 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 					'selectColor' : colors.WHITE};
 
 	this._volume = new RangedParameterComponent(this._name + '_Volume', 0, this._track.getVolume(), 128);
-	this.set_volume_control = this._volume.set_control;
 
-	this._mute = new GenericParameterComponent(this._name + '_Mute', 0, this._track.getMute(), 'toggle', 'addValueObserver', this._colors.muteColor);
-	this.set_mute_button = this._mute.set_control;
+	this._mute = new ToggledParameterComponent(this._name + '_Mute', 0, this._track.getMute(), 'toggle', 'addValueObserver', this._colors.muteColor);
 
-	this._solo = new GenericParameterComponent(this._name + '_Solo', 0, this._track.getSolo(), 'toggle', 'addValueObserver', this._colors.soloColor);
-	this.set_solo_button = this._solo.set_control;
+	this._solo = new ToggledParameterComponent(this._name + '_Solo', 0, this._track.getSolo(), 'toggle', 'addValueObserver', this._colors.soloColor);
 
-	this._arm = new GenericParameterComponent(this._name + '_Arm', 0, this._track.getArm(), 'toggle', 'addValueObserver', this._colors.armColor);
-	this.set_arm_button = this._arm.set_control;
+	this._arm = new ToggledParameterComponent(this._name + '_Arm', 0, this._track.getArm(), 'toggle', 'addValueObserver', this._colors.armColor);
 
-	this._select = new ParameterComponent(this._name + '_Select', 0, self._track);
+	this._select = new GenericParameterComponent(this._name + '_Select', 0, self._track, 'select', 'addIsSelectedObserver', this._colors.selectColor);
 	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
-	this._select._Listener = function(value)
-	{
-		self._select._Value = value;
-		if(self._select._control)
-		{
-			if(value)
-			{
-				self._select._control.send(self._colors.selectColor);
-			}
-			else
-			{
-				self._select._control.turn_off();
-			}
-		}
-	}
-	this._track.addIsSelectedObserver(this._select._Listener);
-	this.set_select_button = this._select.set_control;
 
 	this._stop = new ParameterComponent(this._name + '_Stop', 0, self._track);
 	this._stop._Callback = function(obj){if(obj._value){self._track.stop();}}
-	this.set_stop_button = this._stop.set_control;
 
 	this._send = [];
 	for(var i=0;i<num_sends;i++)
@@ -1069,7 +1053,7 @@ function ParameterComponent(name, num, javaObj)
 	this._Callback = function(obj){if(obj._value){self._Obj.set(obj._value);}}
 	this.set_control = function(control)
 	{
-		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		if (control instanceof(Notifier) || !control)
 		{
 			if(self._control)
 			{
@@ -1095,17 +1079,25 @@ function GenericParameterComponent(name, num, javaObj, action, monitor, onValue,
 	var self = this;
 	this._onValue = onValue||127;
 	this._offValue = offValue||0;
-	if(action){this._Callback = function(obj){if(obj._value){self._Obj[action]();}}}
-	this._Listener = function(value){
+	if(action){this._Callback = function(obj){if(obj._value!=undefined){self._Obj[action]();}}}
+	this._Listener = function(value)
+	{
 		self._Value = value;
-		if(self._control){
-			if(value){self._control.send(self._onValue);}
-			else{self._control.send(self._offValue);}
+		if(self._control)
+		{
+			if(value)
+			{
+				self._control.send(self._onValue);
+			}
+			else
+			{
+				self._control.send(self._offValue);
+			}
 		}
 	}
 	this.set_control = function(control)
 	{
-		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		if (control instanceof(Notifier) || !control)
 		{
 			if(self._control)
 			{
@@ -1140,7 +1132,7 @@ function RangedParameterComponent(name, num, javaObj, range)
 	ParameterComponent.call( this, name, num, javaObj )
 	var self = this;
 	this._Range = range||128;
-	this._Callback = function(obj){if(obj._value){self._Obj.set(obj._value, self._Range);}}
+	this._Callback = function(obj){if(obj._value!=undefined){self._Obj.set(obj._value, self._Range);}}
 	this._Listener = function(value)
 	{
 		self._Value = value;
@@ -1151,7 +1143,7 @@ function RangedParameterComponent(name, num, javaObj, range)
 	}
 	this.set_control = function(control)
 	{
-		if ((control != self._control)&&(control instanceof(Notifier) || !control))
+		if (control instanceof(Notifier) || !control)
 		{
 			if(self._control)
 			{
@@ -1175,53 +1167,16 @@ RangedParameterComponent.prototype.constructor = ParameterComponent;
 /////////////////////////////////////////////////////////////////////////////
 //Subclass of ParameterComponent that expects to contain Bool values
 
-function ToggledParameterComponent(name, num, javaObj, onValue, offValue, action, monitor)
+function ToggledParameterComponent(name, num, javaObj, action, monitor, onValue, offValue )
 {
-	GenericParameterComponent.call( this, name, num, javaObj )
+	GenericParameterComponent.call( this, name, num, javaObj, action, monitor, onValue, offValue )
 	var self = this;
-	this._onValue = onValue||127;
-	this._offValue = offValue||0;
-	var action = action||'toggle';
-	var monitor = monitor||'addValueObserver';
 	this._Callback = function(obj){if(obj._value){self._Obj[action]();}}
-	this._Listener = function(value)
-	{
-		self._Value = value;
-		if(self._control)
-		{
-			if(value)
-			{
-				self._control.send(self._onValue);
-			}
-			else
-			{
-				self._control.send(self._offValue);
-			}
-		}
-	}
-	this.set_control = function(control)
-	{
-		if ((control != self._control)&&(control instanceof(Notifier) || !control))
-		{
-			if(self._control)
-			{
-				self._control.remove_target(self._Callback);
-			}
-			self._control = control;
-			if(self._control)
-			{
-				self._control.set_target(self._Callback);
-				self._Listener(self._Value);
-			}
-		}
-	}
-	this._Obj[monitor](this._Listener);
 }
 
 ToggledParameterComponent.prototype = new ParameterComponent();
 
 ToggledParameterComponent.prototype.constructor = ParameterComponent;
-
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing controls for currently controlled cursorDevice
