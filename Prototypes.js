@@ -10,6 +10,35 @@ const colors = {OFF : 0, WHITE : 1, CYAN : 5, MAGENTA : 9, RED : 17, BLUE : 33, 
 
 NOTE_OBJECTS = new Array(128);
 CC_OBJECTS = new Array(128);
+
+var noteInput = {'setNoteKeyMap':function(){}};
+var midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}}; 
+var midiNoteBuffer = {};
+var midiCCBuffer = {};
+
+var recalculate_translation_map = true;
+
+var Note_Translation_Table = [];
+for (var i=0;i<128;i++) {Note_Translation_Table[i] = -1}
+
+//this function initializes all the prototype core processes.  It should be called during init().
+function initialize_prototypes()
+{
+	registerControlDicts();
+ 	host.scheduleTask(flush, null, 100);
+}
+
+function extend(destination, source)
+{
+	for (var k in source) 
+	{
+		if (source.hasOwnProperty(k))
+		{
+			destination[k] = source[k];
+		}
+	}
+	return destination; 
+}
 	
 //simple utility function to flatten incoming arguments to a function
 function arrayfromargs(args)
@@ -53,6 +82,26 @@ function register_control(control)
 	else if(control._type == CC_TYPE)
 	{
 		CC_OBJECTS[control._id] = control;
+	}
+}
+
+function flush()
+{
+	for(var type in midiBuffer)
+	{
+		var buf = midiBuffer[type];
+		for(var index in buf)
+		{
+			var Event = buf[index];
+			Event[0]._send(Event[1]);
+		}
+	}
+	midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}}; 
+	if(recalculate_translation_map)
+	{
+		//post('Note_Translation_Table:', Note_Translation_Table);
+		noteInput.setNoteKeyMap(Note_Translation_Table);
+		recalculate_translation_map = false;
 	}
 }
 
@@ -242,24 +291,17 @@ Control.prototype.constructor = Control;
 
 Control.prototype.identifier = function(){return this._id;}
 
-Control.prototype.send = function(value){}//this should be overridden by subclass
+Control.prototype._send = function(value){}//this should be overridden by subclass
+
+Control.prototype.send = function(value)
+{
+	midiBuffer[this._type][this._id] = [this, value];
+}
 
 Control.prototype.reset = function()
 {
 	this.send(0);
 }
-
-/*Control.prototype.receive = function(value)
-{
-	this._value = value;
-	this.notify();
-}*/
-
-/*Control.prototype.receive_notifier = function(notification)
-{
-	//post(this._name, 'received notifier', notification._value);
-	this.send(notification._value);
-}*/
 
 //////////////////////////////////////////////////////////////////////////
 //A NOTE_TYPE Control
@@ -271,6 +313,7 @@ function Button(identifier, name)
 	this._type = NOTE_TYPE;
 	this._onValue = 127;
 	this._offValue = 0;
+	this._translation = -1;
 	register_control(this);
 }
 
@@ -283,7 +326,7 @@ Button.prototype.pressed = function()
 	return this._value > 0;
 }
 
-Button.prototype.send = function(value)
+Button.prototype._send = function(value)
 {
 	sendNoteOn(this._channel, this._id, value);
 }
@@ -302,6 +345,14 @@ Button.prototype.set_on_off_values = function(onValue, offValue)
 {
 	this._onValue = onValue||127;
 	this._offValue = offValue||0;
+}
+
+Button.prototype.set_translation = function(newID)
+{
+	//post(this._name, 'set translation', this._id, newID);
+	this._translation = newID;
+	Note_Translation_Table[this._id] = this._translation;
+	recalculate_translation_map = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -337,7 +388,7 @@ Slider.prototype = new Control();
 
 Slider.prototype.constructor = Slider;
 
-Slider.prototype.send = function(value)
+Slider.prototype._send = function(value)
 {
 	sendChannelController(this._channel, this._id, value);
 }
@@ -637,17 +688,16 @@ function ParameterHolder(name, args)
 	{
 		this[i] = args[i];
 	}
+	this.receive = function(value)
+	{
+		self._value = value;
+		self.notify();
+	}
 }
 
 ParameterHolder.prototype = new Notifier();
 
 ParameterHolder.prototype.constructor = ParameterHolder;
-
-ParameterHolder.prototype.receive = function(value)
-{
-	this._value = parseInt(value);
-	this.notify();
-}
 
 /////////////////////////////////////////////////////////////////////////////
 //PageStack is a Mode subclass that handles entering/leaving pages automatically
@@ -904,6 +954,10 @@ function SessionComponent(name, width, height, trackBank, _colors)
 
 SessionComponent.prototype.assign_grid = function(new_grid)
 {
+	if(this._grid!=undefined)
+	{
+		this._grid.remove_target(this.receive_grid);
+	}
 	if ((new_grid instanceof Grid) && (new_grid.width() == this.width()) && (new_grid.height() == this.height()))
 	{
 		this._grid = new_grid;
@@ -1039,10 +1093,57 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 }
 
 /////////////////////////////////////////////////////////////////////////////
+//Base class for a parameter object
+
+function ParameterComponent(name, num, Obj, action, monitor, onValue, offValue)
+{
+	var self = this;
+	this._name = name;
+	this._num = num;
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+	this._control;
+	this._Value = 0;
+	this._Listener = function(value)
+	{
+		self._Value = value;
+		if(self._control)
+		{
+			if(value)
+			{
+				self._control.send(self._onValue);
+			}
+			else
+			{
+				self._control.send(self._offValue);
+			}
+		}
+	}
+	this._Callback = function(obj){self._Listener(obj._value)}
+	this.set_control = function(control)
+	{
+		if (control instanceof(Notifier) || !control)
+		{
+			if(self._control)
+			{
+				self._control.remove_target(self._Callback);
+			}
+			self._control = control;
+			if(self._control)
+			{
+				self._control.set_target(self._Callback);
+				self._Listener(self._Value);
+			}
+		}
+	}	
+}
+
+/////////////////////////////////////////////////////////////////////////////
 //Base class for BitWig java container
 
 function ParameterComponent(name, num, javaObj)
 {
+	//ParameterComponent.call( this, name, num )
 	var self = this;
 	this._name = name;
 	this._num = num;
@@ -1075,11 +1176,10 @@ function ParameterComponent(name, num, javaObj)
 function GenericParameterComponent(name, num, javaObj, action, monitor, onValue, offValue)
 {
 	ParameterComponent.call( this, name, num, javaObj )
-	//post('colors:', this._name, onValue, offValue);
 	var self = this;
 	this._onValue = onValue||127;
 	this._offValue = offValue||0;
-	if(action){this._Callback = function(obj){if(obj._value!=undefined){self._Obj[action]();}}}
+	if(action){this._Callback = function(obj){if(obj._value){self._Obj[action]();}}}
 	this._Listener = function(value)
 	{
 		self._Value = value;
@@ -1198,6 +1298,223 @@ function DeviceComponent(name, size, cursorDevice)
 	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._cursorDevice, 'selectPrevious');
 
 	
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
+const _NOTENAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+var NOTENAMES = [];
+for(var i=0;i<128;i++)
+{
+	NOTENAMES[i]=(_NOTENAMES[i%12] + ' ' + Math.floor(i/12));
+}
+
+const WHITEKEYS = {0:0, 2:2, 4:4, 5:5, 7:7, 9:9, 11:11, 12:12};
+const NOTES = [24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7];
+const DRUMNOTES = [12, 13, 14, 15, 28, 29, 30, 31, 8, 9, 10, 11, 24, 25, 26, 27, 4, 5, 6, 7, 20, 21, 22, 23, 0, 1, 2, 3, 16, 17, 18, 19];
+const SCALENOTES = [36, 38, 40, 41, 43, 45, 47, 48, 24, 26, 28, 29, 31, 33, 35, 36, 12, 14, 16, 17, 19, 21, 23, 24, 0, 2, 4, 5, 7, 9, 11, 12];
+const KEYCOLORS = [colors.BLUE, colors.CYAN, colors.MAGENTA, colors.RED];
+const SCALES = 	{'Mod':[0,1,2,3,4,5,6,7,8,9,10,11],
+			'Session':[0,1,2,3,4,5,6,7,8,9,10,11],
+			'Auto':[0,1,2,3,4,5,6,7,8,9,10,11],
+			'Chromatic':[0,1,2,3,4,5,6,7,8,9,10,11],
+			'DrumPad':[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+			'Major':[0,2,4,5,7,9,11],
+			'Minor':[0,2,3,5,7,8,10],
+			'Dorian':[0,2,3,5,7,9,10],
+			'Mixolydian':[0,2,4,5,7,9,10],
+			'Lydian':[0,2,4,6,7,9,11],
+			'Phrygian':[0,1,3,5,7,8,10],
+			'Locrian':[0,1,3,4,7,8,10],
+			'Diminished':[0,1,3,4,6,7,9,10],
+			'Whole-half':[0,2,3,5,6,8,9,11],
+			'Whole Tone':[0,2,4,6,8,10],
+			'Minor Blues':[0,3,5,6,7,10],
+			'Minor Pentatonic':[0,3,5,7,10],
+			'Major Pentatonic':[0,2,4,7,9],
+			'Harmonic Minor':[0,2,3,5,7,8,11],
+			'Melodic Minor':[0,2,3,5,7,9,11],
+			'Dominant Sus':[0,2,5,7,9,10],
+			'Super Locrian':[0,1,3,4,6,8,10],
+			'Neopolitan Minor':[0,1,3,5,7,8,11],
+			'Neopolitan Major':[0,1,3,5,7,9,11],
+			'Enigmatic Minor':[0,1,3,6,7,10,11],
+			'Enigmatic':[0,1,4,6,8,10,11],
+			'Composite':[0,1,4,6,7,8,11],
+			'Bebop Locrian':[0,2,3,5,6,8,10,11],
+			'Bebop Dominant':[0,2,4,5,7,9,10,11],
+			'Bebop Major':[0,2,4,5,7,8,9,11],
+			'Bhairav':[0,1,4,5,7,8,11],
+			'Hungarian Minor':[0,2,3,6,7,8,11],
+			'Minor Gypsy':[0,1,4,5,7,8,10],
+			'Persian':[0,1,4,5,6,8,11],
+			'Hirojoshi':[0,2,3,7,8],
+			'In-Sen':[0,1,5,7,10],
+			'Iwato':[0,1,5,6,10],
+			'Kumoi':[0,2,3,7,9],
+			'Pelog':[0,1,3,4,7,8],
+			'Spanish':[0,1,3,4,5,6,8,10]}
+
+const SCALEABBREVS = {'Mod':'E3', 'Session':'-S','Auto':'-A','Chromatic':'12','DrumPad':'-D','Major':'M-','Minor':'m-','Dorian':'II','Mixolydian':'V',
+			'Lydian':'IV','Phrygian':'IH','Locrian':'VH','Diminished':'d-','Whole-half':'Wh','Whole Tone':'WT','Minor Blues':'mB',
+			'Minor Pentatonic':'mP','Major Pentatonic':'MP','Harmonic Minor':'mH','Melodic Minor':'mM','Dominant Sus':'D+','Super Locrian':'SL',
+			'Neopolitan Minor':'mN','Neopolitan Major':'MN','Enigmatic Minor':'mE','Enigmatic':'ME','Composite':'Cp','Bebop Locrian':'lB',
+			'Bebop Dominant':'DB','Bebop Major':'MB','Bhairav':'Bv','Hungarian Minor':'mH','Minor Gypsy':'mG','Persian':'Pr',
+			'Hirojoshi':'Hr','In-Sen':'IS','Iwato':'Iw','Kumoi':'Km','Pelog':'Pg','Spanish':'Sp'}
+
+var SCALENAMES = [];
+var i = 0;
+for (var name in SCALES){SCALENAMES[i] = name;i++};
+
+function ScalesComponent(name)
+{
+	var self = this;
+	this._name = name;
+	this._split = false;
+	this._grid;
+	this._update = function()
+	{
+		post('vert:', self._vertOffset._value, 'note:', self._noteOffset._value, ':', NOTENAMES[self._noteOffset._value], 'scale', SCALENAMES[self._scaleOffset._value]);
+		if(self._grid != undefined)
+		{
+			var offset = self._noteOffset._value;
+			var vertoffset = self._vertOffset._value;
+			var scale = SCALENAMES[self._scaleOffset._value];
+			var split = self._split;
+			var scale_len = SCALES[scale].length;
+			for(var column=0;column<self._grid.width();column++)
+			{
+				for(var row=0;row<self._grid.height();row++)
+				{
+					var note_pos = column + (Math.abs(3-row))*parseInt(vertoffset);
+					var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
+					var button = self._grid.get_button(column, row)
+					button.set_translation(note%127);
+					button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
+					//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
+					button.send(button.scale_color);
+				}
+			}
+		}
+	}
+	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, this._update, colors.MAGENTA);
+	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
+	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 5, this._update, colors.BLUE);
+}
+
+//ScalesComponent.prototype = new ScalesComponent();
+
+ScalesComponent.prototype.set_grid = function(grid)
+{
+	if(this._grid != undefined)
+	{
+		for(var column=0;column<this._grid.width();column++)
+		{
+			for(var row=0;row<this._grid.height();row++)
+			{
+				this._grid.get_button(column, row).set_translation(-1);
+			}
+		}
+	}
+	this._grid = grid;
+	this._update();
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//Notifier that uses two buttons to change an offset value
+
+function OffsetComponent(name, minimum, maximum, initial, callback, onValue, offValue)
+{
+	Notifier.call(this, name)
+	var self = this;
+	this._min = minimum||0;
+	this._max = maximum||127;
+	this._value = initial||0;
+	this._incButton;
+	this._decButton;
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+	this._displayValues = [this._onValue, this._offValue];
+	this.incCallback = function(obj)
+	{
+		if((obj._value)&&(self._value<self._max))
+		{
+			self._value++;
+			self._update_buttons();
+			self.notify();
+		}
+	}
+	this.decCallback = function(obj)
+	{
+		if((obj._value)&&(self._value>self._min))
+		{
+			self._value--;
+			self._update_buttons();
+			self.notify();
+		}
+	}
+	this._update_buttons = function()
+	{
+		if(self._incButton)
+		{
+			if(self._value<self._max)
+			{
+				self._incButton.send(self._onValue);
+			}
+			else
+			{
+				self._incButton.send(self._offValue);
+			}
+		}
+		if(self._decButton)
+		{
+			if(self._value>self._min)
+			{
+				self._decButton.send(self._onValue);
+			}
+			else
+			{
+				self._decButton.send(self._offValue);
+			}
+		}
+	}
+	if(callback!=undefined)
+	{
+		this.set_target(callback);
+	}
+}
+
+OffsetComponent.prototype = new Notifier();
+
+OffsetComponent.prototype.constructor = OffsetComponent;
+
+OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
+{
+	if (incButton instanceof(Notifier) || !incButton)
+	{
+		if(this._incButton)
+		{
+			this._incButton.remove_target(this.incCallback)
+		}
+		this._incButton = incButton;
+		if(this._incButton)
+		{
+			this._incButton.set_target(this.incCallback)
+		}
+	}
+	if (decButton instanceof(Notifier) || !decButton)
+	{
+		if(this._decButton)
+		{
+			this._decButton.remove_target(this.decCallback)
+		}
+		this._decButton = decButton;
+		if(this._decButton)
+		{
+			this._decButton.set_target(this.decCallback)
+		}
+	}
+	this._update_buttons();
 }
 
 /////////////////////////////////////////////////////////////////////////////

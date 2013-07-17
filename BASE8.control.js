@@ -88,7 +88,6 @@ var PRODUCT = "0C"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", M
 var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 0 ?? ?? ?? ?? F7";
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", "F0 7E ?? 06 02 00 01 61 01 00 0C 00 ?? ?? ?? ?? F7");
 host.defineMidiPorts(1, 1);
-host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["Base8"], ["Base8"]);
 
 for ( var m = 1; m < 9; m++)
@@ -148,10 +147,10 @@ function init()
 	
 	post('BASE8 script loading ------------------------------------------------');
 
-	registerControlDicts();
 	host.getMidiInPort(0).setMidiCallback(onMidi);
 	host.getMidiInPort(0).setSysexCallback(onSysex);
-
+	initialize_noteInput();
+	initialize_prototypes();
 	initialize_surface();
 	setup_controls();
 	resetAll();
@@ -159,14 +158,22 @@ function init()
 	setup_session();
 	setup_mixer();
 	setup_device();
+	setup_scales();
 	setup_tasks();
 	setup_modes();
 	setup_fixed_controls();
+	setup_listeners();
 
 	LOCAL_OFF();
  	host.scheduleTask(updateDisplay, null, 100);
 	MainModes.change_mode(0, true);
 	post('BASE8 script loaded! ------------------------------------------------');
+}
+
+function initialize_noteInput()
+{
+	noteInput = host.getMidiInPort(0).createNoteInput("BaseInstrument", "80????", "90????", "D0????", "E0????");
+	noteInput.setShouldConsumeEvents(false);
 }
 
 function initialize_surface()
@@ -225,6 +232,11 @@ function setup_mixer()
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
+}
+
+function setup_scales()
+{
+	scales = new ScalesComponent('Scales');
 }
 
 function setup_tasks()
@@ -291,7 +303,7 @@ function setup_modes()
 	}
 	clipPage.exit_mode = function()
 	{
-		session.assign_grid(null);
+		session.assign_grid();
 		session._navUp.set_control();
 		session._navDn.set_control();
 		session._navLt.set_control();
@@ -446,7 +458,23 @@ function setup_modes()
 
 	//Page 3:  Step Sequencing
 	seqPage = new Page('SequencerPage');
-
+	seqPage.enter_mode = function()
+	{
+		post('seqPage entered');
+		sendSysex(LIVEBUTTONMODE);		
+		seqPage.set_shift_button(function_buttons[3]);
+		scales._scaleOffset.set_inc_dec_buttons(function_buttons[4], function_buttons[5]);
+		scales._noteOffset.set_inc_dec_buttons(function_buttons[6], function_buttons[7]);
+		scales.set_grid(grid);
+	}
+	seqPage.exit_mode = function()
+	{
+		post('seqPage exited');		
+		seqPage.set_shift_button();
+		scales._scaleOffset.set_inc_dec_buttons();
+		scales._vertOffset.set_inc_dec_buttons();
+		scales.set_grid();
+	}		
 
 	script["MainModes"] = new PageStack(4, "Main Modes");
 	MainModes.add_mode(0, clipPage);
@@ -466,8 +494,32 @@ function setup_fixed_controls()
 	mixer._masterstrip._volume.set_control(faders[8]);
 }
 
-function updateDisplay(){}
+function setup_listeners()
+{
+	selected_track_listener = new ParameterHolder('selected_track_listener');
+	cursorTrack.addIsSelectedObserver(selected_track_listener.receive);
+	selected_track_listener.add_listener(on_selected_track_changed);
+	//primaryInstrument.
+}
 
+function on_selected_track_changed(obj)
+{
+	if(obj._value)
+	{
+		//post('onSelectedTrackChanged:', obj, obj._value);
+		detect_new_instrument();
+	}
+}
+
+function detect_new_instrument()
+{
+	var ins = cursorTrack.getPrimaryInstrument();
+	post(ins);
+}
+
+	
+function updateDisplay(){}
+	
 function exit()
 {
 	resetAll();
