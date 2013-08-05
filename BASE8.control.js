@@ -159,6 +159,7 @@ function init()
 	setup_mixer();
 	setup_device();
 	setup_scales();
+	setup_sequencer();
 	setup_tasks();
 	setup_modes();
 	setup_fixed_controls();
@@ -237,6 +238,11 @@ function setup_device()
 function setup_scales()
 {
 	scales = new ScalesComponent('Scales');
+}
+
+function setup_sequencer()
+{
+	sequencer = new StepSequencerComponent('Sequencer', 8, 4, cursorClip);
 }
 
 function setup_tasks()
@@ -476,6 +482,20 @@ function setup_modes()
 		scales.set_grid();
 	}		
 
+	seqPage = new Page('SequencerPage');
+	seqPage.enter_mode = function()
+	{
+		post('seqPage entered');
+		grid.reset();
+		sequencer.assign_grid(grid);
+	}
+	seqPage.exit_mode = function()
+	{
+		post('seqPage exited');
+		sequencer.assign_grid();
+	}
+		
+	
 	script["MainModes"] = new PageStack(4, "Main Modes");
 	MainModes.add_mode(0, clipPage);
 	MainModes.add_mode(1, sendPage);
