@@ -134,7 +134,7 @@ function init()
 	application = host.createApplicationSection();
 	cursorDevice = host.createCursorDeviceSection(8);
 	cursorTrack = host.createCursorTrackSection(4, 8);
-	cursorClip = host.createCursorClipSection(128, 1);
+	//cursorClip = host.createCursorClipSection(128, 1);
 	groove = host.createGrooveSection();
 	masterTrack = host.createMasterTrackSection(0);
 	transport = host.createTransportSection();
@@ -159,6 +159,7 @@ function init()
 	setup_mixer();
 	setup_device();
 	setup_scales();
+	setup_sequencer();
 	setup_tasks();
 	setup_modes();
 	setup_fixed_controls();
@@ -237,6 +238,11 @@ function setup_device()
 function setup_scales()
 {
 	scales = new ScalesComponent('Scales');
+}
+
+function setup_sequencer()
+{
+	sequencer = new StepSequencerComponent('Sequencer', 8, 4);
 }
 
 function setup_tasks()
@@ -476,6 +482,24 @@ function setup_modes()
 		scales.set_grid();
 	}		
 
+	seqPage = new Page('SequencerPage');
+	seqPage.enter_mode = function()
+	{
+		post('seqPage entered');
+		grid.reset();
+		sequencer.key_offset.set_inc_dec_buttons(function_buttons[4], function_buttons[5]);
+		sequencer.assign_grid(grid);
+		
+	}
+	seqPage.exit_mode = function()
+	{
+		post('seqPage exited');
+		sequencer.key_offset.set_inc_dec_buttons();
+		sequencer.assign_grid();
+		
+	}
+		
+	
 	script["MainModes"] = new PageStack(4, "Main Modes");
 	MainModes.add_mode(0, clipPage);
 	MainModes.add_mode(1, sendPage);

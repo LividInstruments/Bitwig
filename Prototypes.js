@@ -11,7 +11,8 @@ const colors = {OFF : 0, WHITE : 1, CYAN : 5, MAGENTA : 9, RED : 17, BLUE : 33, 
 NOTE_OBJECTS = new Array(128);
 CC_OBJECTS = new Array(128);
 
-var noteInput = {'setNoteKeyMap':function(){}};
+//var noteInput = {'setNoteKeyMap':function(){}};
+var noteInput = {'setKeyTranslationTable':function(){}};
 var midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}}; 
 var midiNoteBuffer = {};
 var midiCCBuffer = {};
@@ -100,7 +101,7 @@ function flush()
 	if(recalculate_translation_map)
 	{
 		//post('Note_Translation_Table:', Note_Translation_Table);
-		noteInput.setNoteKeyMap(Note_Translation_Table);
+		noteInput.setKeyTranslationTable(Note_Translation_Table);
 		recalculate_translation_map = false;
 	}
 }
@@ -1437,7 +1438,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	this._displayValues = [this._onValue, this._offValue];
 	this.incCallback = function(obj)
 	{
-		if((obj._value)&&(self._value<self._max))
+		if((obj._value>0)&&(self._value<self._max))
 		{
 			self._value++;
 			self._update_buttons();
@@ -1446,7 +1447,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	}
 	this.decCallback = function(obj)
 	{
-		if((obj._value)&&(self._value>self._min))
+		if((obj._value>0)&&(self._value>self._min))
 		{
 			self._value--;
 			self._update_buttons();
@@ -1517,8 +1518,124 @@ OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
 	this._update_buttons();
 }
 
+
+/////////////////////////////////////////////////////////////////////////////
+//Component for step sequencing
+
+function StepSequencerComponent(name, width, height, cursorClip)
+{
+
+	var SEQ_BUFFER_STEPS = 32;	
+	var STEP_SIZE =
+	{
+		STEP_1_4 : 0,
+		STEP_1_8 : 1,
+		STEP_1_16 : 2,
+		STEP_1_32 : 3
+	};
+	var velocities = [127, 100, 80, 50];
+	this.velocityStep = 2;
+	this.velocity = velocities[this.velocityStep];
+	this._stepSet = initArray(false, SEQ_BUFFER_STEPS*128);
+	this.detailMode = false;
+	this.activeStep = 0;
+	this.playingStep = -1;
+	this.stepSize = STEP_SIZE.STEP_1_16;
+	this.Colors = {'PlayingOn':colors.RED, 'PlayingOff':colors.MAGENTA, 'On':colors.YELLOW, 'Off':colors.OFF};
+	var self = this;
+	this._width = width;
+	this._height = height;
+	this._velocity = 100;
+	this._shifted = false;
+
+	this._cursorClip = cursorClip;
+	if(!cursorClip){this._cursorClip = host.createCursorClipSection(SEQ_BUFFER_STEPS, 128);}
+
+
+	this.receive_grid = function(button)
+	{
+		if(button.pressed())
+		{
+			var step = button._x + 8*button._y;  // + this.viewOffset();
+			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
+		}
+	}
+	this._onStepExists = function(column, row, state)
+	{
+		post('onStepExists', column, row, state);
+		self._stepSet[column*128 + row] = state;
+		self.update();
+	}
+	this._onStepPlay = function(step)
+	{
+		self.playingStep = step;
+		self.update();
+	}
+	this._on_shift = function(){}
+	this.update = function()
+	{
+		if(self._grid)
+		{
+			buttons = self._grid.controls();
+			var size = buttons.length;
+			var key = self.key_offset._value;
+			for(var i=0;i<size;i++)
+			{
+				var button = buttons[i];
+				var step = button._x + (button._y*8);
+				//var isSet = self.hasAnyKey(index);
+				var isSet = self._stepSet[step * 128 + key]
+				var isPlaying = step == self.playingStep;
+				var colour = isSet ?
+					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
+					(isPlaying ? self.Colors.PlayingOff : self.Colors.Off);
+				button.send(colour);
+			}
+		}
+	}
+
+	this._on_key_change = function(obj)
+	{
+		//self._cursorClip.scrollToKey(self.key_offset._value);
+		self.update();
+	}
+	this.key_offset = new OffsetComponent('Key_Offset', 0, 127, 0, this._on_key_change, colors.BLUE);
+
+	this._cursorClip.addStepDataObserver(this._onStepExists);
+	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
+	//this._cursorClip.scrollToKey(this.key_offset._value);
+}
+
+StepSequencerComponent.prototype.assign_grid = function(new_grid)
+{
+	if(this._grid!=undefined)
+	{
+		this._grid.remove_target(this.receive_grid);
+		this._grid = undefined;
+	}
+	if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
+	{
+		this._grid = new_grid;
+		this._grid.set_target(this.receive_grid);
+		this.update();
+	}
+}
+
+StepSequencerComponent.prototype.hasAnyKey = function(step)
+{
+	for(var i=0; i<128; i++)
+	{
+		if (this._stepSet[step * 128 + i])
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
+
 
 function TaskServer(script, interval)
 {
