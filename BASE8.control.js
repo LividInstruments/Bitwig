@@ -134,7 +134,7 @@ function init()
 	application = host.createApplicationSection();
 	cursorDevice = host.createCursorDeviceSection(8);
 	cursorTrack = host.createCursorTrackSection(4, 8);
-	cursorClip = host.createCursorClipSection(128, 1);
+	//cursorClip = host.createCursorClipSection(128, 1);
 	groove = host.createGrooveSection();
 	masterTrack = host.createMasterTrackSection(0);
 	transport = host.createTransportSection();
@@ -242,7 +242,7 @@ function setup_scales()
 
 function setup_sequencer()
 {
-	sequencer = new StepSequencerComponent('Sequencer', 8, 4, cursorClip);
+	sequencer = new StepSequencerComponent('Sequencer', 8, 4);
 }
 
 function setup_tasks()
@@ -487,12 +487,16 @@ function setup_modes()
 	{
 		post('seqPage entered');
 		grid.reset();
+		sequencer.key_offset.set_inc_dec_buttons(function_buttons[4], function_buttons[5]);
 		sequencer.assign_grid(grid);
+		
 	}
 	seqPage.exit_mode = function()
 	{
 		post('seqPage exited');
+		sequencer.key_offset.set_inc_dec_buttons();
 		sequencer.assign_grid();
+		
 	}
 		
 	
