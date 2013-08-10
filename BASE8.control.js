@@ -135,14 +135,14 @@ function init()
 	cursorDevice = host.createCursorDeviceSection(8);
 	cursorTrack = host.createCursorTrackSection(4, 8);
 	//cursorClip = host.createCursorClipSection(128, 1);
-	groove = host.createGrooveSection();
+	//groove = host.createGrooveSection();
 	masterTrack = host.createMasterTrackSection(0);
-	transport = host.createTransportSection();
+	//transport = host.createTransportSection();
 	//clipGrid = host.createTrackBankSection(8, 0, 4);
 	trackBank = host.createTrackBankSection(8, 4, 4);
-	_mixer = host.createMixerSection("MIX", 0);
-	arranger = host.createArrangerSection(0);
-	primaryInstrument = cursorTrack.getPrimaryInstrument();
+	//_mixer = host.createMixerSection("MIX", 0);
+	//arranger = host.createArrangerSection(0);
+	//primaryInstrument = cursorTrack.getPrimaryInstrument();
 	////////////////////////////////////////////////////////////////////////////////
 	
 	post('BASE8 script loading ------------------------------------------------');
@@ -158,8 +158,8 @@ function init()
 	setup_session();
 	setup_mixer();
 	setup_device();
-	setup_scales();
 	setup_sequencer();
+	setup_scales();
 	setup_tasks();
 	setup_modes();
 	setup_fixed_controls();
@@ -235,14 +235,14 @@ function setup_device()
 	device = new DeviceComponent('Device', 8, cursorDevice);
 }
 
-function setup_scales()
-{
-	scales = new ScalesComponent('Scales');
-}
-
 function setup_sequencer()
 {
 	sequencer = new StepSequencerComponent('Sequencer', 8, 4);
+}
+
+function setup_scales()
+{
+	scales = new ScalesComponent('Scales', sequencer);
 }
 
 function setup_tasks()
@@ -413,11 +413,20 @@ function setup_modes()
 	devicePage.enter_mode = function()
 	{
 		post('devicePage entered');
-		sendSysex(LIVEBUTTONMODE);
 		sendSysex('F0 00 01 61 0C 3D 06 06 06 06 06 06 06 06 02 F7');
 		grid.reset();
 		faderbank.reset();
-		session.assign_grid(grid);
+		if(track_type._value)
+		{
+			sendSysex(LIVEBUTTONMODE);	
+			devicePage.set_shift_button(function_buttons[3]);
+			scales.set_grid(grid);
+		}
+		else
+		{
+			sendSysex(LIVEBUTTONMODE);
+			session.assign_grid(grid);
+		}
 		device._navUp.set_control(function_buttons[4]);
 		device._navDn.set_control(function_buttons[5]);
 		device._navLt.set_control(function_buttons[6]);
@@ -432,7 +441,10 @@ function setup_modes()
 	}
 	devicePage.exit_mode = function()
 	{
-		session.assign_grid(null);
+		session.assign_grid();
+		scales._scaleOffset.set_inc_dec_buttons();
+		scales._vertOffset.set_inc_dec_buttons();
+		scales.set_grid();
 		device._navUp.set_control();
 		device._navDn.set_control();
 		device._navLt.set_control();
@@ -454,14 +466,25 @@ function setup_modes()
 		if(devicePage._shifted)
 		{
 			volumeFadersSub.enter_mode();
+			for(var i=0;i<8;i++)
+			{
+				mixer.channelstrip(i)._select.set_control();
+			}
+			scales._vertOffset.set_inc_dec_buttons(touch_buttons[3], touch_buttons[2]);
+			scales._scaleOffset.set_inc_dec_buttons(touch_buttons[5], touch_buttons[4]);
+			scales._noteOffset.set_inc_dec_buttons(touch_buttons[7], touch_buttons[6]);
 		}
 		else
 		{
+			scales._vertOffset.set_inc_dec_buttons();
+			scales._scaleOffset.set_inc_dec_buttons();
+			scales._noteOffset.set_inc_dec_buttons();
 			volumeFadersSub.exit_mode();
 			devicePage.enter_mode();
 		}
 	}
 
+	/*
 	//Page 3:  Step Sequencing
 	seqPage = new Page('SequencerPage');
 	seqPage.enter_mode = function()
@@ -481,6 +504,8 @@ function setup_modes()
 		scales._vertOffset.set_inc_dec_buttons();
 		scales.set_grid();
 	}		
+	*/
+
 
 	seqPage = new Page('SequencerPage');
 	seqPage.enter_mode = function()
@@ -498,7 +523,7 @@ function setup_modes()
 		sequencer.assign_grid();
 		
 	}
-		
+
 	
 	script["MainModes"] = new PageStack(4, "Main Modes");
 	MainModes.add_mode(0, clipPage);
@@ -520,19 +545,57 @@ function setup_fixed_controls()
 
 function setup_listeners()
 {
-	selected_track_listener = new ParameterHolder('selected_track_listener');
-	cursorTrack.addIsSelectedObserver(selected_track_listener.receive);
-	selected_track_listener.add_listener(on_selected_track_changed);
-	//primaryInstrument.
+	selected_track = new ParameterHolder('selected_track_listener');
+	cursorTrack.addIsSelectedObserver(selected_track.receive);
+	selected_track.add_listener(on_selected_track_changed);
+	
+	primary_instrument = new ParameterHolder('primary_instrument_listener');
+	cursorTrack.getPrimaryInstrument().addNameObserver(10, 'None', primary_instrument.receive);
+	primary_instrument.add_listener(on_primary_instrument_name_changed);
+
+	track_type = new ParameterHolder('track_type_listener');
+	cursorTrack.getCanHoldNoteData().addValueObserver(track_type.receive);
+	track_type.add_listener(on_track_type_changed);
+
+	track_type_name = new ParameterHolder('track_type_name_listener');
+	cursorTrack.addTrackTypeObserver(20, 'None', track_type_name.receive);
+	track_type_name.add_listener(on_track_type_name_changed);
+
+	selected_track_selected_clipslot = new ParameterHolder('selected_track_selected_clipslot_listener');
+	cursorTrack.getClipLauncher().addIsPlayingObserver(selected_track_selected_clipslot.receive);
+	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
 }
 
 function on_selected_track_changed(obj)
 {
-	if(obj._value)
+	/*if(obj._value)
 	{
 		//post('onSelectedTrackChanged:', obj, obj._value);
 		detect_new_instrument();
-	}
+	}*/
+	//cursorTrack.getClipLauncher()
+	
+}
+
+function on_selected_track_selected_clipslot_changed(obj)
+{
+	post('on_selected_track_selected_clipslot_changed:', obj._value);
+	cursorTrack.getClipLauncher().select(obj._value);
+}
+
+function on_primary_instrument_name_changed(new_name)
+{
+	post('on_primary_instrument_name_changed:', new_name._value);
+}
+
+function on_track_type_changed(is_midi)
+{
+	post('on_track_type_changed:', is_midi._value);
+}
+
+function on_track_type_name_changed(type_name)
+{
+	post('on_track_type_name_changed:', type_name._value);
 }
 
 function detect_new_instrument()
@@ -543,11 +606,12 @@ function detect_new_instrument()
 
 	
 function updateDisplay(){}
-	
+
 function exit()
 {
 	resetAll();
 }
+
 
 function onMidi(status, data1, data2)
 {

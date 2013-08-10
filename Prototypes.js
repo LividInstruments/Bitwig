@@ -524,7 +524,10 @@ Grid.prototype.controls = function()
 	{
 		for(var y in this._grid[x])
 		{
-			buttons.push(this._grid[x][y]);
+			if(this._grid[x][y] instanceof Notifier)
+			{
+				buttons.push(this._grid[x][y]);
+			}
 		}
 	}
 	return buttons;
@@ -548,7 +551,7 @@ Grid.prototype.add_button = function(x, y, button)
 		}
 	}
 }
-
+	
 Grid.prototype.send = function(x, y, value)
 {
 	this._grid[x][y].send(value);
@@ -575,6 +578,61 @@ Grid.prototype.reset = function()
 		buttons[index].reset();
 	}
 }
+
+
+function SubGrid(width, height, name)
+{
+	Grid.call( this, width, height, name);
+	var self = this;
+	this.receive = function(button)
+	{
+		post('receiving subgrid', button._name);
+		self.notify(button);
+	}
+}
+
+SubGrid.prototype = new Grid();
+
+SubGrid.prototype.constructor = SubGrid;
+
+SubGrid.prototype.add_button = function(x, y, button)
+{
+	post('adding button', x, y, button._name, this.width(), this.height());
+	if(x < this.width())
+	{
+		if(y < this.height())
+		{
+			post('adding button to subgrid', x, y, button);
+			this._grid[x][y] = button;
+			button[this._name + '_x'] = x;
+			button[this._name + '_y'] = y;
+			button.set_target(this.receive);
+		}
+	}
+}
+
+SubGrid.prototype.clear_buttons = function()
+{
+	var buttons = this.controls();
+	for (var i in buttons)
+	{
+		if(buttons[i] instanceof Notifier)
+		{
+			buttons[i].remove_target(this.receive);
+		}
+	}
+	var contents = [];
+	for(var i = 0; i < this.width(); i++)
+	{
+		contents[i] = [];
+		for(var j = 0; j < this.height(); j++)
+		{
+			contents[i][j] = undefined;
+		}
+	}
+	this._grid = contents;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Mode is a notifier that automatically updates buttons when its state changes
@@ -875,7 +933,11 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	this._session = session;
 	this._clipLauncher = clipLauncher;
 	this._clipslots = new Array(height);
-	this.launch = function(clipslot){clipLauncher.launch(clipslot);}
+	this.launch = function(clipslot)
+	{
+		clipLauncher.launch(clipslot);
+		//clipLauncher.select(clipslot);
+	}
 	this._hasContentListener = function(clipslot, value)
 	{
 		var clipslot = 	self._clipslots[clipslot];
@@ -958,6 +1020,16 @@ SessionComponent.prototype.assign_grid = function(new_grid)
 	if(this._grid!=undefined)
 	{
 		this._grid.remove_target(this.receive_grid);
+		for (var track in this._tracks)
+		{
+			for(var slot in this._tracks[track]._clipslots)
+			{
+				var clipslot = this._tracks[track]._clipslots[slot];
+				var button = this._grid.get_button(track, slot);
+				clipslot.remove_target(button.receive_notifier);
+			}
+		}
+		this._grid = undefined;
 	}
 	if ((new_grid instanceof Grid) && (new_grid.width() == this.width()) && (new_grid.height() == this.height()))
 	{
@@ -983,6 +1055,7 @@ SessionComponent.prototype.colors = function()
 
 SessionComponent.prototype.set_navigation_buttons = function(upBtn, dnBtn, ltBtn, rtBtn){}
 
+	
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding ChannelStrips
 
@@ -1000,6 +1073,7 @@ function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack,
 	}
 	this._selectedstrip = new ChannelStripComponent(this._name + '_SelectedStrip', -1, this._cursorTrack, num_returns, _colors);
 	this._masterstrip = new ChannelStripComponent(this._name + '_MasterStrip', -2, this._masterTrack, 0, _colors);
+	
 }
 
 MixerComponent.prototype.channelstrip = function(num)
@@ -1354,7 +1428,7 @@ const SCALES = 	{'Mod':[0,1,2,3,4,5,6,7,8,9,10,11],
 			'Iwato':[0,1,5,6,10],
 			'Kumoi':[0,2,3,7,9],
 			'Pelog':[0,1,3,4,7,8],
-			'Spanish':[0,1,3,4,5,6,8,10]}
+			'Spanish':[0,1,3,4,5,6,8,10]};
 
 const SCALEABBREVS = {'Mod':'E3', 'Session':'-S','Auto':'-A','Chromatic':'12','DrumPad':'-D','Major':'M-','Minor':'m-','Dorian':'II','Mixolydian':'V',
 			'Lydian':'IV','Phrygian':'IH','Locrian':'VH','Diminished':'d-','Whole-half':'Wh','Whole Tone':'WT','Minor Blues':'mB',
@@ -1367,43 +1441,189 @@ var SCALENAMES = [];
 var i = 0;
 for (var name in SCALES){SCALENAMES[i] = name;i++};
 
-function ScalesComponent(name)
+const DEFAULT_SCALE = 'Major';
+
+const SPLIT_SCALES = ['Auto', 'DrumPad', 'Major'];
+
+function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 {
 	var self = this;
 	this._name = name;
-	this._split = false;
+	this._keys_stepsequencer = new StepSequencerComponent(8, 2);
+	this._drum_stepsequencer = new StepSequencerComponent(4, 4);
+	this._split = true;
 	this._grid;
+	
+	this._top = new SubGrid(8, 2, 'top');
+	this._right = new SubGrid(4, 4, 'right');
+
+	this._noteMap = new Array(128);
+	for(var i=0;i<128;i++)
+	{
+		this._noteMap[i] = [];
+	}
+	this._primary_instrument = primary_instrument;
+	if(this._primary_instrument == undefined)
+	{
+		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
+		this._primary_instrument = new ParameterHolder('primary_instrument_listener');
+		cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);
+	}
+
+	this._onNote = function(val, num, extra)
+	{
+		//post('note', val, num, extra);
+		var buf = self._noteMap[num];
+		for(var i in buf)
+		{
+			buf[i].send(val ? color.YELLOW : buf[i].scale_color )
+		}
+		/*if(val)
+		{
+			if(self._stepsequencer!=undefined)
+			{
+				self._stepsequencer.key_offset.set_value(num)
+			}
+		}*/
+	}
+
+	this._track_type = track_type;
+	if(this._track_type == undefined)
+	{
+		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
+		this._track_type = new ParameterHolder('track_type_listener');
+		cursorTrack.getCanHoldNoteData().addValueObserver(this._track_type.receive);
+		cursorTrack.addNoteObserver(this._onNote);
+	}
+
 	this._update = function()
 	{
 		post('vert:', self._vertOffset._value, 'note:', self._noteOffset._value, ':', NOTENAMES[self._noteOffset._value], 'scale', SCALENAMES[self._scaleOffset._value]);
+		self._noteMap = new Array(128);
+		for(var i=0;i<128;i++)
+		{
+			self._noteMap[i] = [];
+		}
+		if(self._sequencer != undefined)
+		{
+			self._sequencer.assign_grid();
+		}
 		if(self._grid != undefined)
 		{
 			var offset = self._noteOffset._value;
 			var vertoffset = self._vertOffset._value;
 			var scale = SCALENAMES[self._scaleOffset._value];
 			var split = self._split;
-			var scale_len = SCALES[scale].length;
-			for(var column=0;column<self._grid.width();column++)
+			if(scale=='Auto')
 			{
-				for(var row=0;row<self._grid.height();row++)
+				scale = self._primary_instrument._value == 'DrumMachine' ? 'DrumPad' : DEFAULT_SCALE;
+			}
+			var scale_len = SCALES[scale].length;
+			var width = Math.min(self._grid.width(), 8);
+			var height = Math.min(self._grid.height(), 8);
+			if((split)||(scale in SPLIT_SCALES))
+			{
+				if(scale != 'DrumPad')
 				{
-					var note_pos = column + (Math.abs(3-row))*parseInt(vertoffset);
-					var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
-					var button = self._grid.get_button(column, row)
-					button.set_translation(note%127);
-					button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
-					//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
-					button.send(button.scale_color);
+					for(var column=0;column<width;column++)
+					{
+						for(var row=0;row<height;row++)
+						{
+							var button = self._grid.get_button(column, row);
+							if(row > 1)
+							{
+								var note_pos = column + (Math.abs(3-row))*parseInt(vertoffset);
+								var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
+								button.set_translation(note%127);
+								self._noteMap[note%127].push(button);
+								button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
+								//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
+								button.send(button.scale_color);
+							}
+							else
+							{
+								post('adding top button', column, row, button);
+								self._top.add_button(column, row, button);
+							}
+						}
+					}
+					post('assigning stepsequencer');
+					self._keys_stepsequencer.assign_grid(self._top);
+				}
+				else
+				{
+					for(var column=0;column<width;column++)
+					{
+						for(var row=0;row<height;row++)
+						{
+							var button = self._grid.get_button(column, row);
+							if(column < 4)
+							{
+								var note = DRUMNOTES[column + (row*8)] + (Math.floor(offset/4)*4) + (Math.floor(column/4)*16) + (Math.floor(row/4)*16);
+								button.set_translation(note%127);
+								self._noteMap[note%127].push(button);
+								button.scale_color = KEYCOLORS[Number(column>3) + (Number(row>3)*2)];
+								button.send(button.scale_color);
+							}
+							else
+							{
+								self._right.add_button(column-4, row, button);
+							}
+						}
+					}
+					self._drum_stepsequencer.assign_grid(self._right);
+				}
+			}
+			else
+			{
+				if(scale != 'DrumPad')
+				{
+					for(var column=0;column<width;column++)
+					{
+						for(var row=0;row<height;row++)
+						{
+							var note_pos = column + (Math.abs(3-row))*parseInt(vertoffset);
+							var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
+							var button = self._grid.get_button(column, row);
+							button.set_translation(note%127);
+							self._noteMap[note%127].push(button);
+							button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
+							//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
+							button.send(button.scale_color);
+						}
+					}
+				}
+				else
+				{
+					for(var column=0;column<width;column++)
+					{
+						for(var row=0;row<height;row++)
+						{
+							var note = DRUMNOTES[column + (row*8)] + (Math.floor(offset/4)*4) + (Math.floor(column/4)*16) + (Math.floor(row/4)*16);
+							var button = self._grid.get_button(column, row);
+							button.set_translation(note%127); 
+							self._noteMap[note%127].push(button);
+							button.scale_color = KEYCOLORS[Number(column>3) + (Number(row>3)*2)];
+							button.send(button.scale_color);
+						}
+					}
 				}
 			}
 		}
 	}
 	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, this._update, colors.MAGENTA);
 	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
-	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 5, this._update, colors.BLUE);
-}
+	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 2, this._update, colors.BLUE);
 
-//ScalesComponent.prototype = new ScalesComponent();
+	this._on_primary_instrument_changed = function(new_name){self._update();}
+	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
+
+
+	
+	/*this._on_track_type_changed = function(new_type){self._update();}
+	this._track_type.add_listener(this._on_track_type_changed);*/
+
+}
 
 ScalesComponent.prototype.set_grid = function(grid)
 {
@@ -1418,6 +1638,8 @@ ScalesComponent.prototype.set_grid = function(grid)
 		}
 	}
 	this._grid = grid;
+	this._top.clear_buttons();
+	this._right.clear_buttons();
 	this._update();
 }
 
@@ -1518,6 +1740,12 @@ OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
 	this._update_buttons();
 }
 
+OffsetComponent.prototype.setValue = function(value)
+{
+	self._value = value;
+	self._update_buttons();
+	self.notify();
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing
@@ -1548,6 +1776,8 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this._velocity = 100;
 	this._shifted = false;
 
+	this._grid = undefined;
+	this._subgrid = undefined;
 	this._cursorClip = cursorClip;
 	if(!cursorClip){this._cursorClip = host.createCursorClipSection(SEQ_BUFFER_STEPS, 128);}
 
@@ -1556,13 +1786,22 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	{
 		if(button.pressed())
 		{
-			var step = button._x + 8*button._y;  // + this.viewOffset();
+			var step = button._x + self._width*button._y;  // + this.viewOffset();
+			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
+		}
+	}
+	this.receive_subgrid = function(button)
+	{
+		post('receive subgrid', button._name);
+		if(button.pressed())
+		{
+			var step = button[self._subgrid._name + '_x'] + (self._width*button[self._subgrid._name + '_y']);  // + this.viewOffset();
 			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
 		}
 	}
 	this._onStepExists = function(column, row, state)
 	{
-		post('onStepExists', column, row, state);
+		//post('onStepExists', column, row, state);
 		self._stepSet[column*128 + row] = state;
 		self.update();
 	}
@@ -1582,7 +1821,25 @@ function StepSequencerComponent(name, width, height, cursorClip)
 			for(var i=0;i<size;i++)
 			{
 				var button = buttons[i];
-				var step = button._x + (button._y*8);
+				var step = button._x + (button._y*self._width);
+				//var isSet = self.hasAnyKey(index);
+				var isSet = self._stepSet[step * 128 + key]
+				var isPlaying = step == self.playingStep;
+				var colour = isSet ?
+					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
+					(isPlaying ? self.Colors.PlayingOff : self.Colors.Off);
+				button.send(colour);
+			}
+		}
+		if(self._subgrid)
+		{
+			buttons = self._subgrid.controls();
+			var size = buttons.length;
+			var key = self.key_offset._value;
+			for(var i=0;i<size;i++)
+			{
+				var button = buttons[i];
+				var step = button[self._subgrid._name + '_x'] + (self._width*button[self._subgrid._name + '_y']);
 				//var isSet = self.hasAnyKey(index);
 				var isSet = self._stepSet[step * 128 + key]
 				var isPlaying = step == self.playingStep;
@@ -1603,6 +1860,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 
 	this._cursorClip.addStepDataObserver(this._onStepExists);
 	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
+
 	//this._cursorClip.scrollToKey(this.key_offset._value);
 }
 
@@ -1613,10 +1871,23 @@ StepSequencerComponent.prototype.assign_grid = function(new_grid)
 		this._grid.remove_target(this.receive_grid);
 		this._grid = undefined;
 	}
+	if(this._subgrid!=undefined)
+	{
+		this._subgrid.remove_target(this.receive_subgrid);
+		this._subgrid = undefined;
+	}
+	post('here1');
 	if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
 	{
 		this._grid = new_grid;
 		this._grid.set_target(this.receive_grid);
+		this.update();
+	}
+	else if ((new_grid instanceof SubGrid))// && (new_grid.width() == this._width) && (new_grid.height() == this._height))
+	{
+		post('assigning subgrid');
+		this._subgrid = new_grid;
+		this._subgrid.set_target(this.receive_subgrid);
 		this.update();
 	}
 }
