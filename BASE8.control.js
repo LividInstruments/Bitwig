@@ -316,8 +316,8 @@ function setup_modes()
 		session._navRt.set_control();
 		for(var i=0;i<8;i++)
 		{
-			mixer.channelstrip(i)._volume.set_control(faders[i]);
-			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
+			mixer.channelstrip(i)._volume.set_control();
+			mixer.channelstrip(i)._select.set_control();
 		}
 		clipPage.set_shift_button();
 		clipPage.active = false;
@@ -451,8 +451,8 @@ function setup_modes()
 		device._navRt.set_control();
 		for(var i=0;i<8;i++)
 		{
-			device._parameter[i].set_control(faders[i]);
-			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
+			device._parameter[i].set_control();
+			mixer.channelstrip(i)._select.set_control();
 		}
 		devicePage.set_shift_button();
 		devicePage.active = false;
