@@ -656,14 +656,6 @@ Mode.prototype = new Notifier();
 
 Mode.prototype.constructor = Mode;
 
-/*Mode.prototype.mode_value = function(button)
-{
-	if(button.pressed())
-	{
-		this.change_mode(this.mode_buttons.indexOf(button));
-	}
-}*/
-
 Mode.prototype.change_mode = function(value, force)
 {
 	if (value < (this._mode_callbacks.length))
@@ -756,6 +748,56 @@ function ParameterHolder(name, args)
 ParameterHolder.prototype = new Notifier();
 
 ParameterHolder.prototype.constructor = ParameterHolder;
+
+/////////////////////////////////////////////////////////////////////////////
+//ToggledParameter is a subclass of Parameter that encompasses 2 notifiers that interact with one another
+
+function ToggledParameterHolder(name, args, onValue, offValue)
+{
+	ParameterHolder.call( this, name );
+	var self = this;
+	this._control = undefined;
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+	this._Callback = function(obj){if(obj._value){self.receive(Math.abs(self._value - 1));}}
+	this.receive = function(value)
+	{
+		self._value = value;
+		if(self._control)
+		{
+			if(value)
+			{
+				self._control.send(self._onValue);
+			}
+			else
+			{
+				self._control.send(self._offValue);
+			}
+		}
+		self.notify();
+	}	
+	this.set_control = function(control)
+	{
+		if (control instanceof(Notifier) || !control)
+		{
+			if(self._control)
+			{
+				self._control.remove_target(self._Callback);
+			}
+			self._control = control;
+			if(self._control)
+			{
+				self._control.set_target(self._Callback);
+				self.receive(self._value);
+			}
+		}
+	}
+
+}
+
+ToggledParameterHolder.prototype = new ParameterHolder();
+
+ToggledParameterHolder.prototype.constructor = ToggledParameterHolder;
 
 /////////////////////////////////////////////////////////////////////////////
 //PageStack is a Mode subclass that handles entering/leaving pages automatically
@@ -1442,7 +1484,7 @@ for (var name in SCALES){SCALENAMES[i] = name;i++};
 
 const DEFAULT_SCALE = 'Major';
 
-const SPLIT_SCALES = {'DrumPad':1, 'Major':1};
+const SPLIT_SCALES = {}; //{'DrumPad':1, 'Major':1};
 
 function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 {
@@ -1529,7 +1571,7 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 			var offset = self._noteOffset._value;
 			var vertoffset = self._vertOffset._value;
 			var scale = SCALENAMES[self._scaleOffset._value];
-			var split = self._split;
+			var split = self._splitMode._value;
 			if(scale=='Auto')
 			{
 				scale = self._primary_instrument._value == 'DrumMachine' ? 'DrumPad' : DEFAULT_SCALE;
@@ -1629,6 +1671,8 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 			}
 		}
 	}
+
+	this._splitMode = new ToggledParameterHolder('ScaleSplit');
 	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, this._update, colors.MAGENTA);
 	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
 	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 2, this._update, colors.BLUE);
@@ -1769,7 +1813,6 @@ OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
 	}
 	this._update_buttons();
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing

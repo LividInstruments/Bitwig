@@ -473,6 +473,7 @@ function setup_modes()
 			scales._vertOffset.set_inc_dec_buttons(touch_buttons[3], touch_buttons[2]);
 			scales._scaleOffset.set_inc_dec_buttons(touch_buttons[5], touch_buttons[4]);
 			scales._noteOffset.set_inc_dec_buttons(touch_buttons[7], touch_buttons[6]);
+			scales._splitMode.set_control(touch_buttons[0]);
 			scales.assign_grid()
 		}
 		else
@@ -480,6 +481,7 @@ function setup_modes()
 			scales._vertOffset.set_inc_dec_buttons();
 			scales._scaleOffset.set_inc_dec_buttons();
 			scales._noteOffset.set_inc_dec_buttons();
+			scales._splitMode.set_control();
 			volumeFadersSub.exit_mode();
 			devicePage.enter_mode();
 		}
