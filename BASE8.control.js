@@ -420,7 +420,7 @@ function setup_modes()
 		{
 			sendSysex(LIVEBUTTONMODE);	
 			devicePage.set_shift_button(function_buttons[3]);
-			scales.set_grid(grid);
+			scales.assign_grid(grid);
 		}
 		else
 		{
@@ -444,7 +444,7 @@ function setup_modes()
 		session.assign_grid();
 		scales._scaleOffset.set_inc_dec_buttons();
 		scales._vertOffset.set_inc_dec_buttons();
-		scales.set_grid();
+		scales.assign_grid();
 		device._navUp.set_control();
 		device._navDn.set_control();
 		device._navLt.set_control();
@@ -473,6 +473,7 @@ function setup_modes()
 			scales._vertOffset.set_inc_dec_buttons(touch_buttons[3], touch_buttons[2]);
 			scales._scaleOffset.set_inc_dec_buttons(touch_buttons[5], touch_buttons[4]);
 			scales._noteOffset.set_inc_dec_buttons(touch_buttons[7], touch_buttons[6]);
+			scales.assign_grid()
 		}
 		else
 		{
@@ -484,29 +485,8 @@ function setup_modes()
 		}
 	}
 
-	/*
+
 	//Page 3:  Step Sequencing
-	seqPage = new Page('SequencerPage');
-	seqPage.enter_mode = function()
-	{
-		post('seqPage entered');
-		sendSysex(LIVEBUTTONMODE);		
-		seqPage.set_shift_button(function_buttons[3]);
-		scales._scaleOffset.set_inc_dec_buttons(function_buttons[4], function_buttons[5]);
-		scales._noteOffset.set_inc_dec_buttons(function_buttons[6], function_buttons[7]);
-		scales.set_grid(grid);
-	}
-	seqPage.exit_mode = function()
-	{
-		post('seqPage exited');		
-		seqPage.set_shift_button();
-		scales._scaleOffset.set_inc_dec_buttons();
-		scales._vertOffset.set_inc_dec_buttons();
-		scales.set_grid();
-	}		
-	*/
-
-
 	seqPage = new Page('SequencerPage');
 	seqPage.enter_mode = function()
 	{
@@ -604,7 +584,6 @@ function detect_new_instrument()
 	post(ins);
 }
 
-	
 function updateDisplay(){}
 
 function exit()

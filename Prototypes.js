@@ -597,12 +597,10 @@ SubGrid.prototype.constructor = SubGrid;
 
 SubGrid.prototype.add_button = function(x, y, button)
 {
-	post('adding button', x, y, button._name, this.width(), this.height());
 	if(x < this.width())
 	{
 		if(y < this.height())
 		{
-			post('adding button to subgrid', x, y, button);
 			this._grid[x][y] = button;
 			button[this._name + '_x'] = x;
 			button[this._name + '_y'] = y;
@@ -618,6 +616,7 @@ SubGrid.prototype.clear_buttons = function()
 	{
 		if(buttons[i] instanceof Notifier)
 		{
+			post('removing target:', buttons[i]._name);
 			buttons[i].remove_target(this.receive);
 		}
 	}
@@ -1443,17 +1442,18 @@ for (var name in SCALES){SCALENAMES[i] = name;i++};
 
 const DEFAULT_SCALE = 'Major';
 
-const SPLIT_SCALES = ['Auto', 'DrumPad', 'Major'];
+const SPLIT_SCALES = {'DrumPad':1, 'Major':1};
 
 function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 {
 	var self = this;
 	this._name = name;
-	this._keys_stepsequencer = new StepSequencerComponent(8, 2);
-	this._drum_stepsequencer = new StepSequencerComponent(4, 4);
-	this._split = true;
+	this._keys_stepsequencer = new StepSequencerComponent('keys_sequencer', 8, 2);
+	this._drum_stepsequencer = new StepSequencerComponent('drum_sequencer', 4, 4);
+	this._split = false;
+
 	this._grid;
-	
+
 	this._top = new SubGrid(8, 2, 'top');
 	this._right = new SubGrid(4, 4, 'right');
 
@@ -1478,13 +1478,6 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 		{
 			buf[i].send(val ? color.YELLOW : buf[i].scale_color )
 		}
-		/*if(val)
-		{
-			if(self._stepsequencer!=undefined)
-			{
-				self._stepsequencer.key_offset.set_value(num)
-			}
-		}*/
 	}
 
 	this._track_type = track_type;
@@ -1496,10 +1489,33 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 		cursorTrack.addNoteObserver(this._onNote);
 	}
 
+	this._button_press = function(button)
+	{
+		if(button.pressed())
+		{
+			if(self._current_scale == 'DrumPad')
+			{
+				if(button._x<4)
+				{
+					self._drum_stepsequencer.key_offset.set_value(button._translation);
+				}
+			}
+			else
+			{
+				if(button._y>1)
+				{
+					self._keys_stepsequencer.key_offset.set_value(button._translation);
+				}
+			}
+		}
+	}
+
 	this._update = function()
 	{
 		post('vert:', self._vertOffset._value, 'note:', self._noteOffset._value, ':', NOTENAMES[self._noteOffset._value], 'scale', SCALENAMES[self._scaleOffset._value]);
 		self._noteMap = new Array(128);
+		self._top.clear_buttons();
+		self._right.clear_buttons();
 		for(var i=0;i<128;i++)
 		{
 			self._noteMap[i] = [];
@@ -1518,9 +1534,11 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 			{
 				scale = self._primary_instrument._value == 'DrumMachine' ? 'DrumPad' : DEFAULT_SCALE;
 			}
+			self._current_scale = scale;
 			var scale_len = SCALES[scale].length;
 			var width = Math.min(self._grid.width(), 8);
 			var height = Math.min(self._grid.height(), 8);
+			post('split:', split, scale, 'in SPLIT_SCALES:', scale in SPLIT_SCALES, SPLIT_SCALES);
 			if((split)||(scale in SPLIT_SCALES))
 			{
 				if(scale != 'DrumPad')
@@ -1615,6 +1633,8 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
 	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 2, this._update, colors.BLUE);
 
+	this._current_scale = SCALENAMES[self._scaleOffset._value];
+
 	this._on_primary_instrument_changed = function(new_name){self._update();}
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
@@ -1625,9 +1645,9 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 
 }
 
-ScalesComponent.prototype.set_grid = function(grid)
+ScalesComponent.prototype.assign_grid = function(grid)
 {
-	if(this._grid != undefined)
+	if(this._grid instanceof Grid)
 	{
 		for(var column=0;column<this._grid.width();column++)
 		{
@@ -1638,6 +1658,10 @@ ScalesComponent.prototype.set_grid = function(grid)
 		}
 	}
 	this._grid = grid;
+	if(this._grid instanceof Grid)
+	{
+		this._grid.set_target(this._button_press);
+	}
 	this._top.clear_buttons();
 	this._right.clear_buttons();
 	this._update();
@@ -1675,6 +1699,12 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 			self._update_buttons();
 			self.notify();
 		}
+	}
+	this.set_value = function(value)
+	{
+		self._value = value;
+		self._update_buttons();
+		self.notify();
 	}
 	this._update_buttons = function()
 	{
@@ -1740,12 +1770,6 @@ OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
 	this._update_buttons();
 }
 
-OffsetComponent.prototype.setValue = function(value)
-{
-	self._value = value;
-	self._update_buttons();
-	self.notify();
-}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing
@@ -1754,13 +1778,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 {
 
 	var SEQ_BUFFER_STEPS = 32;	
-	var STEP_SIZE =
-	{
-		STEP_1_4 : 0,
-		STEP_1_8 : 1,
-		STEP_1_16 : 2,
-		STEP_1_32 : 3
-	};
+	var STEP_SIZE = {STEP_1_4 : 0, STEP_1_8 : 1, STEP_1_16 : 2, STEP_1_32 : 3};
 	var velocities = [127, 100, 80, 50];
 	this.velocityStep = 2;
 	this.velocity = velocities[this.velocityStep];
@@ -1769,13 +1787,14 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this.activeStep = 0;
 	this.playingStep = -1;
 	this.stepSize = STEP_SIZE.STEP_1_16;
+
 	this.Colors = {'PlayingOn':colors.RED, 'PlayingOff':colors.MAGENTA, 'On':colors.YELLOW, 'Off':colors.OFF};
 	var self = this;
+	this._name = name;
 	this._width = width;
 	this._height = height;
 	this._velocity = 100;
 	this._shifted = false;
-
 	this._grid = undefined;
 	this._subgrid = undefined;
 	this._cursorClip = cursorClip;
@@ -1792,10 +1811,11 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	}
 	this.receive_subgrid = function(button)
 	{
-		post('receive subgrid', button._name);
 		if(button.pressed())
 		{
+			
 			var step = button[self._subgrid._name + '_x'] + (self._width*button[self._subgrid._name + '_y']);  // + this.viewOffset();
+			post('subgrid', button[self._subgrid._name + '_x'], [self._subgrid._name + '_y'], step);
 			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
 		}
 	}
@@ -1813,7 +1833,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this._on_shift = function(){}
 	this.update = function()
 	{
-		if(self._grid)
+		if(self._grid instanceof Grid)
 		{
 			buttons = self._grid.controls();
 			var size = buttons.length;
@@ -1831,7 +1851,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 				button.send(colour);
 			}
 		}
-		if(self._subgrid)
+		if(self._subgrid instanceof SubGrid)
 		{
 			buttons = self._subgrid.controls();
 			var size = buttons.length;
@@ -1839,8 +1859,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 			for(var i=0;i<size;i++)
 			{
 				var button = buttons[i];
-				var step = button[self._subgrid._name + '_x'] + (self._width*button[self._subgrid._name + '_y']);
-				//var isSet = self.hasAnyKey(index);
+				var step = button[self._subgrid._name + '_x'] + (button[self._subgrid._name + '_y']*self._width);
 				var isSet = self._stepSet[step * 128 + key]
 				var isPlaying = step == self.playingStep;
 				var colour = isSet ?
@@ -1876,18 +1895,16 @@ StepSequencerComponent.prototype.assign_grid = function(new_grid)
 		this._subgrid.remove_target(this.receive_subgrid);
 		this._subgrid = undefined;
 	}
-	post('here1');
-	if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
+ 	if ((new_grid instanceof SubGrid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
+	{
+		this._subgrid = new_grid;
+		this._subgrid.set_target(this.receive_subgrid);
+		this.update();
+	}
+	else if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
 	{
 		this._grid = new_grid;
 		this._grid.set_target(this.receive_grid);
-		this.update();
-	}
-	else if ((new_grid instanceof SubGrid))// && (new_grid.width() == this._width) && (new_grid.height() == this._height))
-	{
-		post('assigning subgrid');
-		this._subgrid = new_grid;
-		this._subgrid.set_target(this.receive_subgrid);
 		this.update();
 	}
 }
