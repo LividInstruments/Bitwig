@@ -527,24 +527,21 @@ function setup_fixed_controls()
 
 function setup_listeners()
 {
-	selected_track = new ParameterHolder('selected_track_listener');
-	cursorTrack.addIsSelectedObserver(selected_track.receive);
+	selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
 	selected_track.add_listener(on_selected_track_changed);
 	
-	primary_instrument = new ParameterHolder('primary_instrument_listener');
+	primary_instrument = new Parameter('primary_instrument_listener');
 	cursorTrack.getPrimaryInstrument().addNameObserver(10, 'None', primary_instrument.receive);
 	primary_instrument.add_listener(on_primary_instrument_name_changed);
 
-	track_type = new ParameterHolder('track_type_listener');
-	cursorTrack.getCanHoldNoteData().addValueObserver(track_type.receive);
-	track_type.add_listener(on_track_type_changed);
-
-	track_type_name = new ParameterHolder('track_type_name_listener');
+	track_type_name = new Parameter('track_type_name_listener');
 	cursorTrack.addTrackTypeObserver(20, 'None', track_type_name.receive);
 	track_type_name.add_listener(on_track_type_name_changed);
 
-	selected_track_selected_clipslot = new ParameterHolder('selected_track_selected_clipslot_listener');
-	cursorTrack.getClipLauncher().addIsPlayingObserver(selected_track_selected_clipslot.receive);
+	track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
+	track_type.add_listener(on_track_type_changed);
+
+	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
 	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
 }
 

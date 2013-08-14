@@ -727,55 +727,29 @@ Mode.prototype.set_mode_buttons = function(buttons)
 
 /////////////////////////////////////////////////////////////////////////////
 //Parameter is a notifier that automatically updates its listeners when its state changes
+//It can either reflect an internal state or a JavaObject's value, and can be assigned a control
 
-function ParameterHolder(name, args)
+function Parameter(name, args)
 {
 	Notifier.call( this, name );
 	var self = this;
 	this._parameter = undefined;
+	this._num = 0;
 	this._value = 0;
+	this._onValue = 127;
+	this._offValue = 0;
 	for (var i in args)
 	{
-		this[i] = args[i];
+		this['_'+i] = args[i];
 	}
 	this.receive = function(value)
 	{
 		self._value = value;
+		self.update_control();
 		self.notify();
 	}
-}
-
-ParameterHolder.prototype = new Notifier();
-
-ParameterHolder.prototype.constructor = ParameterHolder;
-
-/////////////////////////////////////////////////////////////////////////////
-//ToggledParameter is a subclass of Parameter that encompasses 2 notifiers that interact with one another
-
-function ToggledParameterHolder(name, args, onValue, offValue)
-{
-	ParameterHolder.call( this, name );
-	var self = this;
-	this._control = undefined;
-	this._onValue = onValue||127;
-	this._offValue = offValue||0;
-	this._Callback = function(obj){if(obj._value){self.receive(Math.abs(self._value - 1));}}
-	this.receive = function(value)
-	{
-		self._value = value;
-		if(self._control)
-		{
-			if(value)
-			{
-				self._control.send(self._onValue);
-			}
-			else
-			{
-				self._control.send(self._offValue);
-			}
-		}
-		self.notify();
-	}	
+	this.update_control = function(){if(self._control){self._control.send(self._value*1);}}
+	this._Callback = function(obj){if(obj){self.receive(obj._value);}}
 	this.set_control = function(control)
 	{
 		if (control instanceof(Notifier) || !control)
@@ -792,12 +766,190 @@ function ToggledParameterHolder(name, args, onValue, offValue)
 			}
 		}
 	}
-
+	if(this._javaObj)
+	{
+		if(this._action){this._Callback = function(obj){if(obj._value){self._javaObj[self._action]();}}}
+		if(this._monitor){this._javaObj[this._monitor](this.receive);}
+	}
 }
 
-ToggledParameterHolder.prototype = new ParameterHolder();
+Parameter.prototype = new Notifier();
 
-ToggledParameterHolder.prototype.constructor = ToggledParameterHolder;
+Parameter.prototype.constructor = Parameter;
+
+Parameter.prototype.set_on_off_values = function(onValue, offValue)
+{
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+}
+
+
+function ToggledParameter(name, args)
+{
+	Parameter.call( this, name, args );
+	var self = this;
+	this._Callback = function(obj)
+	{
+		if(obj._value)
+		{
+			if(self._javaObj)
+			{
+				self._javaObj[self._action]();
+			}
+			else
+			{
+				self.receive(Math.abs(self._value - 1));
+			}
+		}
+	} 
+	this.update_control = function(value)
+	{
+		if(self._control)
+		{
+			if(self._value)
+			{
+				self._control.send(self._onValue);
+			}
+			else
+			{
+				self._control.send(self._offValue);
+			}
+		}
+	}
+}
+
+ToggledParameter.prototype = new Parameter();
+
+ToggledParameter.prototype.constructor = ToggledParameter;
+
+
+function RangedParameter(name, args)
+{
+	Parameter.call( this, name, args );
+	var self = this;
+	this._Callback = function(obj)
+	{
+		if(obj._value!=undefined)
+		{
+			if(self._javaObj)
+			{
+				self._javaObj.set(obj._value, self._range);
+			}
+			else
+			{
+				self.receive(obj._value);
+			}
+		}
+	}
+	if(this._javaObj){this._javaObj.addValueObserver(this._range, this.receive);}
+}
+
+RangedParameter.prototype = new Parameter();
+
+RangedParameter.prototype.constructor = RangedParameter;
+
+/////////////////////////////////////////////////////////////////////////////
+//Notifier that uses two buttons to change an offset value
+
+function OffsetComponent(name, minimum, maximum, initial, callback, onValue, offValue)
+{
+	Notifier.call(this, name)
+	var self = this;
+	this._min = minimum||0;
+	this._max = maximum||127;
+	this._value = initial||0;
+	this._incButton;
+	this._decButton;
+	this._onValue = onValue||127;
+	this._offValue = offValue||0;
+	this._displayValues = [this._onValue, this._offValue];
+	this.incCallback = function(obj)
+	{
+		if((obj._value>0)&&(self._value<self._max))
+		{
+			self._value++;
+			self._update_buttons();
+			self.notify();
+		}
+	}
+	this.decCallback = function(obj)
+	{
+		if((obj._value>0)&&(self._value>self._min))
+		{
+			self._value--;
+			self._update_buttons();
+			self.notify();
+		}
+	}
+	this.set_value = function(value)
+	{
+		self._value = value;
+		self._update_buttons();
+		self.notify();
+	}
+	this._update_buttons = function()
+	{
+		if(self._incButton)
+		{
+			if(self._value<self._max)
+			{
+				self._incButton.send(self._onValue);
+			}
+			else
+			{
+				self._incButton.send(self._offValue);
+			}
+		}
+		if(self._decButton)
+		{
+			if(self._value>self._min)
+			{
+				self._decButton.send(self._onValue);
+			}
+			else
+			{
+				self._decButton.send(self._offValue);
+			}
+		}
+	}
+	if(callback!=undefined)
+	{
+		this.set_target(callback);
+	}
+}
+
+OffsetComponent.prototype = new Notifier();
+
+OffsetComponent.prototype.constructor = OffsetComponent;
+
+OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
+{
+	if (incButton instanceof(Notifier) || !incButton)
+	{
+		if(this._incButton)
+		{
+			this._incButton.remove_target(this.incCallback)
+		}
+		this._incButton = incButton;
+		if(this._incButton)
+		{
+			this._incButton.set_target(this.incCallback)
+		}
+	}
+	if (decButton instanceof(Notifier) || !decButton)
+	{
+		if(this._decButton)
+		{
+			this._decButton.remove_target(this.decCallback)
+		}
+		this._decButton = decButton;
+		if(this._decButton)
+		{
+			this._decButton.set_target(this.decCallback)
+		}
+	}
+	this._update_buttons();
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //PageStack is a Mode subclass that handles entering/leaving pages automatically
@@ -936,20 +1088,19 @@ Page.prototype.register_control = function(control, target)
 /////////////////////////////////////////////////////////////////////////////
 //Storage objects contained in ClipLaunchComponent
 
-function ClipSlotComponent(name, clipLauncher)
+function ClipSlotComponent(name, args)
 {
-	ParameterHolder.call( this, name )
+	//ParameterHolder.call( this, name )
+	Parameter.call( this, name, args )
 	var self = this;
-	this._name = name;
-	this._clipLauncher = clipLauncher;
-	this._session = clipLauncher._session;
+	this._session = this._clipLauncher._session;
 	this.hasContent = false;
 	this.isPlaying = false;
 	this.isQeued = false;
 	this.isRecording = false;
 }
 
-ClipSlotComponent.prototype = new ParameterHolder();
+ClipSlotComponent.prototype = new Parameter();
 
 ClipSlotComponent.prototype.constructor = ClipSlotComponent;
 
@@ -1005,7 +1156,7 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	}
 	for (var c = 0; c < height; c++)
 	{
-		this._clipslots[c] = new ClipSlotComponent(this._name + '_ClipSlot_' + c, this);
+		this._clipslots[c] = new ClipSlotComponent(this._name + '_ClipSlot_' + c, {clipLauncher:this});
 		this._clipLauncher.addHasContentObserver(this._hasContentListener);
 		this._clipLauncher.addIsPlayingObserver(this._isPlayingListener);
 		this._clipLauncher.addIsQueuedObserver(this._isQueuedListener);
@@ -1047,14 +1198,12 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	}
 	this.receive_grid = function(button){if(button.pressed()){this_session._tracks[button._x].launch(button._y);}}
 	
-	this._navUp = new GenericParameterComponent(this._name + '_NavUp', 0, this._trackBank, 'scrollScenesUp', 'addCanScrollScenesUpObserver', this._colors.navColor);
-	this._navDn = new GenericParameterComponent(this._name + '_NavDown', 1, this._trackBank, 'scrollScenesDown', 'addCanScrollScenesDownObserver', this._colors.navColor);
-	this._navLt = new GenericParameterComponent(this._name + '_NavLeft', 2, this._trackBank, 'scrollTracksDown', 'addCanScrollTracksDownObserver', this._colors.navColor);
-	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._trackBank, 'scrollTracksUp', 'addCanScrollTracksUpObserver', this._colors.navColor);
+	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._trackBank, action:'scrollScenesUp', monitor:'addCanScrollScenesUpObserver', onValue:this._colors.navColor});
+	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._trackBank, action:'scrollScenesDown', monitor:'addCanScrollScenesDownObserver', onValue:this._colors.navColor});
+	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._trackBank, action:'scrollTracksDown', monitor:'addCanScrollTracksDownObserver', onValue:this._colors.navColor});
+	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._trackBank, action:'scrollTracksUp', monitor:'addCanScrollTracksUpObserver', onValue:this._colors.navColor});
 
 }
-
-//SessionComponent.prototype = new SessionComponent();
 
 SessionComponent.prototype.assign_grid = function(new_grid)
 {
@@ -1176,24 +1325,24 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 					'armColor' : colors.RED,
 					'selectColor' : colors.WHITE};
 
-	this._volume = new RangedParameterComponent(this._name + '_Volume', 0, this._track.getVolume(), 128);
+	this._volume = new RangedParameter(this._name + '_Volume', {javaObj:this._track.getVolume(), range:128});
 
-	this._mute = new ToggledParameterComponent(this._name + '_Mute', 0, this._track.getMute(), 'toggle', 'addValueObserver', this._colors.muteColor);
+	this._mute = new ToggledParameter(this._name + '_Mute', {javaObj:this._track.getMute(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.muteColor});
 
-	this._solo = new ToggledParameterComponent(this._name + '_Solo', 0, this._track.getSolo(), 'toggle', 'addValueObserver', this._colors.soloColor);
+	this._solo = new ToggledParameter(this._name + '_Solo', {javaObj:this._track.getSolo(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.soloColor});
 
-	this._arm = new ToggledParameterComponent(this._name + '_Arm', 0, this._track.getArm(), 'toggle', 'addValueObserver', this._colors.armColor);
+	this._arm = new ToggledParameter(this._name + '_Arm', {javaObj:this._track.getArm(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.armColor});
 
-	this._select = new GenericParameterComponent(this._name + '_Select', 0, self._track, 'select', 'addIsSelectedObserver', this._colors.selectColor);
+	this._select = new Parameter(this._name + '_Select', {javaObj:self._track, action:'select', monitor:'addIsSelectedObserver', onValue:this._colors.selectColor});
 	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
 
-	this._stop = new ParameterComponent(this._name + '_Stop', 0, self._track);
+	this._stop = new Parameter(this._name + '_Stop', {javaObj:self._track});
 	this._stop._Callback = function(obj){if(obj._value){self._track.stop();}}
 
 	this._send = [];
 	for(var i=0;i<num_sends;i++)
 	{
-		this._send[i] = new RangedParameterComponent(this._name + '_Send_' + i, i, this._track.getSend(i), 128);
+		this._send[i] = new RangedParameter(this._name + '_Send_' + i, {num:i, javaObj:this._track.getSend(i), range:128});
 	}
 
 	this.updateControls = function()
@@ -1211,189 +1360,6 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 /////////////////////////////////////////////////////////////////////////////
 //Base class for a parameter object
 
-function ParameterComponent(name, num, Obj, action, monitor, onValue, offValue)
-{
-	var self = this;
-	this._name = name;
-	this._num = num;
-	this._onValue = onValue||127;
-	this._offValue = offValue||0;
-	this._control;
-	this._Value = 0;
-	this._Listener = function(value)
-	{
-		self._Value = value;
-		if(self._control)
-		{
-			if(value)
-			{
-				self._control.send(self._onValue);
-			}
-			else
-			{
-				self._control.send(self._offValue);
-			}
-		}
-	}
-	this._Callback = function(obj){self._Listener(obj._value)}
-	this.set_control = function(control)
-	{
-		if (control instanceof(Notifier) || !control)
-		{
-			if(self._control)
-			{
-				self._control.remove_target(self._Callback);
-			}
-			self._control = control;
-			if(self._control)
-			{
-				self._control.set_target(self._Callback);
-				self._Listener(self._Value);
-			}
-		}
-	}	
-}
-
-/////////////////////////////////////////////////////////////////////////////
-//Base class for BitWig java container
-
-function ParameterComponent(name, num, javaObj)
-{
-	//ParameterComponent.call( this, name, num )
-	var self = this;
-	this._name = name;
-	this._num = num;
-	this._control;
-	this._Obj = javaObj;
-	this._Value = 0;
-	this._Listener = function(value){}
-	this._Callback = function(obj){if(obj._value){self._Obj.set(obj._value);}}
-	this.set_control = function(control)
-	{
-		if (control instanceof(Notifier) || !control)
-		{
-			if(self._control)
-			{
-				self._control.remove_target(self._Callback);
-			}
-			self._control = control;
-			if(self._control)
-			{
-				self._control.set_target(self._Callback);
-				self._Listener(self._Value);
-			}
-		}
-	}	
-}
-
-/////////////////////////////////////////////////////////////////////////////
-//Base class for BitWig java container
-
-function GenericParameterComponent(name, num, javaObj, action, monitor, onValue, offValue)
-{
-	ParameterComponent.call( this, name, num, javaObj )
-	var self = this;
-	this._onValue = onValue||127;
-	this._offValue = offValue||0;
-	if(action){this._Callback = function(obj){if(obj._value){self._Obj[action]();}}}
-	this._Listener = function(value)
-	{
-		self._Value = value;
-		if(self._control)
-		{
-			if(value)
-			{
-				self._control.send(self._onValue);
-			}
-			else
-			{
-				self._control.send(self._offValue);
-			}
-		}
-	}
-	this.set_control = function(control)
-	{
-		if (control instanceof(Notifier) || !control)
-		{
-			if(self._control)
-			{
-				self._control.remove_target(self._Callback);
-			}
-			self._control = control;
-			if(self._control)
-			{
-				self._control.set_target(self._Callback);
-				self._Listener(self._Value);
-			}
-		}
-	}	
-	if(monitor){this._Obj[monitor](this._Listener);}
-}
-
-GenericParameterComponent.prototype = new ParameterComponent();
-
-GenericParameterComponent.prototype.constructor = ParameterComponent;
-
-GenericParameterComponent.prototype.set_on_off_colors = function(onValue, offValue)
-{
-	this._onValue = onValue;
-	this._offValue = offValue;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-//Subclass of ParameterComponent that expects to contain RangedValues
-
-function RangedParameterComponent(name, num, javaObj, range)
-{
-	ParameterComponent.call( this, name, num, javaObj )
-	var self = this;
-	this._Range = range||128;
-	this._Callback = function(obj){if(obj._value!=undefined){self._Obj.set(obj._value, self._Range);}}
-	this._Listener = function(value)
-	{
-		self._Value = value;
-		if(self._control)
-		{
-			self._control.send(value);
-		}
-	}
-	this.set_control = function(control)
-	{
-		if (control instanceof(Notifier) || !control)
-		{
-			if(self._control)
-			{
-				self._control.remove_target(self._Callback);
-			}
-			self._control = control;
-			if(self._control)
-			{
-				self._control.set_target(self._Callback);
-				self._Listener(self._Value);
-			}
-		}
-	}
-	javaObj.addValueObserver(this._Range, this._Listener);
-}
-
-RangedParameterComponent.prototype = new ParameterComponent();
-
-RangedParameterComponent.prototype.constructor = ParameterComponent;
-
-/////////////////////////////////////////////////////////////////////////////
-//Subclass of ParameterComponent that expects to contain Bool values
-
-function ToggledParameterComponent(name, num, javaObj, action, monitor, onValue, offValue )
-{
-	GenericParameterComponent.call( this, name, num, javaObj, action, monitor, onValue, offValue )
-	var self = this;
-	this._Callback = function(obj){if(obj._value){self._Obj[action]();}}
-}
-
-ToggledParameterComponent.prototype = new ParameterComponent();
-
-ToggledParameterComponent.prototype.constructor = ParameterComponent;
-
 /////////////////////////////////////////////////////////////////////////////
 //Component containing controls for currently controlled cursorDevice
 
@@ -1408,11 +1374,11 @@ function DeviceComponent(name, size, cursorDevice)
 	{
 		this._parameter[i] = new RangedParameterComponent(this._name + '_Parameter_' + i, i, this._cursorDevice.getParameter(i), 128);
 	}
-	this._navUp = new GenericParameterComponent(this._name + '_NavUp', 0, this._cursorDevice, 'nextParameterPage');
-	this._navDn = new GenericParameterComponent(this._name + '_NavDown', 1, this._cursorDevice, 'previousParameterPage');
-	this._navLt = new GenericParameterComponent(this._name + '_NavLeft', 2, this._cursorDevice, 'selectNext');
-	this._navRt = new GenericParameterComponent(this._name + '_NavRight', 3, this._cursorDevice, 'selectPrevious');
 
+	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._cursorDevice, action:'nextParameterPage'});
+	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._cursorDevice, action:'previousParameterPage'});
+	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._cursorDevice, action:'selectNext'});
+	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._cursorDevice, action:'selectPrevious'});
 	
 }
 
@@ -1508,8 +1474,8 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	if(this._primary_instrument == undefined)
 	{
 		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
-		this._primary_instrument = new ParameterHolder('primary_instrument_listener');
-		cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);
+		this._primary_instrument = new Parameter('primary_instrument_listener');
+		cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument._Callback);
 	}
 
 	this._onNote = function(val, num, extra)
@@ -1526,8 +1492,8 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	if(this._track_type == undefined)
 	{
 		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
-		this._track_type = new ParameterHolder('track_type_listener');
-		cursorTrack.getCanHoldNoteData().addValueObserver(this._track_type.receive);
+		this._track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
+		//cursorTrack.getCanHoldNoteData().addValueObserver(this._track_type._Callback);
 		cursorTrack.addNoteObserver(this._onNote);
 	}
 
@@ -1672,7 +1638,7 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 		}
 	}
 
-	this._splitMode = new ToggledParameterHolder('ScaleSplit');
+	this._splitMode = new ToggledParameter('ScaleSplit');
 	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, this._update, colors.MAGENTA);
 	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
 	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 2, this._update, colors.BLUE);
@@ -1711,108 +1677,6 @@ ScalesComponent.prototype.assign_grid = function(grid)
 	this._update();
 }
 
-/////////////////////////////////////////////////////////////////////////////
-//Notifier that uses two buttons to change an offset value
-
-function OffsetComponent(name, minimum, maximum, initial, callback, onValue, offValue)
-{
-	Notifier.call(this, name)
-	var self = this;
-	this._min = minimum||0;
-	this._max = maximum||127;
-	this._value = initial||0;
-	this._incButton;
-	this._decButton;
-	this._onValue = onValue||127;
-	this._offValue = offValue||0;
-	this._displayValues = [this._onValue, this._offValue];
-	this.incCallback = function(obj)
-	{
-		if((obj._value>0)&&(self._value<self._max))
-		{
-			self._value++;
-			self._update_buttons();
-			self.notify();
-		}
-	}
-	this.decCallback = function(obj)
-	{
-		if((obj._value>0)&&(self._value>self._min))
-		{
-			self._value--;
-			self._update_buttons();
-			self.notify();
-		}
-	}
-	this.set_value = function(value)
-	{
-		self._value = value;
-		self._update_buttons();
-		self.notify();
-	}
-	this._update_buttons = function()
-	{
-		if(self._incButton)
-		{
-			if(self._value<self._max)
-			{
-				self._incButton.send(self._onValue);
-			}
-			else
-			{
-				self._incButton.send(self._offValue);
-			}
-		}
-		if(self._decButton)
-		{
-			if(self._value>self._min)
-			{
-				self._decButton.send(self._onValue);
-			}
-			else
-			{
-				self._decButton.send(self._offValue);
-			}
-		}
-	}
-	if(callback!=undefined)
-	{
-		this.set_target(callback);
-	}
-}
-
-OffsetComponent.prototype = new Notifier();
-
-OffsetComponent.prototype.constructor = OffsetComponent;
-
-OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
-{
-	if (incButton instanceof(Notifier) || !incButton)
-	{
-		if(this._incButton)
-		{
-			this._incButton.remove_target(this.incCallback)
-		}
-		this._incButton = incButton;
-		if(this._incButton)
-		{
-			this._incButton.set_target(this.incCallback)
-		}
-	}
-	if (decButton instanceof(Notifier) || !decButton)
-	{
-		if(this._decButton)
-		{
-			this._decButton.remove_target(this.decCallback)
-		}
-		this._decButton = decButton;
-		if(this._decButton)
-		{
-			this._decButton.set_target(this.decCallback)
-		}
-	}
-	this._update_buttons();
-}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing
@@ -2014,4 +1878,5 @@ TaskServer.prototype.removeRepeatTask = function(callback, arguments)
 		}
 	}
 }
+
 
