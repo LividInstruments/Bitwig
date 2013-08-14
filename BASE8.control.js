@@ -186,11 +186,11 @@ function initialize_surface()
 function setup_controls()
 {
 	script['faders'] = [];
-	script['faderbank'] = new FaderBank(8, 'Faders');
+	script['faderbank'] = new Grid(8, 0, 'Faders');
 	for (var i = 0;i < 9; i++)
 	{
 		faders[i] = new Slider(SLIDERS[i], 'Fader_'+i);
-		faderbank.add_fader(i, faders[i]);
+		faderbank.add_control(i, 0, faders[i]);
 	}
 	script['touch_buttons'] = [];
 	for (var i = 0;i < 8; i++)
@@ -214,7 +214,7 @@ function setup_controls()
 			var number = i + (j*8);
 			buttons[i][j] = new Button(GRIDBUTTONS[number], 'Grid_'+i+'_'+j);
 			buttons_CC[i][j] = new PadPressure(GRIDBUTTONS[number], 'PadPressure_'+i+'_'+j);
-			grid.add_button(i, j, buttons[i][j]);
+			grid.add_control(i, j, buttons[i][j]);
 		}
 	}
 	post('setup_controls successful');

@@ -275,6 +275,7 @@ function Control(identifier, name)
 	this._type = NONE_TYPE;
 	this._id = identifier;
 	this._channel = CHANNEL;
+	this._grid = {};
 	this.receive = function(value)
 	{
 		self._value = value;
@@ -284,6 +285,8 @@ function Control(identifier, name)
 	{
 		self.send(notification._value);
 	}
+	this._x = function(grid){if(self._grid[grid._name]!=undefined){return(self._grid[grid._name].x)}}
+	this._y = function(grid){if(self._grid[grid._name]!=undefined){return(self._grid[grid._name].y)}}
 }
 
 Control.prototype = new Notifier();
@@ -304,8 +307,6 @@ Control.prototype.reset = function()
 	this.send(0);
 }
 
-//////////////////////////////////////////////////////////////////////////
-//A NOTE_TYPE Control
 
 function Button(identifier, name)
 {
@@ -356,8 +357,6 @@ Button.prototype.set_translation = function(newID)
 	recalculate_translation_map = true;
 }
 
-////////////////////////////////////////////////////////////////////////////
-//A CC_Type Control 
 
 function PadPressure(identifier, name)
 {
@@ -375,8 +374,6 @@ PadPressure.prototype.pressed = function()
 	return this._value > 0;
 }
 
-////////////////////////////////////////////////////////////////////////////
-//A CC_Type Control 
 
 function Slider(identifier, name)
 {
@@ -394,8 +391,6 @@ Slider.prototype._send = function(value)
 	sendChannelController(this._channel, this._id, value);
 }
 
-////////////////////////////////////////////////////////////////////////////
-//Slider Control with extra capabilities for Livid hardware
 
 function TouchFader(identifier, name)
 {
@@ -410,67 +405,6 @@ TouchFader.prototype.constructor = TouchFader;
 TouchFader.prototype.set_color = function(color){}//not implemented
 
 TouchFader.prototype.set_mode = function(mode){}//not implemented
-
-////////////////////////////////////////////////////////////////////////////
-//A notifier that collects a bank of Sliders
-
-function FaderBank(width, name)
-{
-	Notifier.call( this, name );
-	var self = this;
-	this._name = name;
-	this._faders = new Array(width);
-	this.receive = function(fader){self.notify(fader);}
-}
-
-FaderBank.prototype = new Notifier();
-
-FaderBank.prototype.constructor = FaderBank;
-
-FaderBank.prototype.controls = function()
-{
-	return this._faders;
-}
-
-FaderBank.prototype.add_fader = function(x, fader)
-{
-	if(x < this._faders.length)
-	{
-		this._faders[x] = fader;
-		fader._x = x;
-		fader._y = 0;
-		fader.coordinates = function()
-		{
-			return [fader._x, fader._y];
-		}
-		fader._faderbank = this;
-		//fader.add_listener([this.receive,this]);
-		fader.add_listener(this.receive);
-	}
-}
-
-FaderBank.prototype.send = function(x, value)
-{
-	this._faders[x].send(value);
-}
-
-FaderBank.prototype.get_fader = function(x)
-{
-	if(this._faders[x])
-	{
-		return this._faders[x];
-	}
-}
-
-FaderBank.prototype.reset = function()
-{
-	for (index in this._faders)
-	{
-		this._faders[index].reset();
-	}
-}
-
-//FaderBank.prototype.receive = function(fader){this.notify(fader);}
 
 ////////////////////////////////////////////////////////////////////////////
 //A notifier that collects a grid of buttons
@@ -493,24 +427,6 @@ function Grid(width, height, name)
 	}
 	this._grid = contents;
 	this.receive = function(button){self.notify(button);}
-	/*this.notify = function(button)
-	{
-		if(this_grid._target_heap[0])
-		{
-			try
-			{
-				this_grid._target_heap[0](button);
-			}
-			catch(err)
-			{
-				post('callback generated exception:', err, 'for target of', this_grid._name,' : ',this_grid._target_heap[0]);
-			}
-		}
-		for (var i in this._listeners)
-		{
-			this_grid._listeners[i](button);
-		}
-	}*/
 }
 
 Grid.prototype = new Notifier();
@@ -533,21 +449,15 @@ Grid.prototype.controls = function()
 	return buttons;
 }
 
-Grid.prototype.add_button = function(x, y, button)
+Grid.prototype.add_control = function(x, y, button)
 {
 	if(x < this._grid.length)
 	{
 		if(y < this._grid[x].length)
 		{
 			this._grid[x][y] = button;
-			button._x = x;
-			button._y = y;
-			button.coordinates = function()
-			{
-				return [button._x, button._y];
-			}
-			button._grid = this;
-			button.set_target(this.receive);
+			button._grid[this._name] = {x:x, y:y, obj:this};
+			button.add_listener(this.receive);
 		}
 	}
 }
@@ -579,45 +489,15 @@ Grid.prototype.reset = function()
 	}
 }
 
-
-function SubGrid(width, height, name)
-{
-	Grid.call( this, width, height, name);
-	var self = this;
-	this.receive = function(button)
-	{
-		post('receiving subgrid', button._name);
-		self.notify(button);
-	}
-}
-
-SubGrid.prototype = new Grid();
-
-SubGrid.prototype.constructor = SubGrid;
-
-SubGrid.prototype.add_button = function(x, y, button)
-{
-	if(x < this.width())
-	{
-		if(y < this.height())
-		{
-			this._grid[x][y] = button;
-			button[this._name + '_x'] = x;
-			button[this._name + '_y'] = y;
-			button.set_target(this.receive);
-		}
-	}
-}
-
-SubGrid.prototype.clear_buttons = function()
+Grid.prototype.clear_buttons = function()
 {
 	var buttons = this.controls();
 	for (var i in buttons)
 	{
 		if(buttons[i] instanceof Notifier)
 		{
-			post('removing target:', buttons[i]._name);
-			buttons[i].remove_target(this.receive);
+			buttons[i].remove_listener(this.receive);
+			delete buttons[i]._grid[this._name];
 		}
 	}
 	var contents = [];
@@ -631,7 +511,6 @@ SubGrid.prototype.clear_buttons = function()
 	}
 	this._grid = contents;
 }
-
 
 /////////////////////////////////////////////////////////////////////////////
 //Mode is a notifier that automatically updates buttons when its state changes
@@ -1090,7 +969,6 @@ Page.prototype.register_control = function(control, target)
 
 function ClipSlotComponent(name, args)
 {
-	//ParameterHolder.call( this, name )
 	Parameter.call( this, name, args )
 	var self = this;
 	this._session = this._clipLauncher._session;
@@ -1178,7 +1056,7 @@ ClipLaunchComponent.prototype.get_clipslot = function(slot)
 
 function SessionComponent(name, width, height, trackBank, _colors)
 {
-	var this_session = this;
+	var self = this;
 	this._name = name;
 	this._grid = undefined;
 	this._colors = _colors||{'hasContentColor': colors.WHITE, 
@@ -1196,7 +1074,7 @@ function SessionComponent(name, width, height, trackBank, _colors)
 		var track = trackBank.getTrack(t);
 		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncher(), this);
 	}
-	this.receive_grid = function(button){if(button.pressed()){this_session._tracks[button._x].launch(button._y);}}
+	this.receive_grid = function(button){if(button.pressed()){self._tracks[button._x(self._grid)].launch(button._y(self._grid));}}
 	
 	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._trackBank, action:'scrollScenesUp', monitor:'addCanScrollScenesUpObserver', onValue:this._colors.navColor});
 	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._trackBank, action:'scrollScenesDown', monitor:'addCanScrollScenesDownObserver', onValue:this._colors.navColor});
@@ -1372,7 +1250,7 @@ function DeviceComponent(name, size, cursorDevice)
 	this._parameter = [];
 	for(var i=0;i<size;i++)
 	{
-		this._parameter[i] = new RangedParameterComponent(this._name + '_Parameter_' + i, i, this._cursorDevice.getParameter(i), 128);
+		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._cursorDevice.getParameter(i), range:128});
 	}
 
 	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._cursorDevice, action:'nextParameterPage'});
@@ -1462,8 +1340,8 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 
 	this._grid;
 
-	this._top = new SubGrid(8, 2, 'top');
-	this._right = new SubGrid(4, 4, 'right');
+	this._top = new Grid(8, 2, 'top');
+	this._right = new Grid(4, 4, 'right');
 
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
@@ -1493,7 +1371,6 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	{
 		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
 		this._track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
-		//cursorTrack.getCanHoldNoteData().addValueObserver(this._track_type._Callback);
 		cursorTrack.addNoteObserver(this._onNote);
 	}
 
@@ -1503,14 +1380,14 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 		{
 			if(self._current_scale == 'DrumPad')
 			{
-				if(button._x<4)
+				if(button._x(self._grid)<4)
 				{
 					self._drum_stepsequencer.key_offset.set_value(button._translation);
 				}
 			}
 			else
 			{
-				if(button._y>1)
+				if(button._y(self._grid)>1)
 				{
 					self._keys_stepsequencer.key_offset.set_value(button._translation);
 				}
@@ -1568,12 +1445,10 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 							}
 							else
 							{
-								post('adding top button', column, row, button);
-								self._top.add_button(column, row, button);
+								self._top.add_control(column, row, button);
 							}
 						}
 					}
-					post('assigning stepsequencer');
 					self._keys_stepsequencer.assign_grid(self._top);
 				}
 				else
@@ -1593,7 +1468,7 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 							}
 							else
 							{
-								self._right.add_button(column-4, row, button);
+								self._right.add_control(column-4, row, button);
 							}
 						}
 					}
@@ -1648,8 +1523,6 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	this._on_primary_instrument_changed = function(new_name){self._update();}
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
-
-	
 	/*this._on_track_type_changed = function(new_type){self._update();}
 	this._track_type.add_listener(this._on_track_type_changed);*/
 
@@ -1664,6 +1537,7 @@ ScalesComponent.prototype.assign_grid = function(grid)
 			for(var row=0;row<this._grid.height();row++)
 			{
 				this._grid.get_button(column, row).set_translation(-1);
+				this._grid.remove_target(this._button_press);
 			}
 		}
 	}
@@ -1703,7 +1577,6 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this._velocity = 100;
 	this._shifted = false;
 	this._grid = undefined;
-	this._subgrid = undefined;
 	this._cursorClip = cursorClip;
 	if(!cursorClip){this._cursorClip = host.createCursorClipSection(SEQ_BUFFER_STEPS, 128);}
 
@@ -1712,17 +1585,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	{
 		if(button.pressed())
 		{
-			var step = button._x + self._width*button._y;  // + this.viewOffset();
-			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
-		}
-	}
-	this.receive_subgrid = function(button)
-	{
-		if(button.pressed())
-		{
-			
-			var step = button[self._subgrid._name + '_x'] + (self._width*button[self._subgrid._name + '_y']);  // + this.viewOffset();
-			post('subgrid', button[self._subgrid._name + '_x'], [self._subgrid._name + '_y'], step);
+			var step = button._x(self._grid) + self._width*button._y(self._grid);  // + this.viewOffset();
 			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
 		}
 	}
@@ -1748,25 +1611,8 @@ function StepSequencerComponent(name, width, height, cursorClip)
 			for(var i=0;i<size;i++)
 			{
 				var button = buttons[i];
-				var step = button._x + (button._y*self._width);
+				var step = button._x(self._grid) + (button._y(self._grid)*self._width);
 				//var isSet = self.hasAnyKey(index);
-				var isSet = self._stepSet[step * 128 + key]
-				var isPlaying = step == self.playingStep;
-				var colour = isSet ?
-					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
-					(isPlaying ? self.Colors.PlayingOff : self.Colors.Off);
-				button.send(colour);
-			}
-		}
-		if(self._subgrid instanceof SubGrid)
-		{
-			buttons = self._subgrid.controls();
-			var size = buttons.length;
-			var key = self.key_offset._value;
-			for(var i=0;i<size;i++)
-			{
-				var button = buttons[i];
-				var step = button[self._subgrid._name + '_x'] + (button[self._subgrid._name + '_y']*self._width);
 				var isSet = self._stepSet[step * 128 + key]
 				var isPlaying = step == self.playingStep;
 				var colour = isSet ?
@@ -1797,18 +1643,7 @@ StepSequencerComponent.prototype.assign_grid = function(new_grid)
 		this._grid.remove_target(this.receive_grid);
 		this._grid = undefined;
 	}
-	if(this._subgrid!=undefined)
-	{
-		this._subgrid.remove_target(this.receive_subgrid);
-		this._subgrid = undefined;
-	}
- 	if ((new_grid instanceof SubGrid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
-	{
-		this._subgrid = new_grid;
-		this._subgrid.set_target(this.receive_subgrid);
-		this.update();
-	}
-	else if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
+	if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
 	{
 		this._grid = new_grid;
 		this._grid.set_target(this.receive_grid);
