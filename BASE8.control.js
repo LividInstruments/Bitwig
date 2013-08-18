@@ -232,7 +232,7 @@ function setup_session()
 
 function setup_mixer()
 {
-	mixer = new MixerComponent('Mixer', 8, 4, trackBank, cursorTrack, masterTrack);
+	mixer = new MixerComponent('Mixer', 8, 4, trackBank, undefined, cursorTrack, masterTrack);
 }
 
 function setup_device()
@@ -432,7 +432,7 @@ function setup_modes()
 			scales.assign_grid(grid);
 			scales._follow.set_control(function_buttons[4]);
 			function_buttons[5].reset();
-			scales._offset.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
+			scales._offset.set_inc_dec_buttons(function_buttons[6], function_buttons[7]);
 		}
 		else
 		{
@@ -443,7 +443,8 @@ function setup_modes()
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control(faders[i]);
-			faders[i+4].reset();
+			mixer.returnstrip(i)._volume.set_control(faders[i+4]);
+			//faders[i+4].reset();
 		}
 		for(var i=0;i<8;i++)
 		{
@@ -463,6 +464,7 @@ function setup_modes()
 		{
 			mixer.selectedstrip()._send[i].set_control();
 			//mixer.set_return_control(i);
+			mixer.returnstrip(i)._volume.set_control();
 		}
 		sendPage.set_shift_button();
 		sendPage.active = false;
@@ -475,6 +477,12 @@ function setup_modes()
 		faderbank.reset();
 		if(sendPage._shifted)
 		{
+			for(var i=0;i<4;i++)
+			{
+				mixer.selectedstrip()._send[i].set_control();
+				//mixer.set_return_control(i);
+				mixer.returnstrip(i)._volume.set_control();
+			}
 			altClipLaunchSub.exit_mode();
 			session.assign_grid();
 			scales.assign_grid();
@@ -601,6 +609,7 @@ function setup_modes()
 	MainModes.add_mode(2, devicePage);
 	MainModes.add_mode(3, seqPage);
 	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
+	MainModes.add_listener(display_mode);
 
 	function_buttons[0].set_on_off_values(colors.WHITE);
 	function_buttons[1].set_on_off_values(colors.CYAN);
@@ -706,6 +715,8 @@ function onSysex(data)
 
 
 const MODE_CHARS = ['L', 'S', 'D', 'U'];
+//strangley enough, my old favorite t-shirt used to say this:  L.S.D. University.  
+
 function display_mode()
 {
 	char1 = MODE_CHARS[MainModes.current_mode()];
@@ -717,7 +728,6 @@ function display_mode()
 		char2 = 'S'
 	elif self._layer is 3:
 		char2 = str(self._user_mode_selector._mode_index+1)*/
-	post('display_mode:', char1, char2);
 	lcd._send(char1+''+char2);
 }
 

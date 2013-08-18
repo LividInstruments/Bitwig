@@ -134,7 +134,8 @@ function Notifier(name)
 	this._value = -1;
 	this._listeners = [];
 	this._target_heap = [];
-	this._self = function(){return self;}
+	this._enabled = true;
+	this.instance = function(){return self;}
 }
 
 Notifier.prototype.get_target = function(){return this._target_heap[0];}
@@ -258,6 +259,11 @@ Notifier.prototype.notify = function(obj)
 	}
 }
 
+Notifier.prototype.set_enabled = function(val)
+{
+	this._enabled = (val>0);
+}
+
 //////////////////////////////////////////////////////////////////////////
 //A Notifier representing a physical control that can send and receive MIDI 
 
@@ -271,12 +277,15 @@ function Control(identifier, name)
 	this._grid = {};
 	this.receive = function(value)
 	{
-		self._value = value;
-		self.notify();
+		if(self._enabled)
+		{
+			self._value = value;
+			self.notify();
+		}
 	}
 	this.receive_notifier = function(notification)
 	{
-		self.send(notification._value);
+		if(self._enabled){self.send(notification._value);}
 	}
 	this._x = function(grid){if(self._grid[grid._name]!=undefined){return(self._grid[grid._name].x)}}
 	this._y = function(grid){if(self._grid[grid._name]!=undefined){return(self._grid[grid._name].y)}}
@@ -584,6 +593,7 @@ function Mode(number_of_modes, name)
 		if(button.pressed())
 		{
 			self.change_mode(self.mode_buttons.indexOf(button));
+			self.notify();
 		}
 	}
 }
@@ -808,7 +818,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	this._displayValues = [this._onValue, this._offValue];
 	this.incCallback = function(obj)
 	{
-		if(obj._value>0)
+		if((self._enabled)&&(obj._value>0))
 		{
 			self._value = Math.min(self._value + self._increment, self._max);
 			self._update_buttons();
@@ -818,7 +828,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	}
 	this.decCallback = function(obj)
 	{
-		if(obj._value>0)
+		if((self._enabled)&&(obj._value>0))
 		{
 			self._value = Math.max(self._value - self._increment, self._min);
 			self._update_buttons();
@@ -836,7 +846,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	{
 		if(self._incButton)
 		{
-			if(self._value<self._max)
+			if((self._value<self._max)&&(self._enabled))
 			{
 				self._incButton.send(self._onValue);
 			}
@@ -847,7 +857,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 		}
 		if(self._decButton)
 		{
-			if(self._value>self._min)
+			if((self._value>self._min)&&(self._enabled))
 			{
 				self._decButton.send(self._onValue);
 			}
@@ -893,6 +903,12 @@ OffsetComponent.prototype.set_inc_dec_buttons = function(incButton, decButton)
 			this._decButton.set_target(this.decCallback)
 		}
 	}
+	this._update_buttons();
+}
+
+OffsetComponent.prototype.set_enabled = function(val)
+{
+	this._enabled = (val>0);
 	this._update_buttons();
 }
 
@@ -1079,6 +1095,7 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	this._name = name;
 	this._session = session;
 	this._clipLauncher = clipLauncher;
+	this._clipLauncher.setIndication(true);
 	this._clipslots = new Array(height);
 	this.launch = function(clipslot)
 	{
@@ -1109,6 +1126,7 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 		clipslot.isRecording = value;
 		clipslot.update();
 	}
+
 	for (var c = 0; c < height; c++)
 	{
 		this._clipslots[c] = new ClipSlotComponent(this._name + '_ClipSlot_' + c, {clipLauncher:this});
@@ -1210,7 +1228,7 @@ SessionComponent.prototype.set_nav_buttons = function(button0, button1, button2,
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding ChannelStrips
 
-function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack, masterTrack, _colors)
+function MixerComponent(name, num_channels, num_returns, trackBank, returnBank, cursorTrack, masterTrack, _colors)
 {
 	var self = this;
 	this._name = name;
@@ -1221,15 +1239,24 @@ function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack,
 	this._cursorTrack = cursorTrack;
 	if(!this._cursorTrack){this._cursorTrack = host.createCursorTrackSection(num_channels, 0);}
 
+	this._returnBank = returnBank;
+	if(!this._returnBank){this._returnBank = host.createEffectTrackBankSection(4, 0);}
+
 	this._masterTrack = masterTrack;
 	if(!this._masterTrack){this._masterTrack = host.createMasterTrackSection(0);}
 
 	this._channelstrips = [];
+	this._returnstrips = [];
 	for (var cs = 0;cs < num_channels; cs++)
 	{
-		this._channelstrips[cs] = new ChannelStripComponent(this._name + '_ChannelStrip_' + cs, cs, trackBank.getTrack(cs), num_returns, _colors);
+		this._channelstrips[cs] = new ChannelStripComponent(this._name + '_ChannelStrip_' + cs, cs, this._trackBank.getTrack(cs), num_returns, _colors);
+	}
+	for (var rs = 0;rs < num_returns; rs++)
+	{
+		this._returnstrips[rs] = new ChannelStripComponent(this._name + '_ReturnStrip_' + rs, rs, this._returnBank.getTrack(rs), 0, _colors);
 	}
 	this._selectedstrip = new ChannelStripComponent(this._name + '_SelectedStrip', -1, this._cursorTrack, num_returns, _colors);
+
 	this._masterstrip = new ChannelStripComponent(this._name + '_MasterStrip', -2, this._masterTrack, 0, _colors);
 	
 }
@@ -1244,7 +1271,7 @@ MixerComponent.prototype.channelstrip = function(num)
 
 MixerComponent.prototype.returnstrip = function(num)
 {
-	if(num < this._returnstrips)
+	if(num < this._returnstrips.length)
 	{
 		return this._returnstrips[num];
 	}
@@ -1273,7 +1300,13 @@ MixerComponent.prototype.assign_volume_controls = function(controls)
 	}
 }
 
-MixerComponent.prototype.assign_return_controls = function(controls){}
+MixerComponent.prototype.assign_return_controls = function(controls)
+{
+	for (var i in this._channelstrips)
+	{
+		this._returnstrips[i]._volume.set_control();
+	}
+}
 
 MixerComponent.prototype.set_return_control = function(num, controls){}
 
@@ -1621,6 +1654,7 @@ function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 	{
 		self._keys_stepsequencer._follow.receive(self._follow._value);
 		self._drum_stepsequencer._follow.receive(self._follow._value);
+		self._offset.set_enabled(!self._follow._value);
 	}
 
 	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
@@ -1647,6 +1681,7 @@ function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 		self._drum_stepsequencer._offset.set_value(self._offset._value);
 	}
 	this._offset = new OffsetComponent(this._name + '_Offset', 0, 128, 0, this._onOffsetChange, colors.RED, colors.OFF, 16);
+	this._offset.set_enabled(false);
 
 	this._lcd_listener = function(obj)
 	{
