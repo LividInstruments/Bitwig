@@ -307,6 +307,66 @@ function setup_modes()
 		scales._overdub.set_control();
 	}
 
+	altClipLaunchSub = new Page('AltClipLaunchSub');
+	altClipLaunchSub._last_pressed;
+	altClipLaunchSub._alt = function(obj)
+	{
+		if(obj._value)
+		{
+			tasks.addTask(altClipLaunchSub.Alt, [obj], 3, false, 'AltClipLaunchSub');
+		}
+		else if(obj == altClipLaunchSub._last_pressed)
+		{
+			altClipLaunchSub._last_pressed = undefined;
+			clipLaunch.exit_mode();
+			MainModes.current_page().enter_mode();
+		}
+	}
+	altClipLaunchSub.Alt = function(obj)
+	{
+		if(obj._value)
+		{
+			altClipLaunchSub._last_pressed = obj;
+			MainModes.current_page().exit_mode();
+			clipLaunch.enter_mode();
+		}
+	}
+	altClipLaunchSub.enter_mode = function()
+	{
+		for(var i=0;i<8;i++)
+		{
+			touch_buttons[i].add_listener(altClipLaunchSub._alt)
+		}
+	}
+	altClipLaunchSub.exit_mode = function()
+	{
+		if(!altClipLaunchSub._last_pressed)
+		{
+			for(var i=0;i<8;i++)
+			{
+				touch_buttons[i].remove_listener(altClipLaunchSub._alt)
+			}
+		}
+	}
+
+	clipLaunch = new Page('ClipLaunch');
+	clipLaunch.enter_mode = function()
+	{
+		volumeFadersSub.enter_mode();
+		sendSysex(LIVEBUTTONMODE);
+		sendSysex('F0 00 01 61 0C 3D 07 07 07 07 07 07 07 07 02 F7');
+		grid.reset();
+		faderbank.reset();
+		session.assign_grid(grid);
+		session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
+	}
+	clipLaunch.exit_mode = function()
+	{
+		session.assign_grid();
+		session.set_nav_buttons();
+	}
+			
+	
 	//Page 0:  Send Control and Instrument throughput
 	clipPage = new Page('ClipPage');
 	clipPage.enter_mode = function()
@@ -366,10 +426,13 @@ function setup_modes()
 		faderbank.reset();
 		if(track_type_name._value=='Instrument')
 		{
+			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
 			//devicePage.set_shift_button(function_buttons[3]);
 			scales.assign_grid(grid);
 			scales._follow.set_control(function_buttons[4]);
+			function_buttons[5].reset();
+			scales._offset.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
 		}
 		else
 		{
@@ -391,6 +454,7 @@ function setup_modes()
 	}
 	sendPage.exit_mode = function()
 	{
+		altClipLaunchSub.exit_mode();
 		session.assign_grid();
 		scales.assign_grid();
 		session.set_nav_buttons();
@@ -411,6 +475,7 @@ function setup_modes()
 		faderbank.reset();
 		if(sendPage._shifted)
 		{
+			altClipLaunchSub.exit_mode();
 			session.assign_grid();
 			scales.assign_grid();
 			volumeFadersSub.enter_mode();
@@ -441,6 +506,7 @@ function setup_modes()
 		faderbank.reset();
 		if(track_type_name._value=='Instrument')
 		{
+			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
 			devicePage.set_shift_button(function_buttons[3]);
 			scales.assign_grid(grid);
@@ -462,6 +528,7 @@ function setup_modes()
 	}
 	devicePage.exit_mode = function()
 	{
+		altClipLaunchSub.exit_mode();
 		session.assign_grid();
 		scales.assign_grid();
 		device.set_nav_buttons();
@@ -483,6 +550,7 @@ function setup_modes()
 		faderbank.reset();
 		if(devicePage._shifted)
 		{
+			altClipLaunchSub.exit_mode();
 			volumeFadersSub.enter_mode();
 			scales.assign_grid();
 			session.assign_grid();

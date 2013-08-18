@@ -186,7 +186,23 @@ Notifier.prototype.clear_targets = function()
 
 Notifier.prototype.add_listener = function(callback)
 {
-	if(!(callback in this._listeners))
+	//if(!(callback in this._listeners))
+	//{
+	//	this._listeners.unshift(callback);
+	//}
+	var add = true;
+	if (callback)
+	{
+		for(var item in this._listeners)
+		{
+			if(callback == this._listeners[item])
+			{
+				add = false;
+				break;
+			}
+		}
+	}
+	if(add)
 	{
 		this._listeners.unshift(callback);
 	}
@@ -777,13 +793,14 @@ RangedParameter.prototype.constructor = RangedParameter;
 /////////////////////////////////////////////////////////////////////////////
 //Notifier that uses two buttons to change an offset value
 
-function OffsetComponent(name, minimum, maximum, initial, callback, onValue, offValue)
+function OffsetComponent(name, minimum, maximum, initial, callback, onValue, offValue, increment)
 {
 	Notifier.call(this, name)
 	var self = this;
 	this._min = minimum||0;
 	this._max = maximum||127;
 	this._value = initial||0;
+	this._increment = increment||1;
 	this._incButton;
 	this._decButton;
 	this._onValue = onValue||127;
@@ -791,9 +808,9 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	this._displayValues = [this._onValue, this._offValue];
 	this.incCallback = function(obj)
 	{
-		if((obj._value>0)&&(self._value<self._max))
+		if(obj._value>0)
 		{
-			self._value++;
+			self._value = Math.min(self._value + self._increment, self._max);
 			self._update_buttons();
 			self.notify();
 			tasks.addTask(self.incCallback, [obj], 1, false, self._name+'_UpHoldKey');
@@ -801,9 +818,9 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	}
 	this.decCallback = function(obj)
 	{
-		if((obj._value>0)&&(self._value>self._min))
+		if(obj._value>0)
 		{
-			self._value--;
+			self._value = Math.max(self._value - self._increment, self._min);
 			self._update_buttons();
 			self.notify();
 			tasks.addTask(self.decCallback, [obj], 1, false, self._name+'_DnHoldKey');
@@ -811,7 +828,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 	}
 	this.set_value = function(value)
 	{
-		self._value = value;
+		self._value = Math.max(Math.min(value, self._max), self._min);
 		self._update_buttons();
 		self.notify();
 	}
@@ -1325,10 +1342,10 @@ function DeviceComponent(name, size, cursorDevice)
 		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._cursorDevice.getParameter(i), range:128});
 	}
 
-	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._cursorDevice, action:'nextParameterPage'});
-	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._cursorDevice, action:'previousParameterPage'});
-	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._cursorDevice, action:'selectNext'});
-	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._cursorDevice, action:'selectPrevious'});
+	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._cursorDevice, action:'nextParameterPage', monitor:'addNextParameterPageEnabledObserver', onValue:colors.CYAN});
+	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._cursorDevice, action:'previousParameterPage', monitor:'addPreviousParameterPageEnabledObserver', onValue:colors.CYAN});
+	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._cursorDevice, action:'selectNext', monitor:'addCanSelectNextObserver', onValue:colors.BLUE});
+	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._cursorDevice, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
 
 }
 
@@ -1622,7 +1639,14 @@ function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 		self._keys_stepsequencer._velocity_offset.set_value(self._velocity_offset._value);
 		self._drum_stepsequencer._velocity_offset.set_value(self._velocity_offset._value);
 	}
-	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW);
+	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW, colors.OFF, 10);
+
+	this._onOffsetChange = function()
+	{
+		self._keys_stepsequencer._offset.set_value(self._offset._value);
+		self._drum_stepsequencer._offset.set_value(self._offset._value);
+	}
+	this._offset = new OffsetComponent(this._name + '_Offset', 0, 128, 0, this._onOffsetChange, colors.RED, colors.OFF, 16);
 
 	this._lcd_listener = function(obj)
 	{
@@ -1726,7 +1750,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	{
 		if(button.pressed())
 		{	
-			var step = self._viewOffset + button._x(self._grid) + self._width*button._y(self._grid);  // + this.viewOffset();
+			var step = self._offset._value + button._x(self._grid) + self._width*button._y(self._grid);  // + this.viewOffset();
 			self._cursorClip.toggleStep(step, self.key_offset._value, self._velocity_offset._value);
 		}
 	}
@@ -1742,7 +1766,8 @@ function StepSequencerComponent(name, width, height, cursorClip)
 		if((self._follow._value)&&(self._grid))
 		{
 			var size = self._grid.controls().length;
-			self._viewOffset = Math.floor(self.playingStep/size)*size;
+			self._offset.set_value(Math.floor(self.playingStep/size)*size)
+			
 		}
 		self.update();
 	}
@@ -1769,7 +1794,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 			for(var i=0;i<size;i++)
 			{
 				var button = buttons[i];
-				var step = self._viewOffset + button._x(self._grid) + (button._y(self._grid)*self._width);
+				var step = self._offset._value + button._x(self._grid) + (button._y(self._grid)*self._width);
 				//var isSet = self.hasAnyKey(index);
 				var isSet = self._stepSet[step * 128 + key]
 				var isPlaying = step == self.playingStep;
@@ -1792,9 +1817,9 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
 
 	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
-
+	this._offset = new OffsetComponent(this._name + '_Offset', 0, 128, 0, this._onOffsetChange, colors.RED);
 	this._size_offset = new OffsetComponent(this._name + '_Size_Offset', 0, 4, 2, this._onSizeChange, colors.MAGENTA);
-	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW);
+	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW, colors.OFF, 10);
 	//this._cursorClip.scrollToKey(this.key_offset._value);
 
 }
