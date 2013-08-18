@@ -26,6 +26,7 @@ for (var i=0;i<128;i++) {Note_Translation_Table[i] = -1}
 function initialize_prototypes()
 {
 	registerControlDicts();
+	tasks = new TaskServer(script, 100);
  	host.scheduleTask(flush, null, 100);
 }
 
@@ -88,6 +89,7 @@ function register_control(control)
 
 function flush()
 {
+	//tasks._run();
 	for(var type in midiBuffer)
 	{
 		var buf = midiBuffer[type];
@@ -162,7 +164,7 @@ Notifier.prototype.remove_target = function(target)
 {
 	if (target)
 	{
-		for(item in this._target_heap)
+		for(var item in this._target_heap)
 		{
 			if(target == this._target_heap[item])
 			{
@@ -192,40 +194,15 @@ Notifier.prototype.add_listener = function(callback)
 
 Notifier.prototype.remove_listener = function(callback)
 {
-	if(callback in this._listeners){this._listeners.slice(this._listeners.indexOf(callback), 1);}
-}
-
-Notifier.prototype.notify = function(obj)
-{
-	if(!obj)
+	//if(callback in this._listeners){this._listeners.slice(this._listeners.indexOf(callback), 1);}
+	if (callback)
 	{
-		obj = this;
-	}
-	//post('notify', this._name, obj._name);
-	if(this._target_heap[0])
-	{
-		var cb = this._target_heap[0];
-		try
+		for(var item in this._listeners)
 		{
-			cb[0].call(cb[1], obj);
-		}
-		catch(err)
-		{
-			post('target callback exception:', err);
-			post('-> for', this._name,' : ',cb);
-		}
-	}
-	for (var i in this._listeners)
-	{
-		var cb = this._listeners[i];
-		try
-		{
-			cb[0].call(cb[1], obj);
-		}
-		catch(err)
-		{
-			post('listener callback exception:', err);
-			post('-> for', this._name,' : ',cb);
+			if(callback == this._listeners[item])
+			{
+				this._listeners.splice(callback, 1);
+			}
 		}
 	}
 }
@@ -406,7 +383,71 @@ TouchFader.prototype.set_color = function(color){}//not implemented
 
 TouchFader.prototype.set_mode = function(mode){}//not implemented
 
-////////////////////////////////////////////////////////////////////////////
+
+function DisplayElement(identifier, name)
+{
+	Control.call( this, identifier, name );
+	this._type = CC_TYPE;
+	register_control(this);
+}
+
+DisplayElement.prototype = new Control();
+
+DisplayElement.prototype.constructor = DisplayElement;
+
+DisplayElement.prototype._send = function(value)
+{
+	sendChannelController(this._channel, this._id, value);
+}
+
+
+function DisplaySection(name, width, base_id, map, def)
+{
+	this._width = width;
+	var self = this;
+	this._value = '';
+	this._elements = [];
+	this._base_id = 0;
+	this._character_map = map||{};
+	this._default = this._character_map[def] || 0;
+	for(var i = 0;i < this._width; i++)
+	{
+		this._elements[i] = new DisplayElement(base_id + i, this._name + '_DisplayElement_' + i);
+	}
+}
+
+DisplaySection.prototype.set_character_map = function(map)
+{
+	this._character_map = map;
+}
+
+DisplaySection.prototype._send = function(value)
+{
+	value = value+'';
+	var dif = this._width - value.length;
+	if(dif)
+	{
+		dif--;
+		do{
+			value = ' '+value;
+		}while(dif--);
+	}
+
+	if(value.length>this._width){value.length = this._width;}
+	this._value = value;
+	for(var i=0;i<this._width;i++)
+	{
+		var ch = this._character_map[this._value.charAt(i)] || this._default;
+		this._elements[i]._send(ch);
+	}
+}
+
+DisplaySection.prototype.set_default = function(def)
+{
+	this._character_map[def] || 0;
+}
+
+/////////////////////////////////////////////////////////////////////////////
 //A notifier that collects a grid of buttons
 
 function Grid(width, height, name)
@@ -604,6 +645,11 @@ Mode.prototype.set_mode_buttons = function(buttons)
 	}
 }
 
+Mode.prototype.current_mode = function()
+{
+	return(this._value)
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //Parameter is a notifier that automatically updates its listeners when its state changes
 //It can either reflect an internal state or a JavaObject's value, and can be assigned a control
@@ -641,7 +687,8 @@ function Parameter(name, args)
 			if(self._control)
 			{
 				self._control.set_target(self._Callback);
-				self.receive(self._value);
+				//self.receive(self._value);
+				self.update_control();
 			}
 		}
 	}
@@ -749,6 +796,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 			self._value++;
 			self._update_buttons();
 			self.notify();
+			tasks.addTask(self.incCallback, [obj], 1, false, self._name+'_UpHoldKey');
 		}
 	}
 	this.decCallback = function(obj)
@@ -758,6 +806,7 @@ function OffsetComponent(name, minimum, maximum, initial, callback, onValue, off
 			self._value--;
 			self._update_buttons();
 			self.notify();
+			tasks.addTask(self.decCallback, [obj], 1, false, self._name+'_DnHoldKey');
 		}
 	}
 	this.set_value = function(value)
@@ -869,6 +918,11 @@ PageStack.prototype.change_mode = function(value, force)
 	}
 }
 
+PageStack.prototype.current_page = function()
+{
+	return(this._pages[this.current_mode()]);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //Page holds a controls dict that can hash a control to an internal function
 
@@ -909,6 +963,12 @@ Page.prototype.exit_mode = function()
 Page.prototype.update_mode = function()
 {
 	post(this._name, ' updated!');
+}
+
+Page.prototype.refresh_mode = function()
+{
+	this.exit_mode();
+	this.enter_mode();
 }
 
 Page.prototype.set_shift_button = function(button)
@@ -1121,9 +1181,15 @@ SessionComponent.prototype.colors = function()
 	return this._colors;
 }
 
-SessionComponent.prototype.set_navigation_buttons = function(upBtn, dnBtn, ltBtn, rtBtn){}
+SessionComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
+{
+	this._navUp.set_control(button0);
+	this._navDn.set_control(button1);
+	this._navLt.set_control(button2);
+	this._navRt.set_control(button3);
+}
 
-	
+
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding ChannelStrips
 
@@ -1131,9 +1197,16 @@ function MixerComponent(name, num_channels, num_returns, trackBank, cursorTrack,
 {
 	var self = this;
 	this._name = name;
+
 	this._trackBank = trackBank;
+	if(!this._trackBank){this._trackBank = host.createTrackBankSection(num_channels, num_returns, 0);}
+
 	this._cursorTrack = cursorTrack;
+	if(!this._cursorTrack){this._cursorTrack = host.createCursorTrackSection(num_channels, 0);}
+
 	this._masterTrack = masterTrack;
+	if(!this._masterTrack){this._masterTrack = host.createMasterTrackSection(0);}
+
 	this._channelstrips = [];
 	for (var cs = 0;cs < num_channels; cs++)
 	{
@@ -1187,6 +1260,7 @@ MixerComponent.prototype.assign_return_controls = function(controls){}
 
 MixerComponent.prototype.set_return_control = function(num, controls){}
 
+
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding controls, values
 
@@ -1205,7 +1279,7 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 	this._volume = new RangedParameter(this._name + '_Volume', {javaObj:this._track.getVolume(), range:128});
 
-	this._mute = new ToggledParameter(this._name + '_Mute', {javaObj:this._track.getMute(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.muteColor});
+	this._mute = new ToggledParameter(this._name + '_Mute', {javaObj:this._track.getMute(), action:'toggle', monitor:'addValueObserver', onValue:colors.OFF, offValue:this._colors.muteColor});
 
 	this._solo = new ToggledParameter(this._name + '_Solo', {javaObj:this._track.getSolo(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.soloColor});
 
@@ -1214,7 +1288,7 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 	this._select = new Parameter(this._name + '_Select', {javaObj:self._track, action:'select', monitor:'addIsSelectedObserver', onValue:this._colors.selectColor});
 	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
 
-	this._stop = new Parameter(this._name + '_Stop', {javaObj:self._track});
+	this._stop = new ToggledParameter(this._name + '_Stop', {javaObj:self._track, onValue:colors.BLUE, offValue:colors.BLUE});
 	this._stop._Callback = function(obj){if(obj._value){self._track.stop();}}
 
 	this._send = [];
@@ -1235,8 +1309,6 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 }
 
-/////////////////////////////////////////////////////////////////////////////
-//Base class for a parameter object
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing controls for currently controlled cursorDevice
@@ -1257,8 +1329,17 @@ function DeviceComponent(name, size, cursorDevice)
 	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._cursorDevice, action:'previousParameterPage'});
 	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._cursorDevice, action:'selectNext'});
 	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._cursorDevice, action:'selectPrevious'});
-	
+
 }
+
+DeviceComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
+{
+	this._navUp.set_control(button0);
+	this._navDn.set_control(button1);
+	this._navLt.set_control(button2);
+	this._navRt.set_control(button3);
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
@@ -1330,10 +1411,11 @@ const DEFAULT_SCALE = 'Major';
 
 const SPLIT_SCALES = {}; //{'DrumPad':1, 'Major':1};
 
-function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
+function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 {
 	var self = this;
 	this._name = name;
+	this._lcd = lcd;
 	this._keys_stepsequencer = new StepSequencerComponent('keys_sequencer', 8, 2);
 	this._drum_stepsequencer = new StepSequencerComponent('drum_sequencer', 4, 4);
 	this._split = false;
@@ -1348,12 +1430,12 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	{
 		this._noteMap[i] = [];
 	}
+	if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
 	this._primary_instrument = primary_instrument;
-	if(this._primary_instrument == undefined)
+	if(!this._primary_instrument)
 	{
-		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
-		this._primary_instrument = new Parameter('primary_instrument_listener');
-		cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument._Callback);
+		this._primary_instrument = new Parameter('primary_instrument_listener', {javaObj:cursorTrack.getPrimaryInstrument()});
+		cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);
 	}
 
 	this._onNote = function(val, num, extra)
@@ -1369,7 +1451,6 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 	this._track_type = track_type;
 	if(this._track_type == undefined)
 	{
-		if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
 		this._track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
 		cursorTrack.addNoteObserver(this._onNote);
 	}
@@ -1409,7 +1490,7 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 		{
 			self._sequencer.assign_grid();
 		}
-		if(self._grid != undefined)
+		if(self._grid instanceof Grid)
 		{
 			var offset = self._noteOffset._value;
 			var vertoffset = self._vertOffset._value;
@@ -1417,13 +1498,14 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 			var split = self._splitMode._value;
 			if(scale=='Auto')
 			{
+				post('primary instrument:', self._primary_instrument._value);
 				scale = self._primary_instrument._value == 'DrumMachine' ? 'DrumPad' : DEFAULT_SCALE;
 			}
 			self._current_scale = scale;
 			var scale_len = SCALES[scale].length;
 			var width = Math.min(self._grid.width(), 8);
 			var height = Math.min(self._grid.height(), 8);
-			post('split:', split, scale, 'in SPLIT_SCALES:', scale in SPLIT_SCALES, SPLIT_SCALES);
+			post('split:', split, scale, 'in SPLIT_SCALES:', scale in SPLIT_SCALES);
 			if((split)||(scale in SPLIT_SCALES))
 			{
 				if(scale != 'DrumPad')
@@ -1513,18 +1595,71 @@ function ScalesComponent(name, stepsequencer, primary_instrument, track_type)
 		}
 	}
 
-	this._splitMode = new ToggledParameter('ScaleSplit');
+	this._splitMode = new ToggledParameter('ScaleSplit', {value:1});
 	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, this._update, colors.MAGENTA);
 	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
 	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 2, this._update, colors.BLUE);
+
+	this._onFollowChange = function()
+	{
+		self._keys_stepsequencer._follow.receive(self._follow._value);
+		self._drum_stepsequencer._follow.receive(self._follow._value);
+	}
+
+	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
+	this._follow.add_listener(this._onFollowChange);
+
+	this._onSizeChange = function()
+	{
+		self._keys_stepsequencer._size_offset.set_value(self._size_offset._value);
+		self._drum_stepsequencer._size_offset.set_value(self._size_offset._value);
+		
+	}
+	this._size_offset = new OffsetComponent(this._name + '_Size_Offset', 0, 4, 2, this._onSizeChange, colors.MAGENTA);
+	
+	this._onVelocityChange = function()
+	{
+		self._keys_stepsequencer._velocity_offset.set_value(self._velocity_offset._value);
+		self._drum_stepsequencer._velocity_offset.set_value(self._velocity_offset._value);
+	}
+	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW);
+
+	this._lcd_listener = function(obj)
+	{
+		var val = obj._name == 'Scale_Offset' ? SCALEABBREVS[SCALENAMES[obj._value]] : obj._name == self._name + '_Velocity_Offset' ? Math.floor(obj._value/127*99) : obj._value;
+		self._lcd._send(val);
+		tasks.addTask(display_mode, [], 10, false, 'display_mode');
+	}
+	
+	if(this._lcd)
+	{
+		this._vertOffset.add_listener(this._lcd_listener);
+		this._noteOffset.add_listener(this._lcd_listener);
+		this._scaleOffset.add_listener(this._lcd_listener);
+		this._size_offset.add_listener(this._lcd_listener);
+		this._velocity_offset.add_listener(this._lcd_listener);
+	}
+
 
 	this._current_scale = SCALENAMES[self._scaleOffset._value];
 
 	this._on_primary_instrument_changed = function(new_name){self._update();}
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
+	this._transport = transport;
+	if(!this._transport){this._transport = host.createTransportSection();}
+
+	this._overdub = new ToggledParameter('overdub_listener', {javaObj:transport, action:'toggleOverdub', monitor:'addOverdubObserver', onValue:colors.RED});
+
+	this._autowrite = new ToggledParameter('autowrite_listener', {javaObj:transport, action:'toggleWriteArrangerAutomation', monitor:'addAutomationOverrideObserver', onValue:colors.BLUE});
+
 	/*this._on_track_type_changed = function(new_type){self._update();}
 	this._track_type.add_listener(this._on_track_type_changed);*/
+
+	this._shifted = new ToggledParameter(this._name + 'is_shifted');
+	this._shifted.add_listener(this._update);
+
+
 
 }
 
@@ -1541,14 +1676,20 @@ ScalesComponent.prototype.assign_grid = function(grid)
 			}
 		}
 	}
+	this._keys_stepsequencer.assign_grid();
+	this._drum_stepsequencer.assign_grid();
 	this._grid = grid;
 	if(this._grid instanceof Grid)
 	{
 		this._grid.set_target(this._button_press);
 	}
-	this._top.clear_buttons();
-	this._right.clear_buttons();
 	this._update();
+}
+
+ScalesComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
+{
+	this._size_offset.set_inc_dec_buttons(button0, button1);
+	this._velocity_offset.set_inc_dec_buttons(button2, button3);
 }
 
 
@@ -1584,9 +1725,9 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this.receive_grid = function(button)
 	{
 		if(button.pressed())
-		{
-			var step = button._x(self._grid) + self._width*button._y(self._grid);  // + this.viewOffset();
-			self._cursorClip.toggleStep(step, self.key_offset._value, self.velocity);
+		{	
+			var step = self._viewOffset + button._x(self._grid) + self._width*button._y(self._grid);  // + this.viewOffset();
+			self._cursorClip.toggleStep(step, self.key_offset._value, self._velocity_offset._value);
 		}
 	}
 	this._onStepExists = function(column, row, state)
@@ -1598,9 +1739,26 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this._onStepPlay = function(step)
 	{
 		self.playingStep = step;
+		if((self._follow._value)&&(self._grid))
+		{
+			var size = self._grid.controls().length;
+			self._viewOffset = Math.floor(self.playingStep/size)*size;
+		}
 		self.update();
 	}
 	this._on_shift = function(){}
+
+	this._onSizeChange = function(val)
+	{
+		post('on size change', self._size_offset._value);
+		self.stepSize = self._size_offset._value;
+		var stepInBeatTime = Math.pow(0.5, self.stepSize);
+		self._cursorClip.setStepSize(stepInBeatTime);
+	}
+	this._onVelocityChange = function()
+	{
+	}
+
 	this.update = function()
 	{
 		if(self._grid instanceof Grid)
@@ -1611,7 +1769,7 @@ function StepSequencerComponent(name, width, height, cursorClip)
 			for(var i=0;i<size;i++)
 			{
 				var button = buttons[i];
-				var step = button._x(self._grid) + (button._y(self._grid)*self._width);
+				var step = self._viewOffset + button._x(self._grid) + (button._y(self._grid)*self._width);
 				//var isSet = self.hasAnyKey(index);
 				var isSet = self._stepSet[step * 128 + key]
 				var isPlaying = step == self.playingStep;
@@ -1633,22 +1791,27 @@ function StepSequencerComponent(name, width, height, cursorClip)
 	this._cursorClip.addStepDataObserver(this._onStepExists);
 	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
 
+	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
+
+	this._size_offset = new OffsetComponent(this._name + '_Size_Offset', 0, 4, 2, this._onSizeChange, colors.MAGENTA);
+	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW);
 	//this._cursorClip.scrollToKey(this.key_offset._value);
+
 }
 
-StepSequencerComponent.prototype.assign_grid = function(new_grid)
+StepSequencerComponent.prototype.assign_grid = function(grid)
 {
 	if(this._grid!=undefined)
 	{
 		this._grid.remove_target(this.receive_grid);
-		this._grid = undefined;
 	}
-	if ((new_grid instanceof Grid) && (new_grid.width() == this._width) && (new_grid.height() == this._height))
+	this._grid = grid;
+	if ((this._grid instanceof Grid) && (this._grid.width() == this._width) && (this._grid.height() == this._height))
 	{
-		this._grid = new_grid;
 		this._grid.set_target(this.receive_grid);
 		this.update();
 	}
+
 }
 
 StepSequencerComponent.prototype.hasAnyKey = function(step)
@@ -1663,55 +1826,72 @@ StepSequencerComponent.prototype.hasAnyKey = function(step)
 	return false;
 }
 
+StepSequencerComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
+{
+	this._size_offset.set_inc_dec_buttons(button0, button1);
+	this._velocity_offset.set_inc_dec_buttons(button2, button3);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
-
 
 function TaskServer(script, interval)
 {
 	var self = this;
-	this._singleQeue = [];
-	this._repeatQeue = [];
-	var run = function()
+	this._qeue = {};
+	this._interval = interval || 100;
+ 	this._run = function()
 	{
-		for(var task in this._singleQeue)
+		for(var index in self._qeue)
 		{
-			script[task].call(script, this._singleQeue[task]);
-			delete this._singleQeue[task];
+			var task = self._qeue[index];
+			if(task.ticks == task.interval)
+			{
+				if(!task.repeat)
+				{
+					delete self._qeue[index];
+				}
+				task.callback.apply(script, task.arguments);
+				task.ticks = 0;
+			}
+			else
+			{
+				task.ticks += 1;
+			}
 		}
-		for(var task in this._singleQeue)
-		{
-			script[task].call(script, this._repeatQeue[task]);
-		}
+		host.scheduleTask(self._run, null, self._interval);
 	}
-	host.scheduleTask(run, null, interval);
+	this._run();
 }
 
-TaskServer.prototype.addSingleTask = function(callback, arguments)
+TaskServer.prototype.addTask = function(callback, arguments, interval, repeat, name)
 {
 	if(typeof(callback)==='function')
 	{
-		this._singleQeue.push([callback, arguments]);
+		if(!name){name = 'task'+this._qeue.length;}
+		this._qeue[name] = {'callback':callback, 'arguments':arguments, 'interval':interval, 'repeat':repeat, 'ticks':0};
 	}
 }
 
-TaskServer.prototype.addRepeatTask = function(callback, arguments)
+TaskServer.prototype.removeTask = function(callback, arguments, name)
 {
-	if(typeof(callback)==='function')
+	post('removing task:', name);
+	if(name)
 	{
-		this._repeatQeue.push([callback, arguments]);
-	}
-}
-
-TaskServer.prototype.removeRepeatTask = function(callback, arguments)
-{
-	for(var i in this._repeatQeue)
-	{
-		if(this._repeatQeue[i]==[callback, arguments])
+		if(this._qeue[name])
 		{
-			delete this._repeatQeue[i];
+			delete this._qeue[name];
+		}
+	}
+	else
+	{
+		for(var i in this._qeue)
+		{
+			if((this.qeue[i].callback == callback)&&(this.qeue[i].arguments = arguments))
+			{
+				delete this._qeue[i];
+			}
 		}
 	}
 }
-
 
