@@ -160,6 +160,7 @@ function init()
 	setup_device();
 	setup_sequencer();
 	setup_scales();
+	setup_usermodes();
 	//setup_tasks();
 	setup_modes();
 	setup_fixed_controls();
@@ -175,6 +176,7 @@ function initialize_noteInput()
 {
 	noteInput = host.getMidiInPort(0).createNoteInput("BaseInstrument", "80????", "90????", "D0????", "E0????");
 	noteInput.setShouldConsumeEvents(false);
+
 }
 
 function initialize_surface()
@@ -253,6 +255,25 @@ function setup_scales()
 function setup_tasks()
 {
 	tasks = new TaskServer(script, 100);
+}
+
+function setup_usermodes()
+{
+	user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
+	userbank1 = new UserBankComponent('UserBank1', 48, user1Input);
+	user1Input.setShouldConsumeEvents(false);
+
+	user2Input = host.getMidiInPort(0).createNoteInput("BaseUser2", "80????", "90????", "D0????", "E0????");
+	userbank2 = new UserBankComponent('UserBank2', 48, user2Input);
+	user2Input.setShouldConsumeEvents(false);
+
+	user3Input = host.getMidiInPort(0).createNoteInput("BaseUser3", "80????", "90????", "D0????", "E0????");
+	userbank3 = new UserBankComponent('UserBank3', 48, user3Input);
+	user3Input.setShouldConsumeEvents(false);
+
+	user4Input = host.getMidiInPort(0).createNoteInput("BaseUser4", "80????", "90????", "D0????", "E0????");
+	userbank4 = new UserBankComponent('UserBank4', 48, user4Input);
+	user4Input.setShouldConsumeEvents(false);
 }
 
 function setup_modes()
@@ -458,6 +479,8 @@ function setup_modes()
 		altClipLaunchSub.exit_mode();
 		session.assign_grid();
 		scales.assign_grid();
+		scales._follow.set_control();
+		scales._offset.set_inc_dec_buttons();
 		session.set_nav_buttons();
 		scales.set_nav_buttons();
 		for(var i=0;i<4;i++)
@@ -583,7 +606,7 @@ function setup_modes()
 		}
 	}
 
-
+	/*
 	//Page 3:  Step Sequencing
 	seqPage = new Page('SequencerPage');
 	seqPage.enter_mode = function()
@@ -601,13 +624,119 @@ function setup_modes()
 		sequencer.assign_grid();
 		
 	}
+	*/
 
+	userPage1 = new Page('UserPage1');
+	userPage1.enter_mode = function()
+	{
+		post('userPage1 entered');
+		for(var i=0;i<8;i++)
+		{
+			userbank1.set_control(i, faders[i]);
+		}
+		userbank1.set_enabled(true);
+		grid.reset();
+	}
+	userPage1.exit_mode = function()
+	{
+		post('userPage1 exited');
+		userbank1.set_enabled(false);
+		for(var i=0;i<8;i++)
+		{
+			userbank1.set_control(i);
+		}
+	}
+
+	userPage2 = new Page('UserPage2');
+	userPage2.enter_mode = function()
+	{
+		post('userPage2 entered');
+		for(var i=0;i<8;i++)
+		{
+			userbank2.set_control(i, faders[i]);
+		}
+		userbank2.set_enabled(true);
+		grid.reset();
+	}
+	userPage2.exit_mode = function()
+	{
+		post('userPage2 exited');
+		userbank2.set_enabled(false);
+		for(var i=0;i<8;i++)
+		{
+			userbank2.set_control(i);
+		}
+	}
+
+	userPage3 = new Page('UserPage3');
+	userPage3.enter_mode = function()
+	{
+		post('userPage3 entered');
+		for(var i=0;i<8;i++)
+		{
+			userbank3.set_control(i, faders[i]);
+		}
+		userbank3.set_enabled(true);
+		grid.reset();
+	}
+	userPage3.exit_mode = function()
+	{
+		post('userPage3 exited');
+		userbank3.set_enabled(false);
+		for(var i=0;i<8;i++)
+		{
+			userbank3.set_control(i);
+		}
+	}
+
+	userPage4 = new Page('UserPage4');
+	userPage4.enter_mode = function()
+	{
+		post('userPage4 entered');
+		for(var i=0;i<8;i++)
+		{
+			userbank4.set_control(i, faders[i]);
+		}
+		userbank4.set_enabled(true);
+		grid.reset();
+	}
+	userPage4.exit_mode = function()
+	{
+		post('userPage4 exited');
+		userbank3.set_enabled(false);
+		for(var i=0;i<8;i++)
+		{
+			userbank4.set_control(i);
+		}
+	}
+
+	script["UserModes"] = new PageStack(4, "User Modes");
+	UserModes.add_mode(0, userPage1);
+	UserModes.add_mode(1, userPage2);
+	UserModes.add_mode(2, userPage3);
+	UserModes.add_mode(3, userPage4);
+	UserModes.add_listener(function(obj){post('UserModes mode value:', obj._name);});
+
+	//Page 3:  User Assignments
+	userPage = new Page('UserPage');
+	userPage.enter_mode = function()
+	{
+		sendSysex('F0 00 01 61 0C 3D 01 01 01 01 01 01 01 01 02 F7');
+		UserModes.set_mode_buttons([function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]]);
+		UserModes.restore_mode();
+	}
+	userPage.exit_mode = function()
+	{
+		UserModes.current_page().exit_mode();
+		UserModes.set_mode_buttons();
+	}
+	
 	
 	script["MainModes"] = new PageStack(4, "Main Modes");
 	MainModes.add_mode(0, clipPage);
 	MainModes.add_mode(1, sendPage);
 	MainModes.add_mode(2, devicePage);
-	MainModes.add_mode(3, seqPage);
+	MainModes.add_mode(3, userPage);
 	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
 	MainModes.add_listener(display_mode);
 
@@ -615,6 +744,10 @@ function setup_modes()
 	function_buttons[1].set_on_off_values(colors.CYAN);
 	function_buttons[2].set_on_off_values(colors.BLUE);
 	function_buttons[3].set_on_off_values(colors.RED);
+	function_buttons[4].set_on_off_values(colors.WHITE);
+	function_buttons[5].set_on_off_values(colors.WHITE);
+	function_buttons[6].set_on_off_values(colors.WHITE);
+	function_buttons[7].set_on_off_values(colors.WHITE);
 }
 
 function setup_fixed_controls()
@@ -715,7 +848,7 @@ function onSysex(data)
 
 
 const MODE_CHARS = ['L', 'S', 'D', 'U'];
-//strangley enough, my old favorite t-shirt used to say this:  L.S.D. University.  
+//strangley enough, an old favorite t-shirt of mine used to say this:  L.S.D. University.  
 
 function display_mode()
 {
@@ -741,14 +874,5 @@ function setupTests()
 	
 }
 
-function poster(obj)
-{
-	post('poster', obj._name, obj._value);
-}
-
-function tester(value)
-{
-	post('tester', value);
-}
 
 

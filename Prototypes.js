@@ -632,6 +632,7 @@ Mode.prototype.update = function()
 	{
 		if (i == this._value)
 		{
+			
 			this.mode_buttons[i].turn_on();
 		}
 		else
@@ -651,7 +652,7 @@ Mode.prototype.add_mode = function(mode, callback)
 
 Mode.prototype.set_mode_buttons = function(buttons)
 {
-	if (((buttons.length == this._mode_callbacks.length)||(buttons == undefined))&&(buttons != this.mode_buttons))
+	if (((buttons == undefined)||(buttons.length == this._mode_callbacks.length))&&(buttons != this.mode_buttons))
 	{
 		for (var i in this.mode_buttons)
 		{
@@ -954,6 +955,11 @@ PageStack.prototype.change_mode = function(value, force)
 PageStack.prototype.current_page = function()
 {
 	return(this._pages[this.current_mode()]);
+}
+
+PageStack.prototype.restore_mode = function()
+{
+	this.change_mode(this._value, true);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1481,6 +1487,7 @@ function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 		this._noteMap[i] = [];
 	}
 	if(cursorTrack == undefined){var cursorTrack = host.createCursorTrackSection(0, 0);}
+
 	this._primary_instrument = primary_instrument;
 	if(!this._primary_instrument)
 	{
@@ -1577,6 +1584,7 @@ function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 							}
 							else
 							{
+								button.set_translation(-1);
 								self._top.add_control(column, row, button);
 							}
 						}
@@ -1600,6 +1608,7 @@ function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
 							}
 							else
 							{
+								button.set_translation(-1);
 								self._right.add_control(column-4, row, button);
 							}
 						}
@@ -1891,6 +1900,104 @@ StepSequencerComponent.prototype.set_nav_buttons = function(button0, button1, bu
 	this._size_offset.set_inc_dec_buttons(button0, button1);
 	this._velocity_offset.set_inc_dec_buttons(button2, button3);
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+//UserBank Component
+
+function UserBankComponent(name, size, port)
+{
+	var self = this;
+	this._name = name;
+	this._port = port;
+	this._bank = host.createUserControlsSection(size);
+	this._controls = [];
+	this._noteTable = [];
+	this._disabledTable = [];
+	this._enabled = false;
+	for(var i=0;i<128;i++)
+	{
+		this._noteTable[i]=i;
+		this._disabledTable[i]=-1;
+	}
+	for(var i=0;i<size;i++)
+	{
+		this._controls[i] = new UserControl(name + 'Control_' + i, this._bank.getControl(i));
+	}
+	this.set_enabled = function(val)
+	{
+		this._enabled = val;
+		if(this._enabled)
+		{
+			self._port.setKeyTranslationTable(self._noteTable);
+		}
+		else
+		{
+			self._port.setKeyTranslationTable(self._disabledTable);
+		}
+	}
+
+	this.set_enabled(this._enabled);
+}
+
+UserBankComponent.prototype.set_control = function(num, control)
+{
+	var jControl = this._controls[num];
+	if(jControl!=undefined)
+	{
+		if(jControl._control instanceof Control)
+		{
+			jControl._control.remove_target(jControl._control_in);
+		}
+		jControl._control = control;
+		if(jControl._control instanceof Control)
+		{
+			control.set_target(jControl._control_in);
+			control.send(jControl._value);
+		}
+	}
+}
+
+function UserControl(name, control)
+{
+	var self = this;
+	this._name = name;
+	this._value = 0;
+	this._control = undefined;
+	this._javaControl= control;
+	this._javaControl.setLabel(this._name);
+
+	
+	this._onNameChanged = function(name){}//post('onNameChanged:', self._name, name);}
+	this._onValueDisplayChanged = function(value){}//post('onValueDisplayChanged:', self._name, value);}
+	this._onValueChanged = function(value)
+	{
+		self._value = value;
+		if(self._control)
+		{
+			//post('sending out:', self._control._name);
+			self._control.send(self._value);
+		}
+		//post('onValueChanged:', self._name, value);
+	}
+	this._set = function(value){self._control.set(value);}
+
+	this._control_in = function(obj)
+	{
+		if((obj)&&(self._javaControl))
+		{
+			//post('control_in', self._name, obj._name, obj._value);
+			self._javaControl.set(obj._value, 128);
+		}
+	}
+
+	this._javaControl.addNameObserver(20, 'NotAssigned', this._onNameChanged);
+	this._javaControl.addValueDisplayObserver(20, ' - ', this._onValueDisplayChanged);
+	this._javaControl.addValueObserver(128, this._onValueChanged);
+
+	
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Overlay interface to host.scheduleTask that allows singlerun tasks and removable repeated tasks
