@@ -89,6 +89,7 @@ var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 0 ?? ?? ?? ?? F7"
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", "F0 7E ?? 06 02 00 01 61 01 00 0C 00 ?? ?? ?? ?? F7");
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["Base8"], ["Base8"]);
+host.addDeviceNameBasedDiscoveryPair(["Base8 MIDI 1"], ["Base8 MIDI 1"]);
 
 for ( var m = 1; m < 9; m++)
 {
@@ -606,8 +607,8 @@ function setup_modes()
 		}
 	}
 
-	/*
-	//Page 3:  Step Sequencing
+
+	/*Page 3:  Step Sequencing
 	seqPage = new Page('SequencerPage');
 	seqPage.enter_mode = function()
 	{
