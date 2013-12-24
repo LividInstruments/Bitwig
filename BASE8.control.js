@@ -467,10 +467,10 @@ function setup_modes()
 		{
 			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
-			//devicePage.set_shift_button(function_buttons[3]);
 			instrument.assign_grid(grid);
 			instrument._stepsequencer._follow.set_control(function_buttons[4]);
-			function_buttons[5].reset();
+			instrument._stepsequencer._flip.set_control(function_buttons[5]);
+			//function_buttons[5].reset();
 		}
 		else
 		{
@@ -499,6 +499,7 @@ function setup_modes()
 		instrument.set_scale_offset_buttons();
 		instrument.set_vert_offset_buttons();
 		instrument._stepsequencer._follow.set_control();
+		instrument._stepsequencer._flip.set_control();
 		instrument.assign_grid();
 		instrument._stepsequencer.set_nav_buttons();
 		session.set_nav_buttons();
@@ -562,16 +563,15 @@ function setup_modes()
 		{
 			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
-			devicePage.set_shift_button(function_buttons[3]);
 			instrument.assign_grid(grid);
+			instrument._stepsequencer._follow.set_control(function_buttons[4]);
+			instrument._stepsequencer._flip.set_control(function_buttons[5]);
 		}
 		else
 		{
 			sendSysex(LIVEBUTTONMODE);
 			session.assign_grid(grid);
 		}
-
-		device.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
 		for(var i=0;i<8;i++)
 		{
 			device._parameter[i].set_control(faders[i]);
@@ -584,8 +584,13 @@ function setup_modes()
 	{
 		altClipLaunchSub.exit_mode();
 		session.assign_grid();
-		instrument.assign_grid();
 		device.set_nav_buttons();
+		instrument.set_note_offset_buttons();
+		instrument.set_scale_offset_buttons();
+		instrument.set_vert_offset_buttons();
+		instrument._stepsequencer._follow.set_control();
+		instrument._stepsequencer._flip.set_control();
+		instrument.assign_grid();
 		instrument._stepsequencer.set_nav_buttons();
 		session.set_nav_buttons();
 		for(var i=0;i<8;i++)
@@ -604,10 +609,8 @@ function setup_modes()
 		faderbank.reset();
 		if(devicePage._shifted)
 		{
-			//altClipLaunchSub.exit_mode();
-			volumeFadersSub.enter_mode();
-			instrument.assign_grid();
-			session.assign_grid();
+			instrument._shift._value = 1;
+			altClipLaunchSub.exit_mode();
 			for(var i=0;i<8;i++)
 			{
 				mixer.channelstrip(i)._select.set_control();
@@ -616,38 +619,21 @@ function setup_modes()
 			{
 				instrumentControlsSub.enter_mode();	
 			}
-			var selected_component = track_type_name == 'Instrument' ? instrument : session;
-			selected_component.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
+			session.assign_grid();
+			device.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
+			//var selected_component = track_type_name == 'Instrument' ? instrument : session;
+			//selected_component.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
 		}
 		else
 		{
-			instrument.set_nav_buttons();
-			session.set_nav_buttons();
+			//volumeFadersSub.exit_mode();
+			instrument._shift._value = 0;
 			instrumentControlsSub.exit_mode();
-			volumeFadersSub.exit_mode();
+			instrument._stepsequencer.set_nav_buttons();
+			session.set_nav_buttons();
 			devicePage.enter_mode();
 		}
 	}
-
-
-	/*Page 3:  Step Sequencing
-	seqPage = new Page('SequencerPage');
-	seqPage.enter_mode = function()
-	{
-		post('seqPage entered');
-		grid.reset();
-		sequencer.key_offset.set_inc_dec_buttons(function_buttons[4], function_buttons[5]);
-		sequencer.assign_grid(grid);
-		
-	}
-	seqPage.exit_mode = function()
-	{
-		post('seqPage exited');
-		sequencer.key_offset.set_inc_dec_buttons();
-		sequencer.assign_grid();
-		
-	}
-	*/
 
 	userPage1 = new Page('UserPage1');
 	userPage1.enter_mode = function()

@@ -45,14 +45,16 @@ function FlashTask()
 		{
 			for(var i in self.buffer)
 			{
-				self.buffer[i].turn_on();
+				var button = self.buffer[i];
+				button.send(button._last_sent_value, true);
 			}
 		}
 		else
 		{
 			for(var i in self.buffer)
 			{
-				self.buffer[i].turn_off();
+				var button = self.buffer[i];
+				button.send(button._offValue, true);
 			}
 		}
 	}
@@ -378,6 +380,13 @@ Button.prototype.constructor = Button;
 Button.prototype.pressed = function()
 {
 	return this._value > 0;
+}
+
+Button.prototype.send = function(value, flash)
+{
+	midiBuffer[this._type][this._id] = [this, value];
+	this.flash(flash);
+	this._last_sent_value = value;
 }
 
 Button.prototype._send = function(value)
@@ -805,6 +814,10 @@ function Parameter(name, args)
 		self._value = value;
 		self.update_control();
 		self.notify();
+	}
+	this.set_value = function(value)
+	{
+		self.receive(value);
 	}
 	this.update_control = function(){if(self._control){self._control.send(self._value*1);}}
 	this._Callback = function(obj){if(obj){self.receive(obj._value);}}
@@ -1582,7 +1595,7 @@ const WHITEKEYS = {0:0, 2:2, 4:4, 5:5, 7:7, 9:9, 11:11, 12:12};
 const NOTES = [24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7];
 const DRUMNOTES = [12, 13, 14, 15, 28, 29, 30, 31, 8, 9, 10, 11, 24, 25, 26, 27, 4, 5, 6, 7, 20, 21, 22, 23, 0, 1, 2, 3, 16, 17, 18, 19];
 const SCALENOTES = [36, 38, 40, 41, 43, 45, 47, 48, 24, 26, 28, 29, 31, 33, 35, 36, 12, 14, 16, 17, 19, 21, 23, 24, 0, 2, 4, 5, 7, 9, 11, 12];
-const KEYCOLORS = [colors.BLUE, colors.CYAN, colors.MAGENTA, colors.RED];
+const KEYCOLORS = [colors.BLUE, colors.CYAN, colors.MAGENTA, colors.RED, colors.GREEN, colors.GREEN, colors.GREEN, colors.GREEN];
 const SCALES = 	{'Mod':[0,1,2,3,4,5,6,7,8,9,10,11],
 			'Session':[0,1,2,3,4,5,6,7,8,9,10,11],
 			'Auto':[0,1,2,3,4,5,6,7,8,9,10,11],
@@ -1965,22 +1978,28 @@ function DrumRackComponent(name, _color)
 		if((button.pressed())&&(self._stepsequencer))
 		{
 			self._stepsequencer.key_offset.set_value(button._translation);
+			if(self._stepsequencer._flip._value)
+			{
+				self._stepsequencer.toggle_note(button);
+			}
 		}
 	}
 
 	this._update = function() 
 	{
 		self._noteMap = new Array(128);
+		var notes_in_step = [];
 		for(var i=0;i<128;i++)
 		{
 			self._noteMap[i] = [];
-		}
-		if(self._sequencer != undefined)
-		{
-			self._sequencer.assign_grid();
+			notes_in_step[i] = 0;
 		}
 		if(self._grid instanceof Grid)
 		{
+			if((self._stepsequencer)&&(self._stepsequencer._edit_step._value>-1))
+			{
+				notes_in_step = self._stepsequencer.notes_in_step();
+			}
 			var offset = self._noteOffset._value;
 			var width = self.width();
 			var height = self.height();
@@ -1994,7 +2013,7 @@ function DrumRackComponent(name, _color)
 					var button = self._grid.get_button(column, row);
 					button.set_translation(note%127); 
 					self._noteMap[note%127].push(button);
-					button.scale_color = colors.BLUE;
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : colors.BLUE;
 					button.send(button.scale_color);
 				}
 			}
@@ -2031,9 +2050,18 @@ DrumRackComponent.prototype.assign_grid = function(grid)
 
 DrumRackComponent.prototype.set_stepsequencer = function(stepsequencer)
 {
+	if(this._stepsequencer instanceof StepSequencerComponent)
+	{
+		this._stepsequencer.remove_listener(this._update);
+	}
 	this._stepsequencer = stepsequencer;
+	if(this._stepsequencer instanceof StepSequencerComponent)
+	{
+		this._stepsequencer._edit_step.add_listener(this._update);
+	}
 	this.assign_grid(this._grid);
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Container that holds a grid and assigns it to specific note values for triggering an Instrument
@@ -2070,19 +2098,31 @@ function ScaleComponent(name, _colors)
 		if((button.pressed())&&(self._stepsequencer))
 		{
 			self._stepsequencer.key_offset.set_value(button._translation);
+			if(self._stepsequencer._flip._value)
+			{
+				self._stepsequencer.toggle_note(button);
+			}
 		}
 	}
 
 	this._update = function()
 	{
 		//post('vert:', self._vertOffset._value, 'note:', self._noteOffset._value, ':', NOTENAMES[self._noteOffset._value], 'scale', SCALENAMES[self._scaleOffset._value]);
-		self._noteMap = new Array(128);
+		self._noteMap = [];
+		var notes_in_step = [];
 		for(var i=0;i<128;i++)
 		{
 			self._noteMap[i] = [];
+			notes_in_step[i] = 0;
 		}
 		if(self._grid instanceof Grid)
 		{
+			//post('flip:', self._stepsequencer._flip._value, ', edit_step:', self._stepsequencer._edit_step._value);
+			if((self._stepsequencer)&&(self._stepsequencer._edit_step._value>-1))
+			{
+				notes_in_step = self._stepsequencer.notes_in_step();
+			}
+			//post('notes in step:', notes_in_step);
 			var width = self.width();
 			var height = self.height();
 			var offset = self._noteOffset._value;
@@ -2099,7 +2139,7 @@ function ScaleComponent(name, _colors)
 					var button = self._grid.get_button(column, row);
 					button.set_translation(note%127);
 					self._noteMap[note%127].push(button);
-					button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
+					button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2) + ((notes_in_step[note%127])*4)];
 					//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
 					button.send(button.scale_color);
 				}
@@ -2136,9 +2176,18 @@ ScaleComponent.prototype.assign_grid = function(grid)
 
 ScaleComponent.prototype.set_stepsequencer = function(stepsequencer)
 {
+	if(this._stepsequencer instanceof StepSequencerComponent)
+	{
+		this._stepsequencer.remove_listener(this._update);
+	}
 	this._stepsequencer = stepsequencer;
+	if(this._stepsequencer instanceof StepSequencerComponent)
+	{
+		this._stepsequencer._edit_step.add_listener(this._update);
+	}
 	this.assign_grid(this._grid);
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing
@@ -2157,7 +2206,7 @@ function StepSequencerComponent(name, steps)
 	this.playingStep = -1;
 	this.stepSize = STEP_SIZE.STEP_1_16;
 
-	this.Colors = {'PlayingOn':colors.RED, 'PlayingOff':colors.MAGENTA, 'On':colors.YELLOW, 'Off':colors.OFF};
+	this.Colors = {'Selected': colors.GREEN, 'PlayingOn':colors.RED, 'PlayingOff':colors.MAGENTA, 'On':colors.YELLOW, 'Off':colors.OFF, 'Flipped':colors.WHITE};
 	var self = this;
 	this._name = name;
 	this.width = function(){return  !self._grid ? 0 : self._grid.width();}
@@ -2171,11 +2220,27 @@ function StepSequencerComponent(name, steps)
 
 	this.receive_grid = function(button)
 	{
-		if(button.pressed())
-		{	
-			//post('sequencer button pressed:', button._name);
-			var step = self._offset._value + button._x(self._grid) + self.width()*button._y(self._grid);  // + this.viewOffset();
-			self._cursorClip.toggleStep(step, self.key_offset._value, self._velocity_offset._value);
+		if(!self._flip._value)
+		{
+			if(button.pressed())
+			{	
+				//post('sequencer button pressed:', button._name);
+				var step = self._offset._value + button._x(self._grid) + self.width()*button._y(self._grid);  // + this.viewOffset();
+				self._cursorClip.toggleStep(step, self.key_offset._value, self._velocity_offset._value);
+			}
+		}
+		else
+		{
+			if(button.pressed())
+			{
+				post('flip sequencer button pressed:', button._name);
+				var step = self._offset._value + button._x(self._grid) + self.width()*button._y(self._grid);
+				self._edit_step.set_value(step);
+			}
+			else
+			{
+				self._edit_step.set_value(-1);
+			}
 		}
 	}
 	this.receive_zoom_grid = function(button)
@@ -2188,11 +2253,20 @@ function StepSequencerComponent(name, steps)
 			post('new offset is:', self._offset._value);
 		}
 	}
+	this.toggle_note = function(button)
+	{
+		post('note toggle in stepsequencer', button._translation);
+		if(self._edit_step._value>-1)
+		{
+			self._cursorClip.toggleStep(self._edit_step._value, button._translation, self._velocity_offset._value);
+		}
+	}
 
 	this._onStepExists = function(column, row, state)
 	{
 		//post('onStepExists', column, row, state);
 		self._stepSet[column*128 + row] = state;
+		self._edit_step.notify();
 		self.update();
 	}
 	this._onStepPlay = function(step)
@@ -2223,6 +2297,16 @@ function StepSequencerComponent(name, steps)
 	this._onVelocityChange = function()
 	{
 	}
+	this._onKeyChange = function(obj)
+	{
+		//self._cursorClip.scrollToKey(self.key_offset._value);
+		self.update();
+	}
+	this._onFlipChange = function(obj)
+	{
+		self._edit_step.set_value(-1);
+	}
+
 	this.update = function()
 	{
 		if(self._grid instanceof Grid)
@@ -2237,10 +2321,13 @@ function StepSequencerComponent(name, steps)
 				//var isSet = self.hasAnyKey(index);
 				var isSet = self._stepSet[step * 128 + key];
 				var isPlaying = step == self.playingStep;
-				var color = isSet ?
+				var isSelected = step == self._edit_step._value;
+				var color = isSelected ? self.Colors.Selected : isSet ?
 					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
-					(isPlaying ? self.Colors.PlayingOff : self.Colors.Off);
+					(isPlaying ? self.Colors.PlayingOff : self._flip._value ? self.Colors.Flipped : self.Colors.Off);
+				
 				button.send(color);
+
 			}
 		}
 		if(self._zoom_grid instanceof Grid)
@@ -2269,22 +2356,25 @@ function StepSequencerComponent(name, steps)
 		}
 	}
 
-	this._onKeyChange = function(obj)
+	this.notes_in_step = function()
 	{
-		//self._cursorClip.scrollToKey(self.key_offset._value);
-		self.update();
+		var start = self._edit_step._value*128;
+		return self._stepSet.slice(start, start+128);
 	}
-
-
-	this.key_offset = new OffsetComponent('Key_Offset', 0, 127, 0, this._onKeyChange, colors.BLUE);
 
 	this._cursorClip.addStepDataObserver(this._onStepExists);
 	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
 
+	this.key_offset = new OffsetComponent(this._name + 'Key_Offset', 0, 127, 0, this._onKeyChange, colors.BLUE);
 	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
 	this._offset = new OffsetComponent(this._name + '_Offset', 0, 128, 0, this._onOffsetChange, colors.RED);
 	this._size_offset = new OffsetComponent(this._name + '_Size_Offset', 0, 4, 2, this._onSizeChange, colors.MAGENTA);
 	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW, colors.OFF, 10);
+	this._flip = new ToggledParameter(this._name + '_Flip', {value:0, onValue:colors.WHITE});
+	this._edit_step = new RangedParameter(this._name + '_Edit_Step', {value:-1});
+
+	this._flip.add_listener(this.update);
+	this._edit_step.add_listener(this.update);
 
 	//this._cursorClip.scrollToKey(this.key_offset._value);
 
