@@ -208,8 +208,8 @@ function setup_instrument_control()
 {
 	drumrack = new DrumRackComponent('DrumRack');
 	keys = new ScaleComponent('Instrument');
-	drumrack.set_sequencer(sequencer);
-	keys.set_sequencer(sequencer);
+	drumrack.set_stepsequencer(sequencer);
+	keys.set_stepsequencer(sequencer);
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[8, 2, 0, 2], 'drumseq':[4, 4, 4, 0], 'keysseq':[8, 2, 0, 0]});
 }
 
