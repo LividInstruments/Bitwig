@@ -612,7 +612,7 @@ Grid.prototype.add_control = function(x, y, button)
 {
 	if(x < this.width())
 	{
-		if(y < this._grid.height)
+		if(y < this.height())
 		{
 			if(button instanceof Notifier)
 			{
@@ -2267,6 +2267,7 @@ function ScaleComponent(name, _colors)
 
 	this._update = function()
 	{
+		
 		self._noteMap = [];
 		var notes_in_step = [];
 		for(var i=0;i<128;i++)
@@ -2280,7 +2281,7 @@ function ScaleComponent(name, _colors)
 			{
 				notes_in_step = self._stepsequencer.notes_in_step();
 			}
-			//post('notes in step:', notes_in_step);
+			post('notes in step:', notes_in_step);
 			var width = self.width();
 			var height = self.height();
 			var offset = self._noteOffset._value;
@@ -2292,9 +2293,11 @@ function ScaleComponent(name, _colors)
 			{
 				for(var row=0;row<height;row++)
 				{
+					post('working on:', column, row);
 					var note_pos = column + (Math.abs((height-1)-row))*parseInt(vertoffset);
 					var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
 					var button = self._grid.get_button(column, row);
+					post('button is:', button._name);
 					button.set_translation(note%127);
 					self._noteMap[note%127].push(button);
 					button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2) + ((notes_in_step[note%127])*4)];
@@ -2326,13 +2329,39 @@ function ScaleComponent(name, _colors)
 	this._shifted = new ToggledParameter(this._name + 'is_shifted');
 	this._shifted.add_listener(this._update);
 
-
+	this._assign_grid = function(grid)
+	{
+		post('scalecomponent assign grid');
+		if(self._grid instanceof Grid)
+		{
+			post('got here3');
+			self._grid.clear_translations();
+			self._grid.remove_target(self._button_press);
+		}
+		self._grid = grid;
+		if(self._grid instanceof Grid)
+		{
+			post('grid is', self._grid);
+			post('grid name is', self._grid._name);
+			self._grid.add_listener(self._button_press);
+			if(!(self._last_pressed_button instanceof Button))
+			{
+				self._last_pressed_button = self._grid.get_button(0, self._grid.height()-1);
+			}
+		}
+		self._update();
+		if((self._grid instanceof Grid)&&(self._stepsequencer instanceof StepSequencerComponent))
+		{
+			self._stepsequencer.key_offset.set_value(self._last_pressed_button._translation);
+		}
+	}
 
 }
 
 ScaleComponent.prototype.assign_grid = function(grid)
 {
 	post('scalecomponent assign grid');
+	//self = self||this;
 	if(this._grid instanceof Grid)
 	{
 		this._grid.clear_translations();
@@ -2341,6 +2370,8 @@ ScaleComponent.prototype.assign_grid = function(grid)
 	this._grid = grid;
 	if(this._grid instanceof Grid)
 	{
+		post('grid is', this._grid);
+		post('grid name is', this._grid._name);
 		this._grid.add_listener(this._button_press);
 		if(!(this._last_pressed_button instanceof Button))
 		{
@@ -2642,6 +2673,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	this._explicit_keys_grid;
 	this._explicit_drumseq_grid;
 	this._explicit_keysseq_grid;
+	this._explicit_grid_assignments = false;
 
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
@@ -2713,7 +2745,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 		self._keys_sub.clear_buttons();
 		self._drumseq_sub.clear_buttons();
 		self._keysseq_sub.clear_buttons();
-		if(self._grid instanceof Grid)
+		if((self._grid instanceof Grid)||(self._explicit_grid_assignments))
 		{
 			var sizes = self._sizes;
 			if(self._primary_instrument._value == 'DrumMachine')
@@ -2746,19 +2778,16 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 				self._keys._octaveOffset.set_inc_dec_buttons(self._octave_up_button, self._octave_dn_button);
 				if(!self._splitMode._value)
 				{
-					self._keys.assign_grid(self._grid);
+					var grid_a = self._explicit_keys_grid instanceof Grid ? self._explicit_keys_grid : self._grid;
+					self._keys.assign_grid(grid_a);
 				}
 				else
 				{
-					var grid = self._explicit_keys_grid instanceof Grid ? self._explicit_keys_grid : self._grid;
-					self._keys_sub.sub_grid(grid, sizes.keys[2], sizes.keys[0]+sizes.keys[2], sizes.keys[3], sizes.keys[1]+sizes.keys[3]);
-					post('grid name:', self._keys_sub._name, self._keys_sub.controls().length);
-					var grid = self._explicit_keysseq_grid instanceof Grid ? self._explicit_keysseq_grid : self._grid;
-					post('grid name:',  grid._name, grid.controls().length);
-					self._keysseq_sub.sub_grid(grid, sizes.keysseq[2], sizes.keysseq[0]+sizes.keysseq[2], sizes.keysseq[3], sizes.keysseq[1]+sizes.keysseq[3]);
-					post('got here 1');
+					var grid_a = self._explicit_keys_grid instanceof Grid ? self._explicit_keys_grid : self._grid;
+					self._keys_sub.sub_grid(grid_a, sizes.keys[2], sizes.keys[0]+sizes.keys[2], sizes.keys[3], sizes.keys[1]+sizes.keys[3]);
+					var grid_b = self._explicit_keysseq_grid instanceof Grid ? self._explicit_keysseq_grid : self._grid;
+					self._keysseq_sub.sub_grid(grid_b, sizes.keysseq[2], sizes.keysseq[0]+sizes.keysseq[2], sizes.keysseq[3], sizes.keysseq[1]+sizes.keysseq[3]);
 					self._keys.assign_grid(self._keys_sub);
-					post('got here 2');
 					self._shift._value ? self._stepsequencer.assign_zoom_grid(self._keysseq_sub) :  self._stepsequencer.assign_grid(self._keysseq_sub);
 				}
 			}
@@ -2793,21 +2822,30 @@ AdaptiveInstrumentComponent.prototype.assign_grid = function(grid)
 
 AdaptiveInstrumentComponent.prototype.assign_explicit_grids = function(drum_grid, keys_grid, drumseq_grid, keysseq_grid)
 {
+	this._explicit_grid_assignments = false;
+	this._explicit_drum_grid = undefined;
+	this._explicit_keys_grid = undefined;
+	this._explicit_drumseq_grid = undefined;
+	this._explicit_keysseq_grid = undefined;
 	if((drum_grid instanceof Grid)&&(drum_grid.width()==this._sizes.drum[0])&&(drum_grid.height()==this._sizes.drum[1]))
 	{
 		this._explicit_drum_grid = drum_grid;
+		this._explicit_grid_assignments = true;
 	}
 	if((keys_grid instanceof Grid)&&(keys_grid.width()==this._sizes.keys[0])&&(keys_grid.height()==this._sizes.keys[1]))
 	{
 		this._explicit_keys_grid = keys_grid;
+		this._explicit_grid_assignments = true;
 	}
 	if((drumseq_grid instanceof Grid)&&(drumseq_grid.width()==this._sizes.drumseq[0])&&(drumseq_grid.height()==this._sizes.drumseq[1]))
 	{
 		this._explicit_drumseq_grid = drumseq_grid;
+		this._explicit_grid_assignments = true;
 	}
 	if((keysseq_grid instanceof Grid)&&(keysseq_grid.width()==this._sizes.keysseq[0])&&(keysseq_grid.height()==this._sizes.keysseq[1]))
 	{
 		this._explicit_keysseq_grid = keysseq_grid;
+		this._explicit_grid_assignments = true;
 	}
 }
 

@@ -127,14 +127,12 @@ function setup_controls()
 		pads[i] = new Button(PADS[i], 'Pad_'+i);
 	}
 	script['grid'] = new Grid(4, 4, 'Grid');
-	//script['biggrid'] = new Grid(16, 5, 'BigGrid');
 	for ( var i = 0; i< 4; i++)
 	{
 		for (var j = 0; j< 4; j++)
 		{
 			var number = i + (j*4);
 			grid.add_control(i, j, pads[number]);
-			//biggrid.add_control(i, j, pads[number]);
 		}
 	}
 	script['keys'] = [];
@@ -150,7 +148,6 @@ function setup_controls()
 			var number = i + (j*16)	;
 			keygrid.add_control(i, j, keys[number]);
 		}
-		//biggrid.add_control(i, 4, keys[i]);
 	}
 	script['encoder_buttons'] = [];
 	script['encoders'] = [];
@@ -370,8 +367,11 @@ function setup_modes()
 	{
 		post('sequencerPage entered');
 		seq_grid.sub_grid(keygrid, 0, 16, 0, 1);
-		instrument.assign_explicit_grids(null, null, seq_grid, seq_grid);
-		instrument.assign_grid(grid);
+		var c = grid.controls();
+		for(var i in c){post(c[i]._name);}
+		instrument.assign_explicit_grids(grid, grid, seq_grid, seq_grid);
+		instrument.update();
+		//instrument.assign_grid(grid);
 		device.set_nav_buttons(encoder_buttons[5], encoder_buttons[4], encoder_buttons[7], encoder_buttons[6]);
 		for(var i=0;i<4;i++)
 		{
