@@ -83,15 +83,11 @@ function init()
 	initialize_prototypes();
 	initialize_surface();
 	setup_controls();
-	//setup_lcd();
-	//resetAll();
 	setup_session();
 	setup_mixer();
 	setup_device();
 	setup_transport();
-	setup_sequencer();
-	setup_scales();
-	//setup_usermodes();
+	setup_instrument_control();
 	setup_tasks();
 	setup_modes();
 	setup_fixed_controls();
@@ -131,14 +127,16 @@ function setup_controls()
 		pads[i] = new Button(PADS[i], 'Pad_'+i);
 	}
 	script['grid'] = new Grid(4, 4, 'Grid');
+	//script['biggrid'] = new Grid(16, 5, 'BigGrid');
 	for ( var i = 0; i< 4; i++)
 	{
 		for (var j = 0; j< 4; j++)
 		{
 			var number = i + (j*4);
 			grid.add_control(i, j, pads[number]);
+			//biggrid.add_control(i, j, pads[number]);
 		}
-	}	
+	}
 	script['keys'] = [];
 	for (var i = 0;i < 32; i++)
 	{
@@ -152,6 +150,7 @@ function setup_controls()
 			var number = i + (j*16)	;
 			keygrid.add_control(i, j, keys[number]);
 		}
+		//biggrid.add_control(i, 4, keys[i]);
 	}
 	script['encoder_buttons'] = [];
 	script['encoders'] = [];
@@ -198,18 +197,9 @@ function setup_transport()
 	transport = new TransportComponent('Transport', host.createTransport());
 }
 
-function setup_sequencer()
+function setup_instrument_control()
 {
-	sequencer = new StepSequencerComponent('Sequencer', 16, 2);
-}
-
-function setup_scales()
-{
-	scales = new ScalesComponent('Scales');
-	scales._keys_stepsequencer = new StepSequencerComponent('keys_sequencer', 16, 1);
-	scales._drum_stepsequencer = new StepSequencerComponent('drum_sequencer', 16, 1);
-	scales._top = new Grid(16, 1, 'top');
-	scales._right = new Grid(16, 1, 'right');
+	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[4, 4, 0, 0], 'drumseq':[16, 1, 0, 0], 'keysseq':[16, 1, 0, 0]});
 }
 
 function setup_tasks()
@@ -238,23 +228,62 @@ function setup_usermodes()
 
 function setup_modes()
 {
-	/*scalesControlsSub = new Page('ScalesControlsSub');
-	scalesControlsSub.enter_mode = function()
+	script['seq_grid'] = new Grid(16, 1, 'Seq_Grid');
+	script['session_grid'] = new Grid(4, 4, 'SessionGrid');
+
+	altClipLaunchSub = new Page('AltClipLaunchSub');
+	altClipLaunchSub._last_pressed;
+	altClipLaunchSub._alt = function(obj)
 	{
-		scales._splitMode.set_control(touch_buttons[0]);
-		scales._overdub.set_control(touch_buttons[1]);
-		scales._vertOffset.set_inc_dec_buttons(touch_buttons[3], touch_buttons[2]);
-		scales._scaleOffset.set_inc_dec_buttons(touch_buttons[5], touch_buttons[4]);
-		scales._noteOffset.set_inc_dec_buttons(touch_buttons[7], touch_buttons[6]);
+		if(obj._value)
+		{
+			tasks.addTask(altClipLaunchSub.Alt, [obj], 3, false, 'AltClipLaunchSub');
+		}
+		else if(obj == altClipLaunchSub._last_pressed)
+		{
+			altClipLaunchSub._last_pressed = undefined;
+			clipLaunch.exit_mode();
+			MainModes.current_page().enter_mode();
+		}
 	}
-	scalesControlsSub.exit_mode = function()
+	altClipLaunchSub.Alt = function(obj)
 	{
-		scales._vertOffset.set_inc_dec_buttons();
-		scales._scaleOffset.set_inc_dec_buttons();
-		scales._noteOffset.set_inc_dec_buttons();
-		scales._splitMode.set_control();
-		scales._overdub.set_control();
-	}*/
+		if(obj._value)
+		{
+			altClipLaunchSub._last_pressed = obj;
+			MainModes.current_page().exit_mode();
+			clipLaunch.enter_mode();
+		}
+	}
+	altClipLaunchSub.enter_mode = function()
+	{
+		for(var i=0;i<8;i++)
+		{
+			buttons[i].add_listener(altClipLaunchSub._alt)
+		}
+	}
+	altClipLaunchSub.exit_mode = function()
+	{
+		if(!altClipLaunchSub._last_pressed)
+		{
+			for(var i=0;i<8;i++)
+			{
+				buttons[i].remove_listener(altClipLaunchSub._alt)
+			}
+		}
+	}
+
+	clipLaunch = new Page('ClipLaunch');
+	clipLaunch.enter_mode = function()
+	{
+		post('cliplaunch enter mode');
+		grid.reset();
+		session.assign_grid(grid);
+	}
+	clipLaunch.exit_mode = function()
+	{
+		session.assign_grid();
+	}
 
 	
 	//Page 0:  Send Control and Instrument throughput
@@ -264,7 +293,8 @@ function setup_modes()
 		post('clipPage entered');
 		//grid.reset();
 		//faderbank.reset();
-		session.assign_grid(grid);
+		session_grid.sub_grid(grid, 0, 4, 0, 4);
+		session.assign_grid(session_grid);
 		session.set_nav_buttons(keys[12], keys[13], keys[14], keys[15]);
 		device.set_nav_buttons(encoder_buttons[5], encoder_buttons[4], encoder_buttons[7], encoder_buttons[6]);
 		for(var i=0;i<4;i++)
@@ -312,6 +342,7 @@ function setup_modes()
 		transport._play.set_control();
 		transport._record.set_control();
 		transport._stop.set_control();
+		//session_grid.clear_buttons();
 		clipPage.set_shift_button();
 		clipPage.active = false;
 		post('clipPage exited');
@@ -323,11 +354,11 @@ function setup_modes()
 		if(clipPage._shifted)
 		{
 			session.assign_grid();
-			session._zoom.assign_grid(grid);
+			//session._zoom.assign_grid(grid);
 		}
 		else
 		{
-			session._zoom.assign_grid();
+			//session._zoom.assign_grid();
 			clipPage.enter_mode();
 		}
 	}
@@ -338,7 +369,9 @@ function setup_modes()
 	sequencerPage.enter_mode = function()
 	{
 		post('sequencerPage entered');
-		scales.assign_grid(keygrid);
+		seq_grid.sub_grid(keygrid, 0, 16, 0, 1);
+		instrument.assign_explicit_grids(null, null, seq_grid, seq_grid);
+		instrument.assign_grid(grid);
 		device.set_nav_buttons(encoder_buttons[5], encoder_buttons[4], encoder_buttons[7], encoder_buttons[6]);
 		for(var i=0;i<4;i++)
 		{
@@ -356,7 +389,7 @@ function setup_modes()
 	}
 	sequencerPage.exit_mode = function()
 	{
-		scales.assign_grid();
+		instrument.assign_explicit_grids();
 		for(var i=0;i<4;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control();
@@ -390,7 +423,7 @@ function setup_modes()
 	MainModes.add_mode(1, sequencerPage);
 	/*MainModes.add_mode(2, devicePage);
 	MainModes.add_mode(3, userPage);*/
-	MainModes.set_mode_buttons([encoder_buttons[0], encoder_buttons[1]]); //, function_buttons[2], function_buttons[3]]);
+	MainModes.set_mode_buttons([encoder_buttons[2], encoder_buttons[3]]); //, function_buttons[2], function_buttons[3]]);
 	//MainModes.add_listener(display_mode);
 
 }
