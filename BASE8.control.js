@@ -538,7 +538,6 @@ function setup_modes()
 			sendSysex(LIVEBUTTONMODE);	
 			instrument._splitMode._value = 0;
 			instrument.assign_grid(grid);
-
 		}
 		else
 		{
@@ -628,6 +627,7 @@ function setup_modes()
 			instrument.assign_grid(grid);
 			instrument._stepsequencer._follow.set_control(function_buttons[4]);
 			instrument._stepsequencer._flip.set_control(function_buttons[5]);
+			instrument._stepsequencer._accent.set_control(faders[0]);
 		}
 		else
 		{
@@ -678,7 +678,8 @@ function setup_modes()
 				{
 					mixer.channelstrip(i)._select.set_control();
 				}
-				instrumentControlsSub.enter_mode();	
+				instrumentControlsSub.enter_mode();
+				instrument._stepsequencer._shuffleEnabled.set_control(touch_buttons[0]);
 			}
 			else
 			{

@@ -193,12 +193,24 @@ function setup_transport()
 
 function setup_instrument_control()
 {
+	var KEYOFFSETS = [1, 4, 5, 12];
+	var DRUMOFFSETS = [1, 4, 8, 16];
+
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[8, 2, 0, 2], 'drumseq':[4, 4, 4, 0], 'keysseq':[8, 2, 0, 0]});
+
+	//we're not using this, but it could easily be added back into the script.  you'd need to remove assignments for the intervalSelector.
 	instrument._scaleSelector_callback = function(){instrument._keys._scaleOffset.set_value(instrument._scaleSelector._value);}
 	instrument._scaleSelector = new RadioComponent(instrument._keys._name + '_scaleSelector', 0, 5, 0, instrument._scaleSelector_callback, colors.BLUE, colors.OFF);
-
 	instrument._update_scaleSelector = function(){instrument._scaleSelector._value = instrument._keys._scaleSelector._value;}
 	instrument._keys._scaleOffset.add_listener(instrument._update_scaleSelector);
+
+	instrument._intervalSelector_callback = function()
+	{
+		instrument._keys._noteOffset._increment = KEYOFFSETS[instrument._intervalSelector._value];
+		instrument._drums._noteOffset._increment = DRUMOFFSETS[instrument._intervalSelector._value];
+	}
+	instrument._intervalSelector = new RadioComponent(instrument._name + '_intervalSelector', 0, 4, 0, instrument._intervalSelector_callback, colors.MAGENTA, colors.OFF);
+
 
 }
 
@@ -384,10 +396,12 @@ function setup_modes()
 		seq_zoom.sub_grid(grid, 0, 8, 4, 6);
 		instrument._stepsequencer._flip.set_control(pads[55]);
 		instrument._stepsequencer._follow.set_control(pads[63]);
-		instrument.set_scale_offset_buttons(pads[49], pads[48]);
-		instrument.set_note_offset_buttons(pads[51], pads[50]);
-		instrument.set_octave_offset_buttons(pads[53], pads[52]);
-		instrument._quantization.set_controls([pads[56], pads[57], pads[58], pads[59], pads[60], pads[61], pads[62]]);
+		//instrument.set_scale_offset_buttons(pads[49], pads[48]);
+		instrument.set_note_offset_buttons(pads[49], pads[48]);
+		//instrument.set_octave_offset_buttons(pads[53], pads[52]);
+		instrument._intervalSelector.set_controls([pads[50], pads[51], pads[52], pads[53]]);
+		instrument._quantization.set_controls([pads[56], pads[57], pads[58], pads[59], pads[60]]);
+		instrument._stepsequencer._triplet.set_control(pads[61]);
 		instrument.assign_grid(seq_grid);
 		instrument._stepsequencer.assign_zoom_grid(seq_zoom);
 		altClipLaunchSub.enter_mode();
@@ -438,6 +452,8 @@ function setup_modes()
 		instrument.set_note_offset_buttons();
 		instrument.set_octave_offset_buttons();
 		instrument._quantization.set_controls();
+		instrument._intervalSelector.set_controls();
+		instrument._stepsequencer._triplet.set_control();
 		instrument.assign_grid();
 		instrument._stepsequencer.assign_zoom_grid();
 		altClipLaunchSub.exit_mode();
@@ -459,6 +475,7 @@ function setup_modes()
 			instrument.set_scale_offset_buttons();
 			instrument.set_note_offset_buttons();
 			instrument.set_octave_offset_buttons();
+			instrument._intervalSelector.set_controls();
 			instrument._scaleSelector.set_controls([pads[48], pads[49], pads[50], pads[51], pads[52], pads[53]]);
 			device.set_nav_buttons(functions[2], functions[5], functions[3], functions[4]);
 			transport._overdub.set_control(livid);

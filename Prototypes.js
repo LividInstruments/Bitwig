@@ -1632,12 +1632,12 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 	this._num = num;
 	this._num_sends = num_sends;
 	this._track = track;
+	this._eqdevice;
 
 	this._colors = _colors||{'muteColor': colors.YELLOW, 
 					'soloColor':colors.CYAN, 
 					'armColor' : colors.RED,
 					'selectColor' : colors.WHITE};
-
 
 	this._exists = new Parameter(this._name + '_Exists', {javaObj:this._track.exists(), monitor:'addValueObserver'});
 
@@ -1679,30 +1679,94 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 		self.armListener(self._armValue);
 	}
 
+	this.createEQDeviceComponent = function(size)
+	{
+		self._device = new EQDeviceComponent(this);
+	}
 
+
+}
+
+
+function EQDeviceComponent(channelstrip)
+{
+	var self = this;
+	this._name = channelstrip._name + '_EQDevice';
+	this._device = channelstrip._track.getPrimaryDevice();
+	this._hi_control, this._mid_control, this._lo_control;
+
+	this._onDeviceNameChanged = function(val)
+	{
+		post(self._name, '\'s Device is:', self._deviceNameObserver._value);
+	}
+
+	this._deviceNameObserver = new Parameter(this._name + '_Device_Name', {javaObj:this._device});
+	this._deviceNameObserver._javaObj.addNameObserver(8, '', this._deviceNameObserver.receive);
+	this._deviceNameObserver.add_listener(this._onDeviceNameChanged);
+	this._hi = new RangedParameter(this._name + '_Hi', {javaObj:this._device.getParameter(0), range:128});
+	this._mid = new RangedParameter(this._name + '_Mid', {javaObj:this._device.getParameter(1), range:128});
+	this._lo = new RangedParameter(this._name + '_Lo', {javaObj:this._device.getParameter(2), range:128});
+
+	this._update = function()
+	{
+		self._hi.set_control(self._hi_control);
+		self._mid.set_control(self._mid_control);
+		self._lo.set_control(self._lo_control);
+	}
+
+	//post('DeviceType:', channelstrip._track.getPrimaryDevice().DeviceType);
+	this._canAssignListener = function(val)
+	{
+		post('canAssignListener:', self._name, val);
+	}
+	this._canAssign = new Parameter(this._name + '_Can_Assign_EQ_Observer', {javaObj:this._device});
+	//this._canAssign._javaObj.addCanSwitchToDeviceObserver(this._device.DeviceType.valueOf('EQ'), this._device.ChainLocation.valueOf('FIRST'), this._canAssign.receive);
+	//this._canAssign.add_listener(this._canAssignListener);
+
+}
+
+EQDeviceComponent.prototype.set_controls = function(hi_control, mid_control, lo_control)
+{
+	this._hi_control = hi_control;
+	this._mid_control = mid_control;
+	this._lo_control = lo_control;
+	this._update();
 }
 
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing controls for currently controlled cursorDevice
 
-function DeviceComponent(name, size, cursorDevice)
+function DeviceComponent(name, size, Device)
 {
 	var self = this;
 	this._name = name;
 	this._size = size;
-	this._cursorDevice = cursorDevice;
+	this._device = Device;
 	this._parameter = [];
 	for(var i=0;i<size;i++)
 	{
-		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._cursorDevice.getParameter(i), range:128});
+		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._device.getParameter(i), range:128});
+		this._parameter[i]._javaObj.setIndication(true);
 	}
 
-	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._cursorDevice, action:'nextParameterPage', monitor:'addNextParameterPageEnabledObserver', onValue:colors.CYAN});
-	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._cursorDevice, action:'previousParameterPage', monitor:'addPreviousParameterPageEnabledObserver', onValue:colors.CYAN});
-	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._cursorDevice, action:'selectNext', monitor:'addCanSelectNextObserver', onValue:colors.BLUE});
-	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._cursorDevice, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
+	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._device, action:'nextParameterPage', monitor:'addNextParameterPageEnabledObserver', onValue:colors.CYAN});
+	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._device, action:'previousParameterPage', monitor:'addPreviousParameterPageEnabledObserver', onValue:colors.CYAN});
+	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._device, action:'selectNext', monitor:'addCanSelectNextObserver', onValue:colors.BLUE});
+	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._device, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
+	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:this._device, action:'toggleEnabledState', monitor:'addIsEnabledObserver', onValue:colors.RED});
 
+	
+	/*this._report = function(val)
+	{
+		post('report!', val);
+	}
+	this._report2 = function(val)
+	{
+		post('report2!', val);
+	}
+	this._device.addSelectedPageObserver(-1, this._report);
+	this._device.addPageNamesObserver(this._report2);*/
 }
 
 DeviceComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
@@ -1712,6 +1776,24 @@ DeviceComponent.prototype.set_nav_buttons = function(button0, button1, button2, 
 	this._navLt.set_control(button2);
 	this._navRt.set_control(button3);
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+//Component containing controls for currently controlled primaryDevice for a track
+
+function ChannelDeviceComponent(name, size, channelstrip)
+{
+	var self = this;
+	this._name = name;
+	this._size = size;
+	this._device = channelstrip._track.getPrimaryDevice();
+	this._parameter = [];
+	for(var i=0;i<size;i++)
+	{
+		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._device.getParameter(i), range:128});
+	}
+}
+
 
 
 
@@ -2234,12 +2316,18 @@ function ScaleComponent(name, _colors)
 	this._stepsequencer;
 	this._grid;
 	this._last_pressed_button;
+	this._held_notes = [];
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
 	{
 		this._noteMap[i] = [];
 	}
 	var cursorTrack = host.createCursorTrackSection(0, 0);
+
+	this._flushNotes = function()
+	{
+		//how the hell we gonna do this?
+	}
 
 	this._onNote = function(val, num, extra)
 	{
@@ -2255,6 +2343,7 @@ function ScaleComponent(name, _colors)
 	{
 		if(button.pressed())
 		{
+			self._held_notes.unshift(button);
 			var last = self._last_pressed_button;
 			if(last instanceof Button)
 			{
@@ -2269,6 +2358,14 @@ function ScaleComponent(name, _colors)
 				{
 					self._stepsequencer.toggle_note(button);
 				}
+			}
+		}
+		else
+		{
+			var item = self._held_notes.indexOf(button);
+			if(item > -1)
+			{
+				self._held_notes.splice(item, 1);
 			}
 		}
 	}
@@ -2316,6 +2413,7 @@ function ScaleComponent(name, _colors)
 
 	this._noteOffsetCallback = function(obj)
 	{
+		self._flushNotes();
 		self._octaveOffset._value = obj._value;
 		self._noteOffset._value = obj._value;
 		if(self._stepsequencer instanceof StepSequencerComponent && self._last_pressed_button instanceof Button)
@@ -2330,7 +2428,6 @@ function ScaleComponent(name, _colors)
 	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._update, colors.YELLOW, colors.OFF, 12);
 	this._noteOffset.add_listener(self._noteOffsetCallback);
 	this._octaveOffset.add_listener(self._noteOffsetCallback);
-
 
 	this._shifted = new ToggledParameter(this._name + 'is_shifted');
 	this._shifted.add_listener(this._update);
@@ -2383,7 +2480,7 @@ function StepSequencerComponent(name, steps)
 {
 
 	var SEQ_BUFFER_STEPS = steps;
-	var STEP_SIZE = {STEP_1_4 : 0, STEP_1_8 : 1, STEP_1_16 : 2, STEP_1_32 : 3};
+	var STEP_SIZE = {STEP_1_4 : 0, STEP_1_8 : 1, STEP_1_16 : 2, STEP_1_32 : 3, STEP_1_64 : 4, STEP_1_128 : 5, STEP_1_256 : 6};
 	var velocities = [127, 100, 80, 50];
 	this.velocityStep = 2;
 	this.velocity = velocities[this.velocityStep];
@@ -2478,7 +2575,7 @@ function StepSequencerComponent(name, steps)
 	{
 		//post('on size change', self._size_offset._value);
 		self.stepSize = self._size_offset._value;
-		var stepInBeatTime = Math.pow(0.5, self.stepSize);
+		var stepInBeatTime = Math.pow(0.5, self.stepSize) * (self._triplet._value ? 1 : .66667);
 		self._cursorClip.setStepSize(stepInBeatTime);
 	}
 	this._onVelocityChange = function()
@@ -2559,10 +2656,14 @@ function StepSequencerComponent(name, steps)
 	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW, colors.OFF, 10);
 	this._flip = new ToggledParameter(this._name + '_Flip', {value:0, onValue:colors.WHITE});
 	this._edit_step = new RangedParameter(this._name + '_Edit_Step', {value:-1});
+	this._triplet = new ToggledParameter(this._name + '_Triplet_Enable', {value:1, onValue:colors.OFF, offValue:colors.RED});
 
+	this._triplet.add_listener(this._onSizeChange);
 	this._flip.add_listener(this.update);
 	this._edit_step.add_listener(this.update);
 
+	this._shuffleEnabled = new ToggledParameter(this._name + '_Shuffle_Enabled', {javaObj:this._cursorClip.getShuffle(), monitor:'addValueObserver', action:'toggle'});
+	this._accent = new RangedParameter(this._name + '_Accent', {javaObj:this._cursorClip.getAccent(), range:128});
 	//this._cursorClip.scrollToKey(this.key_offset._value);
 
 }
@@ -2578,6 +2679,7 @@ StepSequencerComponent.prototype.assign_grid = function(grid)
 	this._grid = grid;
 	if (this._grid instanceof Grid)
 	{
+		this._grid.clear_translations();
 		this._grid.set_target(this.receive_grid);
 		this._last_grid_size = this._grid.controls().length;
 		this.update();
@@ -2594,6 +2696,7 @@ StepSequencerComponent.prototype.assign_zoom_grid = function(grid)
 	this._zoom_grid = grid;
 	if (this._zoom_grid instanceof Grid)
 	{
+		this._zoom_grid.clear_translations();
 		this._zoom_grid.set_target(this.receive_zoom_grid);
 		this.update();
 	}
@@ -2857,6 +2960,7 @@ AdaptiveInstrumentComponent.prototype.set_octave_offset_buttons = function(_octa
 	this._octave_dn_button = _octave_dn;
 }
 
+	
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for access to Transport functions
@@ -2887,6 +2991,35 @@ function TransportComponent(name, transport, _colors)
 
 	this._autowrite = new ToggledParameter('autowrite_listener', {javaObj:transport, action:'toggleWriteArrangerAutomation', monitor:'addAutomationWriteModeObserver', onValue:colors.BLUE});
 
+}
+
+function GrooveComponent(name, groove)
+{
+	var self = this;
+	this._name = name
+
+	if(!groove){groove = host.createGroove();}
+
+	this._accentAmount = new RangedParameter(this._name + '_AccentAmount', {javaObj:groove.getAccentAmount(), range:128});
+
+	this._accentPhase = new RangedParameter(this._name + '_AccentPhase', {javaObj:groove.getAccentPhase(), range:128});
+
+	this._accentRate = new RangedParameter(this._name + '_AccentRate', {javaObj:groove.getAccentRate(), range:128});
+
+	this._shuffleAmount = new RangedParameter(this._name + '_ShuffleAmount', {javaObj:groove.getShuffleAmount(), range:128});
+
+	this._shuffleRate = new RangedParameter(this._name + '_ShuffleRate', {javaObj:groove.getShuffleRate(), range:128});
+
+	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:groove.getEnabled(), range:2});
+	this._enabled._Callback = function(obj)
+	{
+		if(obj._value>0)
+		{
+			self._enabled.receive(Math.abs(self._enabled._value - 1));
+			self._enabled._javaObj.set(self._enabled._value, 2);
+		}
+	}
+	
 }
 
 
