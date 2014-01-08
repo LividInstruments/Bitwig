@@ -2080,7 +2080,8 @@ function ScaleComponent(name, _colors)
 		var buf = self._noteMap[num];
 		for(var i in buf)
 		{
-			buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
+			//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
+			buf[i].send(val ? color.YELLOW : buf[i].scale_color);
 		}
 	}
 	cursorTrack.addNoteObserver(this._onNote);

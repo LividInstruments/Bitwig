@@ -624,10 +624,10 @@ function setup_modes()
 			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
 			instrument._splitMode._value = 1;
-			instrument.assign_grid(grid);
 			instrument._stepsequencer._follow.set_control(function_buttons[4]);
 			instrument._stepsequencer._flip.set_control(function_buttons[5]);
 			instrument._stepsequencer._accent.set_control(faders[0]);
+			instrument.assign_grid(grid);
 		}
 		else
 		{
@@ -650,8 +650,8 @@ function setup_modes()
 		instrument.set_vert_offset_buttons();
 		instrument._stepsequencer._follow.set_control();
 		instrument._stepsequencer._flip.set_control();
-		instrument.assign_grid();
 		instrument._stepsequencer.set_nav_buttons();
+		instrument.assign_grid();
 		session.set_nav_buttons();
 		for(var i=0;i<8;i++)
 		{
