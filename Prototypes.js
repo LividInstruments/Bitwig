@@ -1327,32 +1327,47 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	this._hasContentListener = function(clipslot, value)
 	{
 		var clipslot = 	self._clipslots[clipslot];
-		clipslot.hasContent = value;
-		clipslot.update();
+		if(clipslot)
+		{
+			clipslot.hasContent = value;
+			clipslot.update();
+		}
 	}
 	this._isPlayingListener = function(clipslot, value)
 	{
 		var clipslot = 	self._clipslots[clipslot];
-		clipslot.isPlaying = value;
-		clipslot.update();
+		if(clipslot)
+		{
+			clipslot.isPlaying = value;
+			clipslot.update();
+		}
 	}
 	this._isQueuedListener = function(clipslot, value)
 	{
 		var clipslot = 	self._clipslots[clipslot];
-		clipslot.isQueued = value;
-		clipslot.update();
+		if(clipslot)
+		{
+			clipslot.isQueued = value;
+			clipslot.update();
+		}
 	}
 	this._isRecordingListener = function(clipslot, value)
 	{
 		var clipslot = 	self._clipslots[clipslot];
-		clipslot.isRecording = value;
-		clipslot.update();
+		if(clipslot)
+		{
+			clipslot.isRecording = value;
+			clipslot.update();
+		}
 	}
 	this._isSelectedListener = function(clipslot, value)
 	{
 		var clipslot = 	self._clipslots[clipslot];
-		clipslot.isSelected = value;
-		clipslot.update();
+		if(clipslot)
+		{
+			clipslot.isSelected = value;
+			clipslot.update();
+		}
 	}
 
 	for (var c = 0; c < height; c++)
@@ -1703,9 +1718,9 @@ function EQDeviceComponent(channelstrip)
 	this._deviceNameObserver = new Parameter(this._name + '_Device_Name', {javaObj:this._device});
 	this._deviceNameObserver._javaObj.addNameObserver(8, '', this._deviceNameObserver.receive);
 	this._deviceNameObserver.add_listener(this._onDeviceNameChanged);
-	this._hi = new RangedParameter(this._name + '_Hi', {javaObj:this._device.getParameter(0), range:128});
-	this._mid = new RangedParameter(this._name + '_Mid', {javaObj:this._device.getParameter(1), range:128});
-	this._lo = new RangedParameter(this._name + '_Lo', {javaObj:this._device.getParameter(2), range:128});
+	this._hi = new RangedParameter(this._name + '_Hi', {javaObj:this._device.getMacro(0), range:128});
+	this._mid = new RangedParameter(this._name + '_Mid', {javaObj:this._device.getMacro(1), range:128});
+	this._lo = new RangedParameter(this._name + '_Lo', {javaObj:this._device.getMacro(2), range:128});
 
 	this._update = function()
 	{
