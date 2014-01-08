@@ -1317,7 +1317,7 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	this._name = name;
 	this._session = session;
 	this._clipLauncher = clipLauncher;
-	this._clipLauncher.setIndication(true);
+	//this._clipLauncher.setIndication(true);
 	this._clipslots = new Array(height);
 	this.launch = function(clipslot)
 	{
@@ -1368,6 +1368,11 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 			clipslot.isSelected = value;
 			clipslot.update();
 		}
+	}
+
+	this.set_indication = function(val)
+	{
+		self._clipLauncher.setIndication(val>0);
 	}
 
 	for (var c = 0; c < height; c++)
@@ -1440,6 +1445,7 @@ SessionComponent.prototype.assign_grid = function(new_grid)
 		this._grid.remove_target(this.receive_grid);
 		for (var track in this._tracks)
 		{
+			this._tracks[track].set_indication(false);
 			for(var slot in this._tracks[track]._clipslots)
 			{
 				var button = this._grid.get_button(track, slot);
@@ -1458,6 +1464,7 @@ SessionComponent.prototype.assign_grid = function(new_grid)
 		this._grid.set_target(this.receive_grid);
 		for (var track in this._tracks)
 		{
+			this._tracks[track].set_indication(true);
 			for(var slot in this._tracks[track]._clipslots)
 			{
 				var button = this._grid.get_button(track, slot);
@@ -1718,9 +1725,9 @@ function EQDeviceComponent(channelstrip)
 	this._deviceNameObserver = new Parameter(this._name + '_Device_Name', {javaObj:this._device});
 	this._deviceNameObserver._javaObj.addNameObserver(8, '', this._deviceNameObserver.receive);
 	this._deviceNameObserver.add_listener(this._onDeviceNameChanged);
-	this._hi = new RangedParameter(this._name + '_Hi', {javaObj:this._device.getMacro(0), range:128});
-	this._mid = new RangedParameter(this._name + '_Mid', {javaObj:this._device.getMacro(1), range:128});
-	this._lo = new RangedParameter(this._name + '_Lo', {javaObj:this._device.getMacro(2), range:128});
+	this._hi = new RangedParameter(this._name + '_Hi', {javaObj:this._device.getMacro(0).getAmount(), range:128});
+	this._mid = new RangedParameter(this._name + '_Mid', {javaObj:this._device.getMacro(1).getAmount(), range:128});
+	this._lo = new RangedParameter(this._name + '_Lo', {javaObj:this._device.getMacro(2).getAmount(), range:128});
 
 	this._update = function()
 	{
@@ -1877,296 +1884,6 @@ const DEFAULT_SCALE = 'Major';
 const SPLIT_SCALES = {}; //{'DrumPad':1, 'Major':1};
 
 /////////////////////////////////////////////////////////////////////////////
-//Old-style Scale component that contains its own StepSequencers
-
-function ScalesComponent(name, lcd, primary_instrument, track_type, cursorTrack)
-{
-	var self = this;
-	this._name = name;
-	this._lcd = lcd;
-	this._keys_stepsequencer = new StepSequencerComponent('keys_sequencer', 8, 2);
-	this._drum_stepsequencer = new StepSequencerComponent('drum_sequencer', 4, 4);
-	this._split = false;
-
-	this._grid;
-
-	this._top = new Grid(8, 2, 'top');
-	this._right = new Grid(4, 4, 'right');
-
-	this._noteMap = new Array(128);
-	for(var i=0;i<128;i++)
-	{
-		this._noteMap[i] = [];
-	}
-	var cursorTrack = host.createCursorTrackSection(0, 0);
-
-	this._primary_instrument = new Parameter('primary_instrument_listener', {javaObj:cursorTrack.getPrimaryInstrument()});
-	cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);
-
-
-	this._onNote = function(val, num, extra)
-	{
-		//post('note', val, num, extra);
-		var buf = self._noteMap[num];
-		for(var i in buf)
-		{
-			buf[i].send(val ? color.YELLOW : buf[i].scale_color )
-		}
-	}
-
-	this._track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
-	cursorTrack.addNoteObserver(this._onNote);
-
-
-	this._button_press = function(button)
-	{
-		if(button.pressed())
-		{
-			if(self._current_scale == 'DrumPad')
-			{
-				if(button._x(self._grid)<4)
-				{
-					self._drum_stepsequencer.key_offset.set_value(button._translation);
-				}
-			}
-			else
-			{
-				if(button._y(self._grid)>1)
-				{
-					self._keys_stepsequencer.key_offset.set_value(button._translation);
-				}
-			}
-		}
-	}
-
-	this._update = function() 
-	{
-		post('vert:', self._vertOffset._value, 'note:', self._noteOffset._value, ':', NOTENAMES[self._noteOffset._value], 'scale', SCALENAMES[self._scaleOffset._value]);
-		self._noteMap = new Array(128);
-		self._top.clear_buttons();
-		self._right.clear_buttons();
-		for(var i=0;i<128;i++)
-		{
-			self._noteMap[i] = [];
-		}
-		if(self._sequencer != undefined)
-		{
-			self._sequencer.assign_grid();
-		}
-		if(self._grid instanceof Grid)
-		{
-			var offset = self._noteOffset._value;
-			var vertoffset = self._vertOffset._value;
-			var scale = SCALENAMES[self._scaleOffset._value];
-			var split = self._splitMode._value;
-			if(scale=='Auto')
-			{
-				post('primary instrument:', self._primary_instrument._value);
-				scale = self._primary_instrument._value == 'DrumMachine' ? 'DrumPad' : DEFAULT_SCALE;
-			}
-			self._current_scale = scale;
-			var scale_len = SCALES[scale].length;
-			var width = Math.min(self._grid.width(), 8);
-			var height = Math.min(self._grid.height(), 8);
-			post('split:', split, scale, 'in SPLIT_SCALES:', scale in SPLIT_SCALES);
-			if((split)||(scale in SPLIT_SCALES))
-			{
-				if(scale != 'DrumPad')
-				{
-					for(var column=0;column<width;column++)
-					{
-						for(var row=0;row<height;row++)
-						{
-							var button = self._grid.get_button(column, row);
-							if(row > 1)
-							{
-								var note_pos = column + (Math.abs(3-row))*parseInt(vertoffset);
-								var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
-								button.set_translation(note%127);
-								self._noteMap[note%127].push(button);
-								button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
-								//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
-								button.send(button.scale_color);
-							}
-							else
-							{
-								button.set_translation(-1);
-								self._top.add_control(column, row, button);
-							}
-						}
-					}
-					self._keys_stepsequencer.assign_grid(self._top);
-				}
-				else
-				{
-					for(var column=0;column<width;column++)
-					{
-						for(var row=0;row<height;row++)
-						{
-							var button = self._grid.get_button(column, row);
-							if(column < 4)
-							{
-								var note = DRUMNOTES[column + (row*8)] + (Math.floor(offset/4)*4) + (Math.floor(column/4)*16) + (Math.floor(row/4)*16);
-								button.set_translation(note%127);
-								self._noteMap[note%127].push(button);
-								button.scale_color = KEYCOLORS[Number(column>3) + (Number(row>3)*2)];
-								button.send(button.scale_color);
-							}
-							else
-							{
-								button.set_translation(-1);
-								self._right.add_control(column-4, row, button);
-							}
-						}
-					}
-					self._drum_stepsequencer.assign_grid(self._right);
-				}
-			}
-			else
-			{
-				if(scale != 'DrumPad')
-				{
-					for(var column=0;column<width;column++)
-					{
-						for(var row=0;row<height;row++)
-						{
-							var note_pos = column + (Math.abs(3-row))*parseInt(vertoffset);
-							var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
-							var button = self._grid.get_button(column, row);
-							button.set_translation(note%127);
-							self._noteMap[note%127].push(button);
-							button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];
-							//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
-							button.send(button.scale_color);
-						}
-					}
-				}
-				else
-				{
-					for(var column=0;column<width;column++)
-					{
-						for(var row=0;row<height;row++)
-						{
-							var note = DRUMNOTES[column + (row*8)] + (Math.floor(offset/4)*4) + (Math.floor(column/4)*16) + (Math.floor(row/4)*16);
-							var button = self._grid.get_button(column, row);
-							button.set_translation(note%127); 
-							self._noteMap[note%127].push(button);
-							button.scale_color = KEYCOLORS[Number(column>3) + (Number(row>3)*2)];
-							button.send(button.scale_color);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	this._splitMode = new ToggledParameter('ScaleSplit', {value:1});
-	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, this._update, colors.MAGENTA);
-	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE);
-	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 2, this._update, colors.BLUE);
-
-	this._onFollowChange = function()
-	{
-		self._keys_stepsequencer._follow.receive(self._follow._value);
-		self._drum_stepsequencer._follow.receive(self._follow._value);
-		self._offset.set_enabled(!self._follow._value);
-	}
-
-	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
-	this._follow.add_listener(this._onFollowChange);
-
-	this._onSizeChange = function()
-	{
-		self._keys_stepsequencer._size_offset.set_value(self._size_offset._value);
-		self._drum_stepsequencer._size_offset.set_value(self._size_offset._value);
-		
-	}
-	this._size_offset = new OffsetComponent(this._name + '_Size_Offset', 0, 4, 2, this._onSizeChange, colors.MAGENTA);
-	
-	this._onVelocityChange = function()
-	{
-		self._keys_stepsequencer._velocity_offset.set_value(self._velocity_offset._value);
-		self._drum_stepsequencer._velocity_offset.set_value(self._velocity_offset._value);
-	}
-	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW, colors.OFF, 10);
-
-	this._onOffsetChange = function()
-	{
-		self._keys_stepsequencer._offset.set_value(self._offset._value);
-		self._drum_stepsequencer._offset.set_value(self._offset._value);
-	}
-	this._offset = new OffsetComponent(this._name + '_Offset', 0, 128, 0, this._onOffsetChange, colors.RED, colors.OFF, 16);
-	this._offset.set_enabled(false);
-
-	this._lcd_listener = function(obj)
-	{
-		var val = obj._name == 'Scale_Offset' ? SCALEABBREVS[SCALENAMES[obj._value]] : obj._name == self._name + '_Velocity_Offset' ? Math.floor(obj._value/127*99) : obj._value;
-		self._lcd._send(val);
-		tasks.addTask(display_mode, [], 10, false, 'display_mode');
-	}
-	
-	if(this._lcd)
-	{
-		this._vertOffset.add_listener(this._lcd_listener);
-		this._noteOffset.add_listener(this._lcd_listener);
-		this._scaleOffset.add_listener(this._lcd_listener);
-		this._size_offset.add_listener(this._lcd_listener);
-		this._velocity_offset.add_listener(this._lcd_listener);
-	}
-
-
-	this._current_scale = SCALENAMES[self._scaleOffset._value];
-
-	this._on_primary_instrument_changed = function(new_name){self._update();}
-	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
-
-	this._transport = host.createTransportSection();
-
-	this._overdub = new ToggledParameter('overdub_listener', {javaObj:this._transport, action:'toggleOverdub', monitor:'addOverdubObserver', onValue:colors.RED});
-
-	this._autowrite = new ToggledParameter('autowrite_listener', {javaObj:this._transport, action:'toggleWriteArrangerAutomation', monitor:'addAutomationOverrideObserver', onValue:colors.BLUE});
-
-	/*this._on_track_type_changed = function(new_type){self._update();}
-	this._track_type.add_listener(this._on_track_type_changed);*/
-
-	this._shifted = new ToggledParameter(this._name + 'is_shifted');
-	this._shifted.add_listener(this._update);
-
-
-
-}
-
-ScalesComponent.prototype.assign_grid = function(grid)
-{
-	if(this._grid instanceof Grid)
-	{
-		for(var column=0;column<this._grid.width();column++)
-		{
-			for(var row=0;row<this._grid.height();row++)
-			{
-				this._grid.get_button(column, row).set_translation(-1);
-				this._grid.remove_target(this._button_press);
-			}
-		}
-	}
-	this._keys_stepsequencer.assign_grid();
-	this._drum_stepsequencer.assign_grid();
-	this._grid = grid;
-	if(this._grid instanceof Grid)
-	{
-		this._grid.set_target(this._button_press);
-	}
-	this._update();
-}
-
-ScalesComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
-{
-	this._size_offset.set_inc_dec_buttons(button0, button1);
-	this._velocity_offset.set_inc_dec_buttons(button2, button3);
-}
-
-
-/////////////////////////////////////////////////////////////////////////////
 //Container that holds a grid and assigns it to specific note values for triggering a DrumRack
 
 function DrumRackComponent(name, _color)
@@ -2181,6 +1898,7 @@ function DrumRackComponent(name, _color)
 	this._grid;
 	this._last_pressed_button;
 	this._noteMap = new Array(128);
+	this._held_notes = [];
 	for(var i=0;i<128;i++)
 	{
 		this._noteMap[i] = [];
@@ -2189,11 +1907,11 @@ function DrumRackComponent(name, _color)
 
 	this._onNote = function(val, num, extra)
 	{
-		//post('note', val, num, extra);
 		var buf = self._noteMap[num];
 		for(var i in buf)
 		{
-			buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
+			//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
+			buf[i].send(val ? color.YELLOW : buf[i].scale_color )
 		}
 	}
 	cursorTrack.addNoteObserver(this._onNote);
@@ -2202,20 +1920,33 @@ function DrumRackComponent(name, _color)
 	{
 		if(button.pressed())
 		{
+			var seq = self._stepsequencer;
+			self._held_notes.unshift(button);
 			var last = self._last_pressed_button;
 			if(last instanceof Button)
 			{
 				last.send(last.scale_color);
 			}
-			button.send(colors.WHITE);
-			self._last_pressed_button = button;
-			if(self._stepsequencer)
+			if((!seq)||(!seq._flip._value))
 			{
-				self._stepsequencer.key_offset.set_value(button._translation);
-				if(self._stepsequencer._flip._value)
+				button.send(colors.WHITE);
+			}
+			self._last_pressed_button = button;
+			if(seq)
+			{
+				seq.key_offset.set_value(button._translation);
+				if(seq._flip._value)
 				{
-					self._stepsequencer.toggle_note(button);
+					seq.toggle_note(button);
 				}
+			}
+		}
+		else
+		{
+			var item = self._held_notes.indexOf(button);
+			if(item > -1)
+			{
+				self._held_notes.splice(item, 1);
 			}
 		}
 	}
@@ -2248,8 +1979,8 @@ function DrumRackComponent(name, _color)
 					var button = self._grid.get_button(column, row);
 					button.set_translation(note%127); 
 					self._noteMap[note%127].push(button);
-					button.scale_color = notes_in_step[note%127] ? colors.GREEN : colors.BLUE;
-					button.send(button == self._last_pressed_button ? colors.WHITE : button.scale_color);
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : button == self._last_pressed_button ? colors.WHITE : colors.BLUE;
+					button.send(button.scale_color);
 				}
 			}
 		}
@@ -2493,7 +2224,7 @@ ScaleComponent.prototype.set_stepsequencer = function(stepsequencer)
 
 function StepSequencerComponent(name, steps)
 {
-
+	var self = this;
 	var SEQ_BUFFER_STEPS = steps;
 	var STEP_SIZE = {STEP_1_4 : 0, STEP_1_8 : 1, STEP_1_16 : 2, STEP_1_32 : 3, STEP_1_64 : 4, STEP_1_128 : 5, STEP_1_256 : 6};
 	var velocities = [127, 100, 80, 50];
@@ -2506,7 +2237,8 @@ function StepSequencerComponent(name, steps)
 	this.stepSize = STEP_SIZE.STEP_1_16;
 
 	this.Colors = {'Selected': colors.GREEN, 'PlayingOn':colors.RED, 'PlayingOff':colors.MAGENTA, 'On':colors.YELLOW, 'Off':colors.OFF, 'Flipped':colors.WHITE};
-	var self = this;
+	this.ZoomColors = {'CurrentPlaying': colors.RED, 'Playing': colors.BLUE, 'Current': colors.YELLOW, 'InLoop': colors.WHITE, 'Out': colors.OFF};
+
 	this._name = name;
 	this.width = function(){return  !self._grid ? 0 : self._grid.width();}
 	this.height = function(){return !self._grid ? 0 : self._grid.height();}
@@ -2532,7 +2264,7 @@ function StepSequencerComponent(name, steps)
 		{
 			if(button.pressed())
 			{
-				post('flip sequencer button pressed:', button._name);
+				//post('flip sequencer button pressed:', button._name);
 				var step = self._offset._value + button._x(self._grid) + self.width()*button._y(self._grid);
 				self._edit_step.set_value(step);
 			}
@@ -2554,7 +2286,7 @@ function StepSequencerComponent(name, steps)
 	}
 	this.toggle_note = function(button)
 	{
-		post('note toggle in stepsequencer', button._translation);
+		//post('note toggle in stepsequencer', button._translation);
 		if(self._edit_step._value>-1)
 		{
 			self._cursorClip.toggleStep(self._edit_step._value, button._translation, self._velocity_offset._value);
@@ -2617,7 +2349,6 @@ function StepSequencerComponent(name, steps)
 			{
 				var button = buttons[i];
 				var step = self._offset._value + button._x(self._grid) + (button._y(self._grid)*self.width());
-				//var isSet = self.hasAnyKey(index);
 				var isSet = self._stepSet[step * 128 + key];
 				var isPlaying = step == self.playingStep;
 				var isSelected = step == self._edit_step._value;
@@ -2637,19 +2368,16 @@ function StepSequencerComponent(name, steps)
 			var zoom_size = self._grid instanceof Grid ?  self._grid.size() : self._last_grid_size;
 			var current_pane = Math.floor(self._offset._value/zoom_size);
 			var playing_pane = Math.floor(self.playingStep/zoom_size)
-			var _colors = [colors.WHITE, colors.BLUE, colors.YELLOW, colors.RED];
 			for(var i=0;i<size;i++)
 			{
 				var loop_length = 16;
 				var button = buttons[i];
 				var button_coord = button._x(self._zoom_grid) + (button._y(self._zoom_grid)*self._zoom_grid.width());
-				//post('current pane:', current_pane, 'button_coord', button_coord, 'playing_pane', playing_pane);
-				var color = _colors[((button_coord == current_pane) + ((button_coord == playing_pane)*2))];
-				var color = (button_coord == current_pane && button_coord ==playing_pane) ? colors.RED :
-					button_coord == current_pane ? colors.BLUE :
-					button_coord == playing_pane ? colors.YELLOW :
-					button_coord < loop_length ? colors.WHITE :
-					colors.OFF;
+				var color = (button_coord == current_pane && button_coord ==playing_pane) ? self.ZoomColors.CurrentPlaying :
+					button_coord == current_pane ? self.ZoomColors.Playing :
+					button_coord == playing_pane ? self.ZoomColors.Current :
+					button_coord < loop_length ? self.ZoomColors.InLoop :
+					self.ZoomColors.Out;
 				button.send(color);
 			}
 		}
@@ -2664,12 +2392,12 @@ function StepSequencerComponent(name, steps)
 	this._cursorClip.addStepDataObserver(this._onStepExists);
 	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
 
-	this.key_offset = new OffsetComponent(this._name + 'Key_Offset', 0, 127, 0, this._onKeyChange, colors.BLUE);
-	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.CYAN});
+	this.key_offset = new OffsetComponent(this._name + 'Key_Offset', 0, 127, 0, this._onKeyChange, colors.CYAN);
+	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.MAGENTA});
 	this._offset = new OffsetComponent(this._name + '_Offset', 0, 256, 0, this._onOffsetChange, colors.RED);
 	this._size_offset = new OffsetComponent(this._name + '_Size_Offset', 0, 4, 2, this._onSizeChange, colors.MAGENTA);
-	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.YELLOW, colors.OFF, 10);
-	this._flip = new ToggledParameter(this._name + '_Flip', {value:0, onValue:colors.WHITE});
+	this._velocity_offset = new OffsetComponent(this._name + '_Velocity_Offset', 0, 127, 100, this._onVelocityChange, colors.RED, colors.OFF, 10);
+	this._flip = new ToggledParameter(this._name + '_Flip', {value:0, onValue:colors.CYAN});
 	this._edit_step = new RangedParameter(this._name + '_Edit_Step', {value:-1});
 	this._triplet = new ToggledParameter(this._name + '_Triplet_Enable', {value:1, onValue:colors.OFF, offValue:colors.RED});
 
@@ -2716,18 +2444,6 @@ StepSequencerComponent.prototype.assign_zoom_grid = function(grid)
 		this.update();
 	}
 
-}
-
-StepSequencerComponent.prototype.hasAnyKey = function(step)
-{
-	for(var i=0; i<128; i++)
-	{
-		if (this._stepSet[step * 128 + i])
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 StepSequencerComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)

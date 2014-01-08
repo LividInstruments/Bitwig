@@ -207,6 +207,7 @@ function setup_groove()
 function setup_instrument_control()
 {
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[4, 4, 0, 0], 'drumseq':[16, 1, 0, 0], 'keysseq':[16, 1, 0, 0]});
+	instrument._drums._noteOffset._increment = 16;
 }
 
 function setup_tasks()
@@ -303,7 +304,7 @@ function setup_modes()
 		session_grid.sub_grid(grid, 0, 4, 0, 4);
 		session.assign_grid(session_grid);
 		session.set_nav_buttons(keys[24], keys[25], keys[26], keys[27]);
-		device.set_nav_buttons(encoder_buttons[9], encoder_buttons[8], encoder_buttons[11], encoder_buttons[10]);
+		device.set_nav_buttons(encoder_buttons[11], encoder_buttons[10], encoder_buttons[9], encoder_buttons[8]);
 		device._enabled.set_control(encoder_buttons[4]);
 		groove._accentAmount.set_control(encoders[0]);
 		groove._shuffleAmount.set_control(encoders[1]);
@@ -322,7 +323,7 @@ function setup_modes()
 			mixer.channelstrip(i)._stop.set_control(keys[i+4]);
 			mixer.channelstrip(i)._send[0].set_control(left_knobs[i]);
 			mixer.channelstrip(i)._send[1].set_control(left_knobs[i+4]);
-			mixer.channelstrip(i)._pan.set_control(left_knobs[i+8]);
+			mixer.channelstrip(i)._send[2].set_control(left_knobs[i+8]);
 		}
 		for(var i=0;i<3;i++)
 		{
@@ -368,7 +369,7 @@ function setup_modes()
 			mixer.channelstrip(i)._stop.set_control();
 			mixer.channelstrip(i)._send[0].set_control();
 			mixer.channelstrip(i)._send[1].set_control();
-			mixer.channelstrip(i)._pan.set_control();
+			mixer.channelstrip(i)._send[2].set_control();
 		}
 		for(var i=0;i<3;i++)
 		{
@@ -398,6 +399,14 @@ function setup_modes()
 		grid.reset();
 		if(clipPage._shifted)
 		{
+			groove._accentAmount.set_control();
+			groove._shuffleAmount.set_control();
+			groove._accentPhase.set_control();
+			groove._accentRate.set_control();
+			for(var i=0;i<8;i++)
+			{
+				device._parameter[i].set_control();
+			}
 			instrument._stepsequencer._flip.set_control();
 			MainModes.mode_toggle.set_control(keys[30]);
 			transport._record.set_control(keys[28]);
@@ -418,7 +427,7 @@ function setup_modes()
 	sequencerPage.enter_mode = function()
 	{
 		post('sequencerPage entered');
-		device.set_nav_buttons(encoder_buttons[5], encoder_buttons[4], encoder_buttons[7], encoder_buttons[6]);
+		device.set_nav_buttons(encoder_buttons[9], encoder_buttons[8], encoder_buttons[11], encoder_buttons[10]);
 		device._enabled.set_control(encoder_buttons[4]);
 		groove._accentAmount.set_control(encoders[0]);
 		groove._shuffleAmount.set_control(encoders[1]);
@@ -434,7 +443,7 @@ function setup_modes()
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
 			mixer.channelstrip(i)._send[0].set_control(left_knobs[i]);
 			mixer.channelstrip(i)._send[1].set_control(left_knobs[i+4]);
-			mixer.channelstrip(i)._pan.set_control(left_knobs[i+8]);
+			mixer.channelstrip(i)._send[2].set_control(left_knobs[i+8]);
 			mixer.channelstrip(i)._select.set_control(keys[i+20]);
 			mixer.channelstrip(i)._mute.set_control(keys[i+16]);
 		}
@@ -460,13 +469,12 @@ function setup_modes()
 	sequencerPage.exit_mode = function()
 	{
 		MainModes.mode_toggle.set_control();
-		instrument.assign_explicit_grids();
 		for(var i=0;i<4;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control();
 			mixer.channelstrip(i)._send[0].set_control();
 			mixer.channelstrip(i)._send[1].set_control();
-			mixer.channelstrip(i)._pan.set_control();
+			mixer.channelstrip(i)._send[2].set_control();
 		}
 		for(var i=0;i<3;i++)
 		{
@@ -479,6 +487,11 @@ function setup_modes()
 		{
 			device._parameter[i].set_control();
 		}
+		instrument._stepsequencer._flip.set_control();
+		instrument._stepsequencer._follow.set_control();
+		instrument._quantization.set_controls();
+		instrument._stepsequencer._triplet.set_control();
+		instrument.assign_explicit_grids();
 		sequencerPage.set_shift_button();
 		sequencerPage.active = false;
 		post('sequencerPage exited');
@@ -489,13 +502,32 @@ function setup_modes()
 		grid.reset();
 		if(sequencerPage._shifted)
 		{
+			groove._accentAmount.set_control();
+			groove._shuffleAmount.set_control();
+			groove._accentPhase.set_control();
+			groove._accentRate.set_control();
+			for(var i=0;i<8;i++)
+			{
+				device._parameter[i].set_control();
+			}
+			for(var i=0;i<4;i++)
+			{
+				mixer.channelstrip(i)._select.set_control();
+				mixer.channelstrip(i)._mute.set_control();
+			}
 			instrument._stepsequencer._flip.set_control(keys[30]);
+			instrument._stepsequencer._follow.set_control(keys[23]);
+			instrument._quantization.set_controls([keys[16], keys[17], keys[18], keys[19], keys[20], keys[21]]);
+			instrument._stepsequencer._triplet.set_control(keys[22]);
 			instrument._shift._value = true;
 			instrument.update();
 		}
 		else
 		{
 			instrument._stepsequencer._flip.set_control();
+			instrument._stepsequencer._follow.set_control();
+			instrument._quantization.set_controls();
+			instrument._stepsequencer._triplet.set_control();
 			instrument._shift._value = false;
 			sequencerPage.enter_mode();
 		}

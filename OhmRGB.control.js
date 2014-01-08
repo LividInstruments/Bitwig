@@ -174,11 +174,12 @@ function setup_lcd()
 function setup_session()
 {
 	session = new SessionComponent('Session', 8, 8, trackBank);
+	session2 = new SessionComponent('Session2', 8, 5, trackBank);
 }
 
 function setup_mixer()
 {
-	mixer = new MixerComponent('Mixer', 8, 4);
+	mixer = new MixerComponent('Mixer', 8, 4, trackBank);
 }
 
 function setup_device()
@@ -292,11 +293,31 @@ function setup_modes()
 	{
 		post('cliplaunch enter mode');
 		grid.reset();
-		session.assign_grid(grid);
+		session_grid.sub_grid(grid, 0, 8, 0, 5);
+		session.assign_grid(session_grid);
+		for(var i=0;i<7;i++)
+		{
+			mixer.channelstrip(i)._mute.set_control(pads[i+40]);
+			mixer.channelstrip(i)._solo.set_control(pads[i+48]);
+			mixer.channelstrip(i)._arm.set_control(pads[i+56]);
+		}
+		mixer._masterstrip._mute.set_control(pads[47]);
+		mixer._masterstrip._solo.set_control(pads[55]);
+		mixer._masterstrip._arm.set_control(pads[63]);
 	}
 	clipLaunch.exit_mode = function()
 	{
 		session.assign_grid();
+		session_grid.clear_buttons();
+		for(var i=0;i<7;i++)
+		{
+			mixer.channelstrip(i)._mute.set_control();
+			mixer.channelstrip(i)._solo.set_control();
+			mixer.channelstrip(i)._arm.set_control();
+		}
+		mixer._masterstrip._mute.set_control();
+		mixer._masterstrip._solo.set_control();
+		mixer._masterstrip._arm.set_control();
 	}
 
 
@@ -306,17 +327,14 @@ function setup_modes()
 	{
 		post('clipPage entered');
 		grid.reset();
-		session_grid.sub_grid(grid, 0, 8, 0, 5);
-		session.assign_grid(session_grid);
-		session.set_nav_buttons(functions[2], functions[5], functions[3], functions[4]);
+		session.assign_grid(grid);
+		session.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
 		altClipLaunchSub.enter_mode();
 		for(var i=0;i<7;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
 			mixer.channelstrip(i)._select.set_control(buttons[i]);
-			mixer.channelstrip(i)._mute.set_control(pads[i+40]);
-			mixer.channelstrip(i)._solo.set_control(pads[i+48]);
-			mixer.channelstrip(i)._arm.set_control(pads[i+56]);
+
 		}
 		for(var i=0;i<8;i++)
 		{
@@ -405,7 +423,7 @@ function setup_modes()
 		instrument.assign_grid(seq_grid);
 		instrument._stepsequencer.assign_zoom_grid(seq_zoom);
 		altClipLaunchSub.enter_mode();
-		session.set_nav_buttons(functions[2], functions[5], functions[3], functions[4]);
+		session.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
 		for(var i=0;i<7;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
@@ -477,7 +495,7 @@ function setup_modes()
 			instrument.set_octave_offset_buttons();
 			instrument._intervalSelector.set_controls();
 			instrument._scaleSelector.set_controls([pads[48], pads[49], pads[50], pads[51], pads[52], pads[53]]);
-			device.set_nav_buttons(functions[2], functions[5], functions[3], functions[4]);
+			device.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
 			transport._overdub.set_control(livid);
 			transport._record.set_control(functions[0]);
 			transport._stop.set_control(functions[1]);
