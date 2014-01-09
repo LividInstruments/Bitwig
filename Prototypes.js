@@ -1935,13 +1935,23 @@ function DrumRackComponent(name, _color)
 	this._stepsequencer;
 	this._grid;
 	this._last_pressed_button;
-	this._noteMap = new Array(128);
 	this._held_notes = [];
+	this._update_request = false;
+	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
 	{
 		this._noteMap[i] = [];
 	}
 	var cursorTrack = host.createCursorTrackSection(0, 0);
+
+	this._flushNotes = function()
+	{
+		//how the hell we gonna do this?
+		if(self._update_request)
+		{
+			self._update();
+		}
+	}
 
 	this._onNote = function(val, num, extra)
 	{
@@ -1958,25 +1968,17 @@ function DrumRackComponent(name, _color)
 	{
 		if(button.pressed())
 		{
+			self._last_pressed_button = button;
 			var seq = self._stepsequencer;
 			self._held_notes.unshift(button);
-			var last = self._last_pressed_button;
-			if(last instanceof Button)
-			{
-				last.send(last.scale_color);
-			}
-			if((!seq)||(seq._flip._value==0))
-			{
-				self._last_pressed_button = button;
-				self._update();
-			}
 			if(seq)
 			{
-				seq.key_offset.set_value(button._translation);
 				if(seq._flip._value)
 				{
 					seq.toggle_note(button);
 				}
+				self._set_seq_offset(button._translation);
+				self._update();
 			}
 		}
 		else
@@ -1985,12 +1987,23 @@ function DrumRackComponent(name, _color)
 			if(item > -1)
 			{
 				self._held_notes.splice(item, 1);
+				if(self._update_request){self._request_update();}
 			}
 		}
 	}
 
-	this._update = function() 
+	this._set_seq_offset = function(val)
 	{
+		var seq = self._stepsequencer;
+		if(self._select._value>0 && seq && !seq.notes_in_step().length)
+		{
+			seq.key_offset.set_value(val);
+		}
+	}
+
+	this._update = function()
+	{
+		self._update_request = false;
 		self._noteMap = new Array(128);
 		var notes_in_step = [];
 		for(var i=0;i<128;i++)
@@ -2023,17 +2036,19 @@ function DrumRackComponent(name, _color)
 			}
 		}
 	}
-	this._update_single = function(button)
+
+	this._request_update = function()
 	{
-		if(button instanceof Button)
+		self._update_request = true;
+		if(!self._held_notes.length)
 		{
-			var offset = self._noteOffset._value, width = self.width(), height = self.height(), coords = button.get_coords(this._grid);
+			self._update();
 		}
 	}
 
-
 	this._noteOffsetCallback = function(obj)
 	{
+		//self._flush_notes();
 		self._octaveOffset._value = obj._value;
 		self._noteOffset._value = obj._value;
 		if(self._stepsequencer instanceof StepSequencerComponent && self._last_pressed_button instanceof Button)
@@ -2042,13 +2057,14 @@ function DrumRackComponent(name, _color)
 		}
 	}
 
-	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.WHITE, colors.OFF, 4);
-	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._update, colors.YELLOW, colors.OFF, 16);
+	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._request_update, colors.WHITE, colors.OFF, 4);
+	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._request_update, colors.YELLOW, colors.OFF, 16);
 	this._noteOffset.add_listener(self._noteOffsetCallback);
 	this._octaveOffset.add_listener(self._noteOffsetCallback);
 
-	this._shifted = new ToggledParameter(this._name + 'is_shifted');
-	this._shifted.add_listener(this._update);
+	this._shift = new ToggledParameter(this._name + '_Shift');
+	this._shift.add_listener(this._update);
+	this._select = new ToggledParameter(this._name + '_Select', {value:1});
 
 
 
@@ -2109,6 +2125,7 @@ function ScaleComponent(name, _colors)
 	this._grid;
 	this._last_pressed_button;
 	this._held_notes = [];
+	this._update_request = true;
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
 	{
@@ -2119,6 +2136,10 @@ function ScaleComponent(name, _colors)
 	this._flushNotes = function()
 	{
 		//how the hell we gonna do this?
+		if(self._update_request)
+		{
+			self._update();
+		}
 	}
 
 	this._onNote = function(val, num, extra)
@@ -2136,21 +2157,17 @@ function ScaleComponent(name, _colors)
 	{
 		if(button.pressed())
 		{
-			self._held_notes.unshift(button);
-			var last = self._last_pressed_button;
-			if(last instanceof Button)
-			{
-				last.send(last.scale_color);
-			}
-			button.send(colors.WHITE);
 			self._last_pressed_button = button;
-			if(self._stepsequencer)
+			var seq = self._stepsequencer;
+			self._held_notes.unshift(button);
+			if(seq)
 			{
-				self._stepsequencer.key_offset.set_value(button._translation);
-				if(self._stepsequencer._flip._value)
+				if(seq._flip._value)
 				{
-					self._stepsequencer.toggle_note(button);
+					seq.toggle_note(button);
 				}
+				self._set_seq_offset(button._translation);
+				self._update();
 			}
 		}
 		else
@@ -2159,13 +2176,23 @@ function ScaleComponent(name, _colors)
 			if(item > -1)
 			{
 				self._held_notes.splice(item, 1);
+				if(self._update_request){self._request_update();}
 			}
+		}
+	}
+
+	this._set_seq_offset = function(val)
+	{
+		var seq = self._stepsequencer;
+		if(self._select._value>0 && seq && !seq.notes_in_step().length)
+		{
+			seq.key_offset.set_value(val);
 		}
 	}
 
 	this._update = function()
 	{
-		
+		self._update_request = false;
 		self._noteMap = [];
 		var notes_in_step = [];
 		for(var i=0;i<128;i++)
@@ -2175,11 +2202,12 @@ function ScaleComponent(name, _colors)
 		}
 		if(self._grid instanceof Grid)
 		{
-			if((self._stepsequencer)&&(self._stepsequencer._edit_step._value>-1))
+			var keyoffset = -1;
+			if(self._stepsequencer)
 			{
-				notes_in_step = self._stepsequencer.notes_in_step();
+				if(self._stepsequencer._edit_step._value>-1){notes_in_step = self._stepsequencer.notes_in_step();}
+				keyoffset = self._stepsequencer.key_offset._value;
 			}
-			//post('notes in step:', notes_in_step);
 			var width = self.width();
 			var height = self.height();
 			var offset = self._noteOffset._value;
@@ -2196,17 +2224,26 @@ function ScaleComponent(name, _colors)
 					var button = self._grid.get_button(column, row);
 					button.set_translation(note%127);
 					self._noteMap[note%127].push(button);
-					button.scale_color = KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2) + ((notes_in_step[note%127])*4)];
-					//post('note', note, note%12, 'a:', ((note%12) in WHITEKEYS), NOTENAMES[note],  'b:', (((note_pos%scale_len)==0)*2));
-					button.send(button == self._last_pressed_button ? colors.WHITE : button.scale_color);
+					//post('note', note, 'keyoffset', keyoffset, note == keyoffset, note === keyoffset);
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == keyoffset ? colors.WHITE : KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];// + ((notes_in_step[note%127])*4)];
+					button.send(button.scale_color);
 				}
 			}
 		}
 	}
 
+	this._request_update = function()
+	{
+		self._update_request = true;
+		if(!self._held_notes.length)
+		{
+			self._update();
+		}
+	}
+
 	this._noteOffsetCallback = function(obj)
 	{
-		self._flushNotes();
+		//self._flushNotes();
 		self._octaveOffset._value = obj._value;
 		self._noteOffset._value = obj._value;
 		if(self._stepsequencer instanceof StepSequencerComponent && self._last_pressed_button instanceof Button)
@@ -2215,15 +2252,16 @@ function ScaleComponent(name, _colors)
 		}
 	}
 
-	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, self._update, colors.MAGENTA);
-	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 3, self._update, colors.BLUE);
-	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._update, colors.WHITE);
-	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._update, colors.YELLOW, colors.OFF, 12);
+	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, self._request_update, colors.MAGENTA);
+	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 3, self._request_update, colors.BLUE);
+	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._request_update, colors.WHITE);
+	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._request_update, colors.YELLOW, colors.OFF, 12);
 	this._noteOffset.add_listener(self._noteOffsetCallback);
 	this._octaveOffset.add_listener(self._noteOffsetCallback);
 
-	this._shifted = new ToggledParameter(this._name + 'is_shifted');
-	this._shifted.add_listener(this._update);
+	this._shift = new ToggledParameter(this._name + '_Shift');
+	this._shift.add_listener(this._update);
+	this._select = new ToggledParameter(this._name + '_Select', {value:1});
 
 }
 

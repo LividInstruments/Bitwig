@@ -20,7 +20,7 @@ loadAPI(1);
 host.defineController("Livid Instruments", "OhmRGB", "1.0", "f3b428f0-6689-11e3-949a-0800200c9a66");
 var PRODUCT = "07"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D"
 var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 0 ?? ?? ?? ?? F7";
-host.defineSysexDiscovery("F0 7E 7F 06 01 F7", "F0 7E ?? 06 02 00 01 61 01 00 0C 00 ?? ?? ?? ?? F7");
+host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["OhmRGB"], ["OhmRGB"]);
 host.addDeviceNameBasedDiscoveryPair(["OhmRGB Controls"], ["OhmRGB Controls"]);
@@ -203,7 +203,7 @@ function setup_instrument_control()
 	instrument._scaleSelector_callback = function(){instrument._keys._scaleOffset.set_value(instrument._scaleSelector._value);}
 	instrument._scaleSelector = new RadioComponent(instrument._keys._name + '_scaleSelector', 0, 5, 0, instrument._scaleSelector_callback, colors.BLUE, colors.OFF);
 	instrument._update_scaleSelector = function(){instrument._scaleSelector._value = instrument._keys._scaleSelector._value;}
-	instrument._keys._scaleOffset.add_listener(instrument._update_scaleSelector);
+	//instrument._keys._scaleOffset.add_listener(instrument._update_scaleSelector);
 
 	instrument._intervalSelector_callback = function()
 	{
@@ -445,10 +445,7 @@ function setup_modes()
 			mixer.channelstrip(i)._volume.set_control();
 			mixer.channelstrip(i)._select.set_control();
 		}
-		for(var i=0;i<8;i++)
-		{
-			device._parameter[i].set_control();
-		}
+		device.set_shared_controls();
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control();
@@ -482,6 +479,8 @@ function setup_modes()
 		post('sequencerPage updated');
 		if(sequencerPage._shifted)
 		{
+			instrument._drums._select._value = 0;
+			instrument._keys._select._value = 0;
 			instrument._shift._value = 1;
 			instrument.set_scale_offset_buttons();
 			instrument.set_note_offset_buttons();
@@ -495,6 +494,8 @@ function setup_modes()
 		}
 		else
 		{
+			instrument._drums._select._value = 1;
+			instrument._keys._select._value = 1;
 			instrument._shift._value =	0;
 			instrument._scaleSelector.set_controls();
 			device.set_nav_buttons();
