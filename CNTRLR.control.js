@@ -69,6 +69,7 @@ function init()
 	////////////////////////////////////////////////////////////////////////////////
 	application = host.createApplication();
 	cursorDevice = host.createCursorDeviceSection(8);
+	drumgrid = cursorDevice.createDrumPadGrid(4, 4);
 	cursorTrack = host.createCursorTrack(4, 8);
 	masterTrack = host.createMasterTrack(0);
 	//transport = host.createTransport();
@@ -306,6 +307,9 @@ function setup_modes()
 		session.set_nav_buttons(keys[24], keys[25], keys[26], keys[27]);
 		device.set_nav_buttons(encoder_buttons[11], encoder_buttons[10], encoder_buttons[9], encoder_buttons[8]);
 		device._enabled.set_control(encoder_buttons[4]);
+		device._mode.set_control(encoder_buttons[5]);
+		//device.set_shared_controls([encoders[4], encoders[5], encoders[6], encoders[7], encoders[8], encoders[9], encoders[10], encoders[11]]);
+		device.set_shared_controls(encoders.slice(4, 12));
 		groove._accentAmount.set_control(encoders[0]);
 		groove._shuffleAmount.set_control(encoders[1]);
 		groove._accentPhase.set_control(encoders[3]);
@@ -334,10 +338,6 @@ function setup_modes()
 		mixer._masterstrip._volume.set_control(faders[7]);
 		mixer._masterstrip._device.set_controls(right_knobs[3], right_knobs[7], right_knobs[11]);
 		mixer._masterstrip._select.set_control(keys[15]);
-		for(var i=0;i<8;i++)
-		{
-			device._parameter[i].set_control(encoders[i+4]);
-		}
 		transport._play.set_control(keys[28]);
 		transport._stop.set_control(keys[29]);
 		instrument._stepsequencer._flip.set_control(keys[30]);
@@ -352,6 +352,9 @@ function setup_modes()
 		session.assign_grid();
 		session.set_nav_buttons();
 		device.set_nav_buttons();
+		device._enabled.set_control();
+		device._mode.set_control();
+		device.set_shared_controls();
 		groove._accentAmount.set_control();
 		groove._shuffleAmount.set_control();
 		groove._accentPhase.set_control();
@@ -380,10 +383,6 @@ function setup_modes()
 		mixer._masterstrip._volume.set_control();
 		mixer._masterstrip._device.set_controls();
 		mixer._masterstrip._select.set_control();
-		for(var i=0;i<8;i++)
-		{
-			device._parameter[i].set_control();
-		}
 		transport._play.set_control();
 		transport._record.set_control();
 		transport._stop.set_control();
@@ -403,10 +402,7 @@ function setup_modes()
 			groove._shuffleAmount.set_control();
 			groove._accentPhase.set_control();
 			groove._accentRate.set_control();
-			for(var i=0;i<8;i++)
-			{
-				device._parameter[i].set_control();
-			}
+			device.set_shared_controls();
 			instrument._stepsequencer._flip.set_control();
 			MainModes.mode_toggle.set_control(keys[30]);
 			transport._record.set_control(keys[28]);
@@ -429,6 +425,8 @@ function setup_modes()
 		post('sequencerPage entered');
 		device.set_nav_buttons(encoder_buttons[9], encoder_buttons[8], encoder_buttons[11], encoder_buttons[10]);
 		device._enabled.set_control(encoder_buttons[4]);
+		device._mode.set_control(encoder_buttons[5]);
+		device.set_shared_controls(encoders.slice(4, 12));
 		groove._accentAmount.set_control(encoders[0]);
 		groove._shuffleAmount.set_control(encoders[1]);
 		groove._accentPhase.set_control(encoders[3]);
@@ -454,10 +452,6 @@ function setup_modes()
 		}
 		mixer._masterstrip._volume.set_control(faders[7]);
 		mixer._masterstrip._device.set_controls(right_knobs[3], right_knobs[7], right_knobs[11]);
-		for(var i=0;i<8;i++)
-		{
-			device._parameter[i].set_control(encoders[i+4]);
-		}
 		instrument.set_scale_offset_buttons(keys[27], keys[26]);
 		instrument.set_note_offset_buttons(keys[25], keys[24]);
 		seq_grid.sub_grid(keygrid, 0, 16, 0, 1);
@@ -469,6 +463,15 @@ function setup_modes()
 	sequencerPage.exit_mode = function()
 	{
 		MainModes.mode_toggle.set_control();
+		device.set_nav_buttons();
+		device._enable.set_control();
+		device._mode.set_control();
+		device.set_shared_controls();
+		groove._accentAmount.set_control();
+		groove._shuffleAmount.set_control();
+		groove._accentPhase.set_control();
+		groove._accentRate.set_control();
+		groove._enabled.set_control();
 		for(var i=0;i<4;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control();
@@ -483,10 +486,6 @@ function setup_modes()
 		}
 		mixer._masterstrip._volume.set_control();
 		mixer._masterstrip._device.set_controls();
-		for(var i=0;i<8;i++)
-		{
-			device._parameter[i].set_control();
-		}
 		instrument._stepsequencer._flip.set_control();
 		instrument._stepsequencer._follow.set_control();
 		instrument._quantization.set_controls();
@@ -506,10 +505,7 @@ function setup_modes()
 			groove._shuffleAmount.set_control();
 			groove._accentPhase.set_control();
 			groove._accentRate.set_control();
-			for(var i=0;i<8;i++)
-			{
-				device._parameter[i].set_control();
-			}
+			device.set_shared_controls();
 			for(var i=0;i<4;i++)
 			{
 				mixer.channelstrip(i)._select.set_control();

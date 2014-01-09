@@ -370,6 +370,7 @@ function Button(identifier, name)
 	this._offValue = 0;
 	this._translation = -1;
 	this._flash = false;
+	this._grid = [];
 	register_control(this);
 }
 
@@ -431,6 +432,14 @@ Button.prototype.flash = function(val)
 		{
 			flash.add(this);
 		}
+	}
+}
+
+Button.prototype.get_coords= function(grid)
+{
+	if(grid instanceof Grid && this._grid[grid._name])
+	{
+		return([this._grid[grid._name].x, this._grid[grid._name].y]);
 	}
 }
 
@@ -1080,10 +1089,8 @@ function RadioComponent(name, minimum, maximum, initial, callback, onValue, offV
 	this.set_controls = function(control)
 	{
 		control = (control instanceof Array) ? control : [];
-		post('control is:', control, control instanceof Array, control.length);
 		for(var i in self._buttons)
 		{
-			post('removing button', self._buttons[i]._name);
 			self._buttons[i].remove_target(self._Callback);
 		}
 		self._buttons = control;
@@ -1091,7 +1098,6 @@ function RadioComponent(name, minimum, maximum, initial, callback, onValue, offV
 		{
 			for(var i in self._buttons)
 			{
-				post('adding button:', self._buttons[i]._name);
 				self._buttons[i].set_target(self._Callback);
 			}
 			self.update_controls();
@@ -1765,11 +1771,14 @@ function DeviceComponent(name, size, Device)
 	this._name = name;
 	this._size = size;
 	this._device = Device;
+	this._shared_controls = [];
 	this._parameter = [];
+	this._macro = [];
 	for(var i=0;i<size;i++)
 	{
 		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._device.getParameter(i), range:128});
 		this._parameter[i]._javaObj.setIndication(true);
+		this._macro[i] = new RangedParameter(this._name + '_Macro_' + i, {num:i, javaObj:this._device.getMacro(i).getAmount(), range:128});
 	}
 
 	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._device, action:'nextParameterPage', monitor:'addNextParameterPageEnabledObserver', onValue:colors.CYAN});
@@ -1777,8 +1786,30 @@ function DeviceComponent(name, size, Device)
 	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._device, action:'selectNext', monitor:'addCanSelectNextObserver', onValue:colors.BLUE});
 	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._device, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
 	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:this._device, action:'toggleEnabledState', monitor:'addIsEnabledObserver', onValue:colors.RED});
+	this._mode = new ToggledParameter(this._name + '_Mode', {onValue:colors.BLUE, offValue:colors.CYAN});
 
-	
+	this._update = function()
+	{
+		for(var i in self._parameter)
+		{
+			self._parameter[i].set_control();
+			self._parameter[i]._javaObj.setIndication(false);
+			self._macro[i].set_control();
+			//self._macro[i]._javaObj.setIndication(false);
+		}
+		var param = self._mode._value ? self._macro : self._parameter;
+		if(self._size == self._shared_controls.length)
+		{
+			for(var i=0;i<self._size;i++)
+			{
+				param[i].set_control(self._shared_controls[i]);
+				//param[i].setIndication(true);
+			}
+		}
+	}
+
+	this._mode.add_listener(this._update);
+
 	/*this._report = function(val)
 	{
 		post('report!', val);
@@ -1797,6 +1828,13 @@ DeviceComponent.prototype.set_nav_buttons = function(button0, button1, button2, 
 	this._navDn.set_control(button1);
 	this._navLt.set_control(button2);
 	this._navRt.set_control(button3);
+}
+
+DeviceComponent.prototype.set_shared_controls = function(controls)
+{
+	var controls = (controls instanceof Array) ? controls : [];
+	this._shared_controls = controls;
+	this._update();
 }
 
 
@@ -1927,11 +1965,11 @@ function DrumRackComponent(name, _color)
 			{
 				last.send(last.scale_color);
 			}
-			if((!seq)||(!seq._flip._value))
+			if((!seq)||(seq._flip._value==0))
 			{
-				button.send(colors.WHITE);
+				self._last_pressed_button = button;
+				self._update();
 			}
-			self._last_pressed_button = button;
 			if(seq)
 			{
 				seq.key_offset.set_value(button._translation);
@@ -1985,6 +2023,14 @@ function DrumRackComponent(name, _color)
 			}
 		}
 	}
+	this._update_single = function(button)
+	{
+		if(button instanceof Button)
+		{
+			var offset = self._noteOffset._value, width = self.width(), height = self.height(), coords = button.get_coords(this._grid);
+		}
+	}
+
 
 	this._noteOffsetCallback = function(obj)
 	{
@@ -2610,7 +2656,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
 	this._shift = new ToggledParameter(this._name + '_shift');
-	this._shift.add_listener(this._update);
+	this._shift.add_listener(this.update);
 
 
 }
