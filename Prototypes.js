@@ -1323,6 +1323,7 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	this._name = name;
 	this._session = session;
 	this._clipLauncher = clipLauncher;
+	this._selected_slot = 0;
 	//this._clipLauncher.setIndication(true);
 	this._clipslots = new Array(height);
 	this.launch = function(clipslot)
@@ -1368,6 +1369,10 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	}
 	this._isSelectedListener = function(clipslot, value)
 	{
+		if(value)
+		{
+			self._selected_slot = clipslot;
+		}
 		var clipslot = 	self._clipslots[clipslot];
 		if(clipslot)
 		{
@@ -1416,6 +1421,7 @@ function SessionComponent(name, width, height, trackBank, _colors)
 					'isEmptyColor' : colors.OFF,
 					'navColor' : colors.BLUE};
 	this._trackBank = trackBank;
+
 	this._tracks = [];
 	this.width = function(){return width}
 	this.height = function(){return height}
@@ -1442,6 +1448,41 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {num:0, javaObj:this._trackBank});
 	//this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
+
+	var cursorTrack = host.createCursorTrackSection(0, height);
+	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, cursorTrack.getClipLauncher(), this);
+	this._onSlotChange = function(obj)
+	{
+		self._slot_select._value = self._selectedTrack._clipLauncher._selected_slot;
+	}
+
+	this._selectedSlot = new Parameter(this._name + '_SelectedSlot', {javaObj:this._selectedTrack._clipLauncher});
+	this._selectedSlot.add_listener(this._onSlotChange);
+
+	this._selectNewSlot = function(obj)
+	{
+		self._selectedSlot._javaObj.select(obj._value);
+		self._selectedSlot._javaObj.showInEditor(obj._value);
+		if(self._selectedTrack._clipslots[obj._value].hasContent)
+		{
+			self._selectedSlot._javaObj.launch(obj._value);
+		}
+	}
+	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, height, 0, this._selectNewSlot, colors.YELLOW);
+
+	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext'});
+	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious'});
+
+	this._updateSelectedSlot = function()
+	{
+		var slot = self._selectedTrack._selected_slot;
+		self._selectedSlot._value = slot;
+		self._selectedSlot._javaObj.select(slot);
+		self._selectedSlot._javaObj.showInEditor(slot);
+	}
+
+	this._selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
+	this._selected_track.add_listener(this._updateSelectedSlot);
 }
 
 SessionComponent.prototype.assign_grid = function(new_grid)
@@ -1795,7 +1836,7 @@ function DeviceComponent(name, size, Device)
 			self._parameter[i].set_control();
 			self._parameter[i]._javaObj.setIndication(false);
 			self._macro[i].set_control();
-			//self._macro[i]._javaObj.setIndication(false);
+			self._macro[i]._javaObj.setIndication(false);
 		}
 		var param = self._mode._value ? self._macro : self._parameter;
 		if(self._size == self._shared_controls.length)
@@ -1803,7 +1844,7 @@ function DeviceComponent(name, size, Device)
 			for(var i=0;i<self._size;i++)
 			{
 				param[i].set_control(self._shared_controls[i]);
-				//param[i].setIndication(true);
+				param[i]._javaObj.setIndication(true);
 			}
 		}
 	}
@@ -2570,12 +2611,12 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	this._explicit_keysseq_grid;
 	this._explicit_grid_assignments = false;
 
+
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
 	{
 		this._noteMap[i] = [];
 	}
-	var cursorTrack = host.createCursorTrackSection(0, 0);
 
 	this._splitMode = new ToggledParameter(this._name + '_ScaleSplit', {value:1});
 
@@ -2586,7 +2627,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 			self._stepsequencer._size_offset.set_value(obj._value);
 		}
 	}
-	this._quantization = new RadioComponent(this._name + 'Quantization', 0, 6, 3, this._on_quantization_changed, colors.YELLOW, colors.OFF); 
+	this._quantization = new RadioComponent(this._name + '_Quantization', 0, 6, 3, this._on_quantization_changed, colors.YELLOW, colors.OFF); 
 
 	this._primary_instrument = new Parameter(this._name + 'primary_instrument_listener', {javaObj:cursorTrack.getPrimaryInstrument()});
 	cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);

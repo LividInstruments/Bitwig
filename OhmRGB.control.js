@@ -70,7 +70,7 @@ function init()
 	////////////////////////////////////////////////////////////////////////////////
 	application = host.createApplication();
 	cursorDevice = host.createCursorDeviceSection(8);
-	cursorTrack = host.createCursorTrack(5, 4);
+	cursorTrack = host.createCursorTrack(4, 8);
 	masterTrack = host.createMasterTrack(8);
 	//transport = host.createTransport();
 	trackBank = host.createMainTrackBank(8, 8, 8);
@@ -418,7 +418,10 @@ function setup_modes()
 		instrument.assign_grid(seq_grid);
 		instrument._stepsequencer.assign_zoom_grid(seq_zoom);
 		altClipLaunchSub.enter_mode();
-		session.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
+		//session.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
+		session._slot_select.set_inc_dec_buttons(functions[5], functions[2]);
+		session._track_up.set_control(functions[4]);
+		session._track_down.set_control(functions[3]);
 		for(var i=0;i<7;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
@@ -470,6 +473,7 @@ function setup_modes()
 		transport._stop.set_control();
 		transport._autowrite.set_control();
 		session.set_nav_buttons();
+		session._slot_select.set_inc_dec_buttons();
 		sequencerPage.set_shift_button();
 		sequencerPage.active = false;
 		post('sequencerPage exited');
@@ -486,11 +490,16 @@ function setup_modes()
 			instrument.set_note_offset_buttons();
 			instrument.set_octave_offset_buttons();
 			instrument._intervalSelector.set_controls();
+			session._slot_select.set_inc_dec_buttons();
+			session._track_up.set_control();
+			session._track_down.set_control();
 			instrument._scaleSelector.set_controls([pads[48], pads[49], pads[50], pads[51], pads[52], pads[53]]);
-			device.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
+			device.set_nav_buttons(functions[5], functions[2], functions[4], functions[3]);
 			transport._overdub.set_control(livid);
-			transport._record.set_control(functions[0]);
-			transport._stop.set_control(functions[1]);
+			//transport._record.set_control(functions[0]);
+			//transport._stop.set_control(functions[1]);
+			device._enabled.set_control(functions[0]);
+			device._mode.set_control(functions[1]);
 		}
 		else
 		{
@@ -499,6 +508,8 @@ function setup_modes()
 			instrument._shift._value =	0;
 			instrument._scaleSelector.set_controls();
 			device.set_nav_buttons();
+			device._enabled.set_control();
+			device._mode.set_control();
 			transport._overdub.set_control();
 			transport._record.set_control();
 			transport._stop.set_control();
@@ -534,7 +545,7 @@ function setup_listeners()
 	track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
 	track_type.add_listener(on_track_type_changed);
 
-	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
+	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsSelectedObserver'});
 	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
 
 
@@ -548,23 +559,24 @@ function on_selected_track_changed(obj)
 		detect_new_instrument();
 	}*/
 	//cursorTrack.getClipLauncher()
+	//post('----new track', session._selectedTrack._selected_slot);
 	
 }
 
 function on_selected_track_selected_clipslot_changed(obj)
 {
-	post('on_selected_track_selected_clipslot_changed:', obj._value);
-	cursorTrack.getClipLauncher().select(obj._value);
+	//ost('on_selected_track_selected_clipslot_changed:', obj._value);
+	//cursorTrack.getClipLauncher().select(obj._value);
 }
 
 function on_primary_instrument_name_changed(new_name)
 {
-	post('on_primary_instrument_name_changed:', new_name._value);
+	//post('on_primary_instrument_name_changed:', new_name._value);
 }
 
 function on_track_type_changed(is_midi)
 {
-	post('on_track_type_changed:', is_midi._value);
+	//post('on_track_type_changed:', is_midi._value);
 }
 
 //this reports "Instrument" or "Audio" depending on the type of track selected
