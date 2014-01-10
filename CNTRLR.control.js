@@ -304,8 +304,8 @@ function setup_modes()
 		//faderbank.reset();
 		session_grid.sub_grid(grid, 0, 4, 0, 4);
 		session.assign_grid(session_grid);
-		session.set_nav_buttons(keys[24], keys[25], keys[26], keys[27]);
-		device.set_nav_buttons(encoder_buttons[11], encoder_buttons[10], encoder_buttons[9], encoder_buttons[8]);
+		session.set_nav_buttons(keys[24], keys[25], keys[27], keys[26]);
+		device.set_nav_buttons(encoder_buttons[9], encoder_buttons[8], encoder_buttons[11], encoder_buttons[10]);
 		device._enabled.set_control(encoder_buttons[4]);
 		device._mode.set_control(encoder_buttons[5]);
 		//device.set_shared_controls([encoders[4], encoders[5], encoders[6], encoders[7], encoders[8], encoders[9], encoders[10], encoders[11]]);
@@ -398,6 +398,9 @@ function setup_modes()
 		grid.reset();
 		if(clipPage._shifted)
 		{
+			var i=7;do{
+				encoders[i+4].reset();
+			}while(i--);
 			groove._accentAmount.set_control();
 			groove._shuffleAmount.set_control();
 			groove._accentPhase.set_control();
@@ -464,7 +467,7 @@ function setup_modes()
 	{
 		MainModes.mode_toggle.set_control();
 		device.set_nav_buttons();
-		device._enable.set_control();
+		device._enabled.set_control();
 		device._mode.set_control();
 		device.set_shared_controls();
 		groove._accentAmount.set_control();
@@ -506,6 +509,9 @@ function setup_modes()
 			groove._accentPhase.set_control();
 			groove._accentRate.set_control();
 			device.set_shared_controls();
+			var i=7;do{
+				encoders[i+4].reset();
+			}while(i--);
 			for(var i=0;i<4;i++)
 			{
 				mixer.channelstrip(i)._select.set_control();

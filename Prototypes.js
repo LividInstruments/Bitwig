@@ -1449,9 +1449,13 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	//this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
 
+	this._onSceneLaunch = function(obj)
+	{
+		self._trackBank.launchScene(obj._value);
+	}
+	this._scene_launch = new RadioComponent(this._name + '_SceneLaunch', 0, height, 0, this._onSceneLaunch, colors.BLUE, colors.BLUE);
 
 	var cursorTrack = host.createCursorTrackSection(0, height);
-
 
 	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, cursorTrack.getClipLauncher(), this);
 	this._onSlotChange = function(obj)
@@ -1777,6 +1781,9 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 }
 
 
+/////////////////////////////////////////////////////////////////////////////
+//Component to control the first three Macros of a channelstrip
+
 function EQDeviceComponent(channelstrip)
 {
 	var self = this;
@@ -1916,9 +1923,7 @@ function ChannelDeviceComponent(name, size, channelstrip)
 }
 
 
-
-
-const _NOTENAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+const _NOTENAMES = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 var NOTENAMES = [];
 for(var i=0;i<128;i++)
 {
@@ -2087,11 +2092,11 @@ function DrumRackComponent(name, _color)
 				{
 					var x_val = width;
 					var y_val = height;
-					var note = column + (Math.abs(row-(height-1))*width) + offset;
+					var note = (column%4) + (Math.abs(row-(height-1))*4) + offset + (Math.floor(column/4)*16);
 					var button = self._grid.get_button(column, row);
 					button.set_translation(note%127); 
 					self._noteMap[note%127].push(button);
-					button.scale_color = notes_in_step[note%127] ? colors.GREEN : button == self._last_pressed_button ? colors.WHITE : colors.BLUE;
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : button == self._last_pressed_button ? colors.WHITE : column < 4 ? colors.BLUE : colors.CYAN;
 					button.send(button.scale_color);
 				}
 			}
@@ -2118,7 +2123,7 @@ function DrumRackComponent(name, _color)
 		}
 	}
 
-	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._request_update, colors.WHITE, colors.OFF, 4);
+	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._request_update, colors.CYAN, colors.OFF, 4);
 	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, this._request_update, colors.YELLOW, colors.OFF, 16);
 	this._noteOffset.add_listener(self._noteOffsetCallback);
 	this._octaveOffset.add_listener(self._noteOffsetCallback);
@@ -2315,7 +2320,7 @@ function ScaleComponent(name, _colors)
 
 	this._vertOffset = new OffsetComponent('Vertical_Offset', 0, 119, 4, self._request_update, colors.MAGENTA);
 	this._scaleOffset = new OffsetComponent('Scale_Offset', 0, SCALES.length, 3, self._request_update, colors.BLUE);
-	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._request_update, colors.WHITE);
+	this._noteOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._request_update, colors.CYAN);
 	this._octaveOffset = new OffsetComponent('Note_Offset', 0, 119, 36, self._request_update, colors.YELLOW, colors.OFF, 12);
 	this._noteOffset.add_listener(self._noteOffsetCallback);
 	this._octaveOffset.add_listener(self._noteOffsetCallback);
@@ -2560,7 +2565,7 @@ function StepSequencerComponent(name, steps)
 StepSequencerComponent.prototype.assign_grid = function(grid)
 {
 	if(grid instanceof Grid){post('assign grid', grid);}
-	post('this is', this._name);
+	//post('this is', this._name);
 	if(this._grid instanceof Grid)
 	{
 		this._grid.remove_target(this.receive_grid);
