@@ -422,6 +422,8 @@ function setup_modes()
 		session._slot_select.set_inc_dec_buttons(functions[5], functions[2]);
 		session._track_up.set_control(functions[4]);
 		session._track_down.set_control(functions[3]);
+		session._record_clip.set_control(pads[54]);
+		session._create_clip.set_control(pads[62]);
 		for(var i=0;i<7;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);

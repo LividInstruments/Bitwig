@@ -838,7 +838,7 @@ function Parameter(name, args)
 	{
 		self.receive(value);
 	}
-	this.update_control = function(){if(self._control){self._control.send(self._value*1);}}
+	this.update_control = function(){if(self._control){self._control.send(self._value ? self._onValue : self._offValue);}}
 	this._Callback = function(obj){if(obj){self.receive(obj._value);}}
 	this.set_control = function(control)
 	{
@@ -1449,7 +1449,10 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	//this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
 
+
 	var cursorTrack = host.createCursorTrackSection(0, height);
+
+
 	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, cursorTrack.getClipLauncher(), this);
 	this._onSlotChange = function(obj)
 	{
@@ -1472,6 +1475,23 @@ function SessionComponent(name, width, height, trackBank, _colors)
 
 	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext'});
 	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious'});
+
+	this._recordClip_listener = function(obj)
+	{
+		if(obj._value){self._selectedSlot._javaObj.launch(self._selectedTrack._selected_slot);}
+	}
+	this._record_clip = new Parameter(this._name + '_RecordClip', {onValue:colors.RED, offValue:colors.RED});
+	this._record_clip.add_listener(this._recordClip_listener);
+
+	this._preset_clip_length = new OffsetComponent(this._name + '_PresetClipLength', 1, 64, 4, undefined, colors.BLUE);
+
+
+	this._createClip_listener = function(obj)
+	{
+		if(obj._value){self._selectedSlot._javaObj.createEmptyClip(self._selectedTrack._selected_slot, self._preset_clip_length._value);}
+	}
+	this._create_clip = new Parameter(this._name + '_CreateClip', {onValue:colors.YELLOW, offValue:colors.YELLOW});
+	this._create_clip.add_listener(this._createClip_listener);
 
 	this._updateSelectedSlot = function()
 	{
