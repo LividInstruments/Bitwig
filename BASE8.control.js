@@ -246,6 +246,7 @@ function setup_instrument_control()
 {
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[8, 2, 0, 2], 'drumseq':[4, 4, 4, 0], 'keysseq':[8, 2, 0, 0]}, lcd);
 	instrument._splitMode.set_value(0);
+	instrument._select.set_value(0);
 }
 
 function setup_tasks()
@@ -255,7 +256,7 @@ function setup_tasks()
 
 function setup_usermodes()
 {
-	user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
+	/*user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
 	userbank1 = new UserBankComponent('UserBank1', 48, user1Input);
 	user1Input.setShouldConsumeEvents(false);
 
@@ -269,11 +270,15 @@ function setup_usermodes()
 
 	user4Input = host.getMidiInPort(0).createNoteInput("BaseUser4", "80????", "90????", "D0????", "E0????");
 	userbank4 = new UserBankComponent('UserBank4', 48, user4Input);
-	user4Input.setShouldConsumeEvents(false);
+	user4Input.setShouldConsumeEvents(false);*/
 }
 
 function setup_modes()
 {
+	drum_sub = new Grid(4, 4, 'DrumSub');
+	keys_sub = new Grid(8, 2, 'KeysSub');
+	drum_page_sub = new Grid(4, 2, 'DrumPageSub');
+	keys_page_sub = new Grid(8, 1, 'KeysPageSub');
 
 	volumeFadersSub = new Page('VolumeFadersSub');
 	volumeFadersSub.enter_mode = function()
@@ -314,7 +319,7 @@ function setup_modes()
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
 		}
-		transport._overdub.set_control(touch_buttons[1]);
+		transport._overdub.set_control(touch_buttons[0]);
 		instrument.set_vert_offset_buttons(touch_buttons[3], touch_buttons[2]);
 		instrument.set_scale_offset_buttons(touch_buttons[5], touch_buttons[4]);
 		instrument.set_note_offset_buttons(touch_buttons[7], touch_buttons[6]);
@@ -384,7 +389,7 @@ function setup_modes()
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
-		session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
+		session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[7], function_buttons[6]);
 	}
 	clipLaunch.exit_mode = function()
 	{
@@ -403,7 +408,7 @@ function setup_modes()
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
-		session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
+		session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[7], function_buttons[6]);
 		for(var i=0;i<8;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
@@ -454,28 +459,24 @@ function setup_modes()
 			altClipLaunchSub.enter_mode();
 			sendSysex(USERBUTTONMODE);
 			instrument.assign_grid(grid);
-			session._record_clip.set_control(function_buttons[4]);
-			transport._overdub.set_control(function_buttons[5]);
-			transport._autowrite.set_control(function_buttons[6]);
-			session._create_clip.set_control(function_buttons[7]);
-			
 		}
 		else
 		{
 			sendSysex(LIVEBUTTONMODE);
 			session.assign_grid(grid);
-			session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
 		}
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control(faders[i]);
 			mixer.returnstrip(i)._volume.set_control(faders[i+4]);
-			//faders[i+4].reset();
 		}
 		for(var i=0;i<8;i++)
 		{
 			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
+		session._record_clip.set_control(function_buttons[4]);
+		session._create_clip.set_control(function_buttons[5]);
+		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
 		sendPage.set_shift_button(function_buttons[1]);
 		sendPage.active = true;
 	}
@@ -483,16 +484,11 @@ function setup_modes()
 	{
 		altClipLaunchSub.exit_mode();
 		session.assign_grid();
-		instrument.set_note_offset_buttons();
-		instrument.set_scale_offset_buttons();
-		instrument.set_vert_offset_buttons();
 		session._record_clip.set_control();
-		transport._overdub.set_control();
-		transport._autowrite.set_control();
 		session._create_clip.set_control();
+		session._slot_select.set_inc_dec_buttons();
 		instrument.assign_grid();
 		instrument._stepsequencer.set_nav_buttons();
-		session.set_nav_buttons();
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control();
@@ -509,7 +505,6 @@ function setup_modes()
 		faderbank.reset();
 		if(sendPage._shifted)
 		{
-			instrument._shift._value = 1;
 			altClipLaunchSub.exit_mode();
 			for(var i=0;i<4;i++)
 			{
@@ -520,22 +515,24 @@ function setup_modes()
 			{
 				mixer.channelstrip(i)._select.set_control();
 			}
+			instrument.assign_grid();
 			session.assign_grid();
-			volumeFadersSub.enter_mode();
 			if(track_type_name._value=='Instrument')
 			{
 				instrumentControlsSub.enter_mode();
+				instrument.assign_grid(grid);
 			}
-			var selected_component = track_type_name._value == 'Instrument' ?  instrument._stepsequencer : session;
-			selected_component.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
+			else
+			{
+				volumeFadersSub.enter_mode();
+			}
+			transport._autowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
+			transport._autowrite.set_control();
 			volumeFadersSub.exit_mode();
-			instrument._shift._value = 0;
 			instrumentControlsSub.exit_mode();
-			instrument._stepsequencer.set_nav_buttons();
-			session.set_nav_buttons();
 			sendPage.enter_mode();
 		}
 	}
@@ -565,7 +562,10 @@ function setup_modes()
 		}
 		device.set_shared_controls(faders.slice(0, 8));
 		device._mode.set_value(0);
-		device.set_nav_buttons(function_buttons[5], function_buttons[4], function_buttons[7], function_buttons[6]);
+		session._record_clip.set_control(function_buttons[4]);
+		session._create_clip.set_control(function_buttons[5]);
+		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
+		
 		devicePage.set_shift_button(function_buttons[2]);
 		devicePage.active = true;
 	}
@@ -574,11 +574,10 @@ function setup_modes()
 		altClipLaunchSub.exit_mode();
 		session.assign_grid();
 		device.set_nav_buttons();
-		instrument.set_note_offset_buttons();
-		instrument.set_scale_offset_buttons();
-		instrument.set_vert_offset_buttons();
+		session._record_clip.set_control();
+		session._create_clip.set_control();
+		session._slot_select.set_inc_dec_buttons();
 		instrument.assign_grid();
-		session.set_nav_buttons();
 		for(var i=0;i<8;i++)
 		{
 			mixer.channelstrip(i)._select.set_control();
@@ -596,36 +595,32 @@ function setup_modes()
 		faderbank.reset();
 		if(devicePage._shifted)
 		{
-			instrument._shift._value = 1;
-			instrument.assign_grid();
+			instrument.assign_grid(grid);
 			altClipLaunchSub.exit_mode();
-			device.set_nav_buttons();
+			device.set_nav_buttons(function_buttons[5], function_buttons[4], function_buttons[7], function_buttons[6]);
+			device._enabled.set_control(touch_buttons[1]);
 			session.assign_grid();
 			if(track_type_name._value=='Instrument')
 			{
 				instrumentControlsSub.enter_mode();	
-				instrument.assign_grid(grid);
 				for(var i=0;i<8;i++)
 				{
 					mixer.channelstrip(i)._select.set_control();
 				}
-				//instrument.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
 			}
 			else
 			{
 				volumeFadersSub.enter_mode();
-				session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[6], function_buttons[7]);
 			}
+			transport._autowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
-			volumeFadersSub.exit_mode();
-			instrument._shift._value = 0;
-			instrument.assign_grid();
+			device.set_nav_buttons();
+			device._enabled.set_control();
+			transport._autowrite.set_control();
 			instrumentControlsSub.exit_mode();
-			instrument._stepsequencer.set_nav_buttons();
 			volumeFadersSub.exit_mode();
-			session.set_nav_buttons();
 			devicePage.enter_mode();
 		}
 	}
@@ -641,15 +636,18 @@ function setup_modes()
 		faderbank.reset();
 		device.set_shared_controls(faders.slice(0, 8));
 		device._mode.set_value(1);
+		session._record_clip.set_control(function_buttons[4]);
+		session._create_clip.set_control(function_buttons[5]);
+		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
+		instrument._keys._select._value = 1;
+		instrument._drums._select._value = 1;
 		if(track_type_name._value=='Instrument')
 		{
 			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
 			instrument._splitMode.set_value(1);
-			instrument._stepsequencer._follow.set_control(function_buttons[4]);
-			instrument._stepsequencer._flip.set_control(function_buttons[5]);
 			//instrument._stepsequencer._accent.set_control(faders[0]);
-			session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
+			instrument._select.set_value(1);
 			instrument.assign_grid(grid);
 		}
 		else
@@ -674,6 +672,7 @@ function setup_modes()
 		instrument._stepsequencer._follow.set_control();
 		instrument._stepsequencer._flip.set_control();
 		instrument._stepsequencer.set_nav_buttons();
+		instrument._select.set_value(0);
 		instrument.assign_grid();
 		instrument._splitMode.set_value(0);
 		session.set_nav_buttons();
@@ -697,6 +696,10 @@ function setup_modes()
 			instrument._shift._value = 1;
 			altClipLaunchSub.exit_mode();
 			session.assign_grid();
+			instrument.assign_grid();
+			instrument._stepsequencer._follow.set_control(function_buttons[4]);
+			instrument._stepsequencer._flip.set_control(function_buttons[5]);
+			device.set_nav_buttons(undefined, undefined, function_buttons[7], function_buttons[6]);
 			if(track_type_name._value=='Instrument')
 			{
 				for(var i=0;i<8;i++)
@@ -704,24 +707,48 @@ function setup_modes()
 					mixer.channelstrip(i)._select.set_control();
 				}
 				instrumentControlsSub.enter_mode();
-				instrument._stepsequencer._shuffleEnabled.set_control(touch_buttons[0]);
+				if(instrument._primary_instrument._value == 'DrumMachine')
+				{
+					instrument._quantization.set_controls([buttons[4][2], buttons[5][2], buttons[6][2], buttons[7][2], buttons[4][3], buttons[5][3], buttons[6][3]]);
+					instrument._stepsequencer._triplet.set_control(buttons[7][3]);
+				}
+				else
+				{
+					instrument._quantization.set_controls([buttons[0][1], buttons[1][1], buttons[2][1], buttons[3][1], buttons[4][1], buttons[5][1], buttons[6][1]]);
+					instrument._stepsequencer._triplet.set_control(buttons[7][1]);
+				}
+				drum_sub.sub_grid(grid, 0, 4, 0, 4);
+				keys_sub.sub_grid(grid, 0, 8, 2, 4);
+				drum_page_sub.sub_grid(grid, 4, 8, 0, 2);
+				keys_page_sub.sub_grid(grid, 0, 8, 0, 1);
+				instrument.assign_explicit_grids(drum_sub, keys_sub, drum_page_sub, keys_page_sub);
+				instrument._select.set_value(0);
 			}
 			else
 			{
 				volumeFadersSub.enter_mode();
 			}
+			transport._autowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
 			instrument._shift._value = 0;
 			instrumentControlsSub.exit_mode();
-			instrument._stepsequencer.set_nav_buttons();
-			session.set_nav_buttons();
+			instrument.assign_explicit_grids();
+			//drum_sub.clear_buttons();
+			//keys_sub.clear_buttons();
+			//drum_page_sub.clear_buttons();
+			//keys_page_sub.clear_buttons();
+			instrument._quantization.set_controls();
+			instrument._stepsequencer._triplet.set_control();
+			transport._autowrite.set_control();
+			volumeFadersSub.exit_mode();
+			device.set_nav_buttons();
 			seqPage.enter_mode();
 		}
 	}
 
-	userPage1 = new Page('UserPage1');
+	/*userPage1 = new Page('UserPage1');
 	userPage1.enter_mode = function()
 	{
 		post('userPage1 entered');
@@ -825,7 +852,7 @@ function setup_modes()
 		UserModes.current_page().exit_mode();
 		UserModes.set_mode_buttons();
 	}
-	
+	*/
 	
 	script["MainModes"] = new PageStack(4, "Main Modes");
 	MainModes.add_mode(0, clipPage);
@@ -838,7 +865,7 @@ function setup_modes()
 	function_buttons[0].set_on_off_values(colors.WHITE);
 	function_buttons[1].set_on_off_values(colors.CYAN);
 	function_buttons[2].set_on_off_values(colors.BLUE);
-	function_buttons[3].set_on_off_values(colors.RED);
+	function_buttons[3].set_on_off_values(colors.GREEN);
 	function_buttons[4].set_on_off_values(colors.WHITE);
 	function_buttons[5].set_on_off_values(colors.WHITE);
 	function_buttons[6].set_on_off_values(colors.WHITE);

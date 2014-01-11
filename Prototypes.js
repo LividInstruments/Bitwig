@@ -694,6 +694,7 @@ Grid.prototype.sub_grid = function(subject, x_start, x_end, y_start, y_end)
 			this.add_control(x, y, button);
 		}
 	}
+	return this;
 }
 
 Grid.prototype.clear_translations = function()
@@ -819,6 +820,7 @@ function Parameter(name, args)
 {
 	Notifier.call( this, name );
 	var self = this;
+	this._name = name;
 	this._parameter = undefined;
 	this._num = 0;
 	this._value = 0;
@@ -838,7 +840,7 @@ function Parameter(name, args)
 	{
 		self.receive(value);
 	}
-	this.update_control = function(){if(self._control){self._control.send(self._value ? self._onValue : self._offValue);}}
+	this.update_control = function(){if(self._control){self._control.send(Math.floor(self._value));}}
 	this._Callback = function(obj){if(obj){self.receive(obj._value);}}
 	this.set_control = function(control)
 	{
@@ -895,17 +897,7 @@ function ToggledParameter(name, args)
 	} 
 	this.update_control = function(value)
 	{
-		if(self._control)
-		{
-			if(self._value)
-			{
-				self._control.send(self._onValue);
-			}
-			else
-			{
-				self._control.send(self._offValue);
-			}
-		}
+		if(self._control){self._control.send(self._value ? self._onValue : self._offValue);}
 	}
 }
 
@@ -1470,12 +1462,16 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	{
 		self._selectedSlot._javaObj.select(obj._value);
 		self._selectedSlot._javaObj.showInEditor(obj._value);
-		if(self._selectedTrack._clipslots[obj._value].hasContent)
+		if(self._selectedTrack._clipslots[obj._value] && self._selectedTrack._clipslots[obj._value].hasContent)
 		{
 			self._selectedSlot._javaObj.launch(obj._value);
 		}
+		else
+		{
+			self._selectedSlot._javaObj.stop();
+		}
 	}
-	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, height, 0, this._selectNewSlot, colors.YELLOW);
+	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, height-1, 0, this._selectNewSlot, colors.YELLOW);
 
 	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext'});
 	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious'});
@@ -1485,6 +1481,7 @@ function SessionComponent(name, width, height, trackBank, _colors)
 		if(obj._value){self._selectedSlot._javaObj.launch(self._selectedTrack._selected_slot);}
 	}
 	this._record_clip = new Parameter(this._name + '_RecordClip', {onValue:colors.RED, offValue:colors.RED});
+	this._record_clip.update_control = function(){if(self._record_clip._control){self._record_clip._control.send(self._record_clip._value ? self._record_clip._onValue : self._record_clip._offValue);}}
 	this._record_clip.add_listener(this._recordClip_listener);
 
 	this._preset_clip_length = new OffsetComponent(this._name + '_PresetClipLength', 1, 64, 4, undefined, colors.BLUE);
@@ -1494,7 +1491,8 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	{
 		if(obj._value){self._selectedSlot._javaObj.createEmptyClip(self._selectedTrack._selected_slot, self._preset_clip_length._value);}
 	}
-	this._create_clip = new Parameter(this._name + '_CreateClip', {onValue:colors.YELLOW, offValue:colors.YELLOW});
+	this._create_clip = new Parameter(this._name + '_CreateClip', {onValue:colors.GREEN, offValue:colors.GREEN});
+	this._create_clip.update_control = function(){if(self._create_clip._control){self._create_clip._control.send(self._create_clip._value ? self._create_clip._onValue : self._create_clip._offValue);}}
 	this._create_clip.add_listener(this._createClip_listener);
 
 	this._updateSelectedSlot = function()
@@ -1718,13 +1716,14 @@ MixerComponent.prototype.set_return_control = function(num, controls){}
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding controls, values
 
-function ChannelStripComponent(name, num, track, num_sends, _colors)
+function ChannelStripComponent(name, num, track, num_sends, _colors) 
 {
 	var self = this;
 	this._name = name;
 	this._num = num;
 	this._num_sends = num_sends;
 	this._track = track;
+	this._device = track.getPrimaryDevice();
 	this._eqdevice;
 
 	this._colors = _colors||{'muteColor': colors.YELLOW, 
@@ -2061,7 +2060,7 @@ function DrumRackComponent(name, _color)
 	this._set_seq_offset = function(val)
 	{
 		var seq = self._stepsequencer;
-		if(self._select._value>0 && seq && !seq.notes_in_step().length)
+		if(self._select._value && seq && !seq.notes_in_step().length)
 		{
 			seq.key_offset.set_value(val);
 		}
@@ -2083,6 +2082,7 @@ function DrumRackComponent(name, _color)
 			{
 				notes_in_step = self._stepsequencer.notes_in_step();
 			}
+			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
 			var offset = self._noteOffset._value;
 			var width = self.width();
 			var height = self.height();
@@ -2096,7 +2096,7 @@ function DrumRackComponent(name, _color)
 					var button = self._grid.get_button(column, row);
 					button.set_translation(note%127); 
 					self._noteMap[note%127].push(button);
-					button.scale_color = notes_in_step[note%127] ? colors.GREEN : button == self._last_pressed_button ? colors.WHITE : column < 4 ? colors.BLUE : colors.CYAN;
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : column < 4 ? colors.BLUE : colors.CYAN;
 					button.send(button.scale_color);
 				}
 			}
@@ -2250,7 +2250,7 @@ function ScaleComponent(name, _colors)
 	this._set_seq_offset = function(val)
 	{
 		var seq = self._stepsequencer;
-		if(self._select._value>0 && seq && !seq.notes_in_step().length)
+		if(self._select._value && seq && !seq.notes_in_step().length)
 		{
 			seq.key_offset.set_value(val);
 		}
@@ -2269,11 +2269,11 @@ function ScaleComponent(name, _colors)
 		if(self._grid instanceof Grid)
 		{
 			var keyoffset = -1;
-			if(self._stepsequencer)
+			if((self._stepsequencer)&&(self._stepsequencer._edit_step._value>-1))
 			{
-				if(self._stepsequencer._edit_step._value>-1){notes_in_step = self._stepsequencer.notes_in_step();}
-				keyoffset = self._stepsequencer.key_offset._value;
+				notes_in_step = self._stepsequencer.notes_in_step();
 			}
+			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
 			var width = self.width();
 			var height = self.height();
 			var offset = self._noteOffset._value;
@@ -2291,7 +2291,7 @@ function ScaleComponent(name, _colors)
 					button.set_translation(note%127);
 					self._noteMap[note%127].push(button);
 					//post('note', note, 'keyoffset', keyoffset, note == keyoffset, note === keyoffset);
-					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == keyoffset ? colors.WHITE : KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];// + ((notes_in_step[note%127])*4)];
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];// + ((notes_in_step[note%127])*4)];
 					button.send(button.scale_color);
 				}
 			}
@@ -2427,12 +2427,13 @@ function StepSequencerComponent(name, steps)
 	}
 	this.receive_zoom_grid = function(button)
 	{
+		//post('receive zoom grid', button._value, button.pressed());
 		if(button.pressed())
 		{
 			self._follow.set_value(0);
 			var zoom_size = self._grid instanceof Grid ?  self._grid.size() : self._last_grid_size;
 			self._offset.set_value(zoom_size*(button._x(self._zoom_grid) + (button._y(self._zoom_grid)*self._zoom_grid.width())));
-			//post('new offset is:', self._offset._value);
+
 		}
 	}
 	this.toggle_note = function(button)
@@ -2721,12 +2722,10 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 				}
 				else
 				{
-					var grid = self._explicit_drum_grid instanceof Grid ? self._explicit_drum_grid : self._grid;
-					self._drum_sub.sub_grid(grid, sizes.drum[2], sizes.drum[0]+sizes.drum[2], sizes.drum[3], sizes.drum[1]+sizes.drum[3]);
-					var grid = self._explicit_drumseq_grid instanceof Grid ? self._explicit_drumseq_grid : self._grid;
-					self._drumseq_sub.sub_grid(grid, sizes.drumseq[2], sizes.drumseq[0]+sizes.drumseq[2], sizes.drumseq[3], sizes.drumseq[1]+sizes.drumseq[3]);
-					self._drums.assign_grid(self._drum_sub);
-					self._shift._value ?  self._stepsequencer.assign_zoom_grid(self._drumseq_sub) : self._stepsequencer.assign_grid(self._drumseq_sub);
+					var grid = self._explicit_drum_grid instanceof Grid ? self._explicit_drum_grid : self._drum_sub.sub_grid(self._grid, sizes.drum[2], sizes.drum[0]+sizes.drum[2], sizes.drum[3], sizes.drum[1]+sizes.drum[3]);
+					self._drums.assign_grid(grid);
+					var seq_grid = self._explicit_drumseq_grid instanceof Grid ? self._explicit_drumseq_grid : self._drumseq_sub.sub_grid(self._grid, sizes.drumseq[2], sizes.drumseq[0]+sizes.drumseq[2], sizes.drumseq[3], sizes.drumseq[1]+sizes.drumseq[3]);
+					self._shift._value ?  self._stepsequencer.assign_zoom_grid(seq_grid) : self._stepsequencer.assign_grid(seq_grid);
 				}
 			}
 			else
@@ -2745,12 +2744,10 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 				}
 				else
 				{
-					var grid = self._explicit_keys_grid instanceof Grid ? self._explicit_keys_grid : self._grid;
-					self._keys_sub.sub_grid(grid, sizes.keys[2], sizes.keys[0]+sizes.keys[2], sizes.keys[3], sizes.keys[1]+sizes.keys[3]);
-					var grid = self._explicit_keysseq_grid instanceof Grid ? self._explicit_keysseq_grid : self._grid;
-					self._keysseq_sub.sub_grid(grid, sizes.keysseq[2], sizes.keysseq[0]+sizes.keysseq[2], sizes.keysseq[3], sizes.keysseq[1]+sizes.keysseq[3]);
-					self._keys.assign_grid(self._keys_sub);
-					self._shift._value ? self._stepsequencer.assign_zoom_grid(self._keysseq_sub) :  self._stepsequencer.assign_grid(self._keysseq_sub);
+					var grid = self._explicit_keys_grid instanceof Grid ? self._explicit_keys_grid : self._keys_sub.sub_grid(self._grid, sizes.keys[2], sizes.keys[0]+sizes.keys[2], sizes.keys[3], sizes.keys[1]+sizes.keys[3]);
+					self._keys.assign_grid(grid);
+					var seq_grid = self._explicit_keysseq_grid instanceof Grid ? self._explicit_keysseq_grid : self._keysseq_sub.sub_grid(self._grid, sizes.keysseq[2], sizes.keysseq[0]+sizes.keysseq[2], sizes.keysseq[3], sizes.keysseq[1]+sizes.keysseq[3]);
+					self._shift._value ? self._stepsequencer.assign_zoom_grid(seq_grid) :  self._stepsequencer.assign_grid(seq_grid);
 				}
 			}
 		}
@@ -2759,8 +2756,16 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	this._on_primary_instrument_changed = function(new_name){self.update();}
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
-	this._shift = new ToggledParameter(this._name + '_shift');
+	this._shift = new ToggledParameter(this._name + '_Shift');
 	this._shift.add_listener(this.update);
+
+	this._selectListener = function(obj)
+	{
+		if(self._keys){self._keys._select._value = obj._value;}
+		if(self._drums){self._drums._select._value = obj._value;}
+	}
+	this._select = new ToggledParameter(this._name + '_Select');
+	this._select.add_listener(this._selectListener);
 
 
 }
@@ -2784,27 +2789,31 @@ AdaptiveInstrumentComponent.prototype.assign_grid = function(grid)
 
 AdaptiveInstrumentComponent.prototype.assign_explicit_grids = function(drum_grid, keys_grid, drumseq_grid, keysseq_grid)
 {
+	//this._drum_sub.clear_buttons();
+	//this._keys_sub.clear_buttons();
+	//this._drumseq_sub.clear_buttons();
+	//this._keysseq_sub.clear_buttons();
 	this._explicit_grid_assignments = false;
 	this._explicit_drum_grid = undefined;
 	this._explicit_keys_grid = undefined;
 	this._explicit_drumseq_grid = undefined;
 	this._explicit_keysseq_grid = undefined;
-	if((drum_grid instanceof Grid)&&(drum_grid.width()==this._sizes.drum[0])&&(drum_grid.height()==this._sizes.drum[1]))
+	if(drum_grid instanceof Grid)
 	{
 		this._explicit_drum_grid = drum_grid;
 		this._explicit_grid_assignments = true;
 	}
-	if((keys_grid instanceof Grid)&&(keys_grid.width()==this._sizes.keys[0])&&(keys_grid.height()==this._sizes.keys[1]))
+	if(keys_grid instanceof Grid)
 	{
 		this._explicit_keys_grid = keys_grid;
 		this._explicit_grid_assignments = true;
 	}
-	if((drumseq_grid instanceof Grid)&&(drumseq_grid.width()==this._sizes.drumseq[0])&&(drumseq_grid.height()==this._sizes.drumseq[1]))
+	if(drumseq_grid instanceof Grid)
 	{
 		this._explicit_drumseq_grid = drumseq_grid;
 		this._explicit_grid_assignments = true;
 	}
-	if((keysseq_grid instanceof Grid)&&(keysseq_grid.width()==this._sizes.keysseq[0])&&(keysseq_grid.height()==this._sizes.keysseq[1]))
+	if(keysseq_grid instanceof Grid)
 	{
 		this._explicit_keysseq_grid = keysseq_grid;
 		this._explicit_grid_assignments = true;
@@ -2842,7 +2851,6 @@ AdaptiveInstrumentComponent.prototype.set_octave_offset_buttons = function(_octa
 	this._octave_dn_button = _octave_dn;
 }
 
-	
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for access to Transport functions
