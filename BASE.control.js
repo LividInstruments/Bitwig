@@ -90,6 +90,7 @@ host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["Base8"], ["Base8"]);
 host.addDeviceNameBasedDiscoveryPair(["Base8 MIDI 1"], ["Base8 MIDI 1"]);
+host.addDeviceNameBasedDiscoveryPair(["Base8 Base_Controls"], ["Base8 Base_Controls"]);
 
 for ( var m = 1; m < 9; m++)
 {
@@ -155,9 +156,9 @@ function init()
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
-	setup_usermodes();
 	//setup_tasks();
 	setup_modes();
+	//setup_usermodes();
 	setup_fixed_controls();
 	setup_listeners();
 	setupTests();
@@ -252,25 +253,6 @@ function setup_instrument_control()
 function setup_tasks()
 {
 	tasks = new TaskServer(script, 100);
-}
-
-function setup_usermodes()
-{
-	/*user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
-	userbank1 = new UserBankComponent('UserBank1', 48, user1Input);
-	user1Input.setShouldConsumeEvents(false);
-
-	user2Input = host.getMidiInPort(0).createNoteInput("BaseUser2", "80????", "90????", "D0????", "E0????");
-	userbank2 = new UserBankComponent('UserBank2', 48, user2Input);
-	user2Input.setShouldConsumeEvents(false);
-
-	user3Input = host.getMidiInPort(0).createNoteInput("BaseUser3", "80????", "90????", "D0????", "E0????");
-	userbank3 = new UserBankComponent('UserBank3', 48, user3Input);
-	user3Input.setShouldConsumeEvents(false);
-
-	user4Input = host.getMidiInPort(0).createNoteInput("BaseUser4", "80????", "90????", "D0????", "E0????");
-	userbank4 = new UserBankComponent('UserBank4', 48, user4Input);
-	user4Input.setShouldConsumeEvents(false);*/
 }
 
 function setup_modes()
@@ -639,13 +621,12 @@ function setup_modes()
 		session._record_clip.set_control(function_buttons[4]);
 		session._create_clip.set_control(function_buttons[5]);
 		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
-		instrument._keys._select._value = 1;
-		instrument._drums._select._value = 1;
 		if(track_type_name._value=='Instrument')
 		{
 			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
-			instrument._splitMode.set_value(1);
+			//instrument._splitMode.set_value(1);  //this is causing issues 
+			instrument._splitMode._value = 1;
 			//instrument._stepsequencer._accent.set_control(faders[0]);
 			instrument._select.set_value(1);
 			instrument.assign_grid(grid);
@@ -674,7 +655,8 @@ function setup_modes()
 		instrument._stepsequencer.set_nav_buttons();
 		instrument._select.set_value(0);
 		instrument.assign_grid();
-		instrument._splitMode.set_value(0);
+		instrument._splitMode._value = 0;
+		//instrument._splitMode.set_value(0);  //this is causing issues
 		session.set_nav_buttons();
 		session._slot_select.set_inc_dec_buttons();
 		for(var i=0;i<8;i++)
@@ -747,8 +729,44 @@ function setup_modes()
 			seqPage.enter_mode();
 		}
 	}
+	
+	script["MainModes"] = new PageStack(4, "Main Modes");
+	MainModes.add_mode(0, clipPage);
+	MainModes.add_mode(1, sendPage);
+	MainModes.add_mode(2, devicePage);
+	MainModes.add_mode(3, seqPage);
+	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
+	MainModes.add_listener(display_mode);
 
-	/*userPage1 = new Page('UserPage1');
+	function_buttons[0].set_on_off_values(colors.WHITE);
+	function_buttons[1].set_on_off_values(colors.CYAN);
+	function_buttons[2].set_on_off_values(colors.BLUE);
+	function_buttons[3].set_on_off_values(colors.GREEN);
+	function_buttons[4].set_on_off_values(colors.WHITE);
+	function_buttons[5].set_on_off_values(colors.WHITE);
+	function_buttons[6].set_on_off_values(colors.WHITE);
+	function_buttons[7].set_on_off_values(colors.WHITE);
+}
+
+function setup_usermodes()
+{
+	user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
+	userbank1 = new UserBankComponent('UserBank1', 48, user1Input);
+	user1Input.setShouldConsumeEvents(false);
+
+	user2Input = host.getMidiInPort(0).createNoteInput("BaseUser2", "80????", "90????", "D0????", "E0????");
+	userbank2 = new UserBankComponent('UserBank2', 48, user2Input);
+	user2Input.setShouldConsumeEvents(false);
+
+	user3Input = host.getMidiInPort(0).createNoteInput("BaseUser3", "80????", "90????", "D0????", "E0????");
+	userbank3 = new UserBankComponent('UserBank3', 48, user3Input);
+	user3Input.setShouldConsumeEvents(false);
+
+	user4Input = host.getMidiInPort(0).createNoteInput("BaseUser4", "80????", "90????", "D0????", "E0????");
+	userbank4 = new UserBankComponent('UserBank4', 48, user4Input);
+	user4Input.setShouldConsumeEvents(false);
+
+	userPage1 = new Page('UserPage1');
 	userPage1.enter_mode = function()
 	{
 		post('userPage1 entered');
@@ -852,24 +870,8 @@ function setup_modes()
 		UserModes.current_page().exit_mode();
 		UserModes.set_mode_buttons();
 	}
-	*/
-	
-	script["MainModes"] = new PageStack(4, "Main Modes");
-	MainModes.add_mode(0, clipPage);
-	MainModes.add_mode(1, sendPage);
-	MainModes.add_mode(2, devicePage);
-	MainModes.add_mode(3, seqPage);
-	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
-	MainModes.add_listener(display_mode);
 
-	function_buttons[0].set_on_off_values(colors.WHITE);
-	function_buttons[1].set_on_off_values(colors.CYAN);
-	function_buttons[2].set_on_off_values(colors.BLUE);
-	function_buttons[3].set_on_off_values(colors.GREEN);
-	function_buttons[4].set_on_off_values(colors.WHITE);
-	function_buttons[5].set_on_off_values(colors.WHITE);
-	function_buttons[6].set_on_off_values(colors.WHITE);
-	function_buttons[7].set_on_off_values(colors.WHITE);
+
 }
 
 function setup_fixed_controls()
@@ -896,7 +898,14 @@ function setup_listeners()
 	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
 	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
 
+	//scene_offset = new Parameter('scene_offset', {javaObj:trackBank});
+	//trackBank.addSceneScrollPositionObserver(onSceneOffsetChanged, 1);
 
+}
+
+function onSceneOffsetChanged(i)
+{
+	post('onSceneOffsetChanged', i);
 }
 
 function on_selected_track_changed(obj)
@@ -947,7 +956,6 @@ function exit()
 	resetAll();
 }
 
-
 function onMidi(status, data1, data2)
 {
 	 //printMidi(status, data1, data2);
@@ -968,7 +976,6 @@ function onSysex(data)
 	printSysex(data);
 }
 
-
 const MODE_CHARS = ['L', 'S', 'D', 'Y'];
 
 function display_mode()
@@ -984,7 +991,6 @@ function display_mode()
 		char2 = str(self._user_mode_selector._mode_index+1)*/
 	lcd._send(char1+''+char2);
 }
-
 
 function setupTests()
 {

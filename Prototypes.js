@@ -1423,21 +1423,30 @@ function SessionComponent(name, width, height, trackBank, _colors)
 		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncher(), this);
 	}
 	this.receive_grid = function(button){if(button.pressed()){self._tracks[button._x(self._grid)].launch(button._y(self._grid));}}
-	
+
+
+	this._nav_up_listener = function(obj){post('obj:', obj._value);if(obj._value){self._sceneOffset.set_value(self._sceneOffset._value +=1)};}
+	this._nav_dn_listener = function(obj){post('obj:', obj._value);if(obj._value){self._sceneOffset.set_value(self._sceneOffset._value -=1)};}
+	this._nav_lt_listener = function(obj){if(obj._value){self._trackOffset.set_value(self._trackOffset._value -=1)};}
+	this._nav_rt_listener = function(obj){if(obj._value){self._trackOffset.set_value(self._trackOffset._value +=1)};}
+
 	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._trackBank, action:'scrollScenesUp', monitor:'addCanScrollScenesUpObserver', onValue:this._colors.navColor});
+
 	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._trackBank, action:'scrollScenesDown', monitor:'addCanScrollScenesDownObserver', onValue:this._colors.navColor});
+
 	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._trackBank, action:'scrollTracksDown', monitor:'addCanScrollTracksDownObserver', onValue:this._colors.navColor});
+
 	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._trackBank, action:'scrollTracksUp', monitor:'addCanScrollTracksUpObserver', onValue:this._colors.navColor});
 
 	//this._zoom = new SessionZoomComponent('SessionZoomTrackBank', this, width, height);
 
-	this._offsetUpdate = function(i){post('ZoomUpdate', i);}//self._trackOffset._value, self._sceneOffset._value);}
+	this._offsetUpdate = function(i){post('ZoomUpdate', self._trackOffset._value, self._sceneOffset._value);}
 
-	this._trackOffset = new Parameter(this._name + '_trackOffset', {num:0, javaObj:this._trackBank});
+	this._trackOffset = new Parameter(this._name + '_trackOffset', {javaObj:this._trackBank});
 	//this._trackOffset._javaObj.addTrackScrollPositionObserver(this._trackOffset.receive, 0);
 	this._trackOffset.add_listener(this._offsetUpdate);
 
-	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {num:0, javaObj:this._trackBank});
+	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {javaObj:this._trackBank});
 	//this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
 
@@ -1447,7 +1456,7 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	}
 	this._scene_launch = new RadioComponent(this._name + '_SceneLaunch', 0, height, 0, this._onSceneLaunch, colors.BLUE, colors.BLUE);
 
-	var cursorTrack = host.createCursorTrackSection(0, height);
+	var cursorTrack = host.createCursorTrackSection(0, 256);
 
 	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, cursorTrack.getClipLauncher(), this);
 	this._onSlotChange = function(obj)
@@ -1471,7 +1480,7 @@ function SessionComponent(name, width, height, trackBank, _colors)
 			self._selectedSlot._javaObj.stop();
 		}
 	}
-	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, height-1, 0, this._selectNewSlot, colors.YELLOW);
+	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, 256, 0, this._selectNewSlot, colors.YELLOW);
 
 	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext'});
 	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious'});
@@ -1555,10 +1564,18 @@ SessionComponent.prototype.colors = function()
 
 SessionComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
 {
+	//if(this._navUp._control){this._navUp._control.remove_listener(this._nav_up_listener);}
+	//if(this._navDn._control){this._navDn._control.remove_listener(this._nav_dn_listener);}
+	//if(this._navRt._control){this._navLt._control.remove_listener(this._nav_lt_listener);}
+	//if(this._navDn._control){this._navRt._control.remove_listener(this._nav_rt_listener);}
 	this._navUp.set_control(button0);
 	this._navDn.set_control(button1);
 	this._navLt.set_control(button2);
 	this._navRt.set_control(button3);
+	//if(button0){this._navUp._control.add_listener(this._nav_up_listener);}
+	//if(button1){this._navDn._control.add_listener(this._nav_dn_listener);}
+	//if(button2){this._navLt._control.add_listener(this._nav_lt_listener);}
+	//if(button3){this._navRt._control.add_listener(this._nav_rt_listener);}
 }
 
 
