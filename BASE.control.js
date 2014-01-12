@@ -316,7 +316,6 @@ function setup_modes()
 		instrument.set_vert_offset_buttons();
 		instrument.set_scale_offset_buttons();
 		instrument.set_note_offset_buttons();
-		//instrument._splitMode.set_control();
 		transport._overdub.set_control();
 	}
 
@@ -546,8 +545,7 @@ function setup_modes()
 		device._mode.set_value(0);
 		session._record_clip.set_control(function_buttons[4]);
 		session._create_clip.set_control(function_buttons[5]);
-		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
-		
+		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);	
 		devicePage.set_shift_button(function_buttons[2]);
 		devicePage.active = true;
 	}
@@ -594,13 +592,11 @@ function setup_modes()
 			{
 				volumeFadersSub.enter_mode();
 			}
-			transport._autowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
 			device.set_nav_buttons();
 			device._enabled.set_control();
-			transport._autowrite.set_control();
 			instrumentControlsSub.exit_mode();
 			volumeFadersSub.exit_mode();
 			devicePage.enter_mode();
@@ -677,12 +673,14 @@ function setup_modes()
 		if(seqPage._shifted)
 		{
 			instrument._shift._value = 1;
+			instrument._select.set_value(1);
 			altClipLaunchSub.exit_mode();
 			session.assign_grid();
 			instrument.assign_grid();
 			instrument._stepsequencer._follow.set_control(function_buttons[4]);
 			instrument._stepsequencer._flip.set_control(function_buttons[5]);
 			device.set_nav_buttons(undefined, undefined, function_buttons[7], function_buttons[6]);
+			device._enabled.set_control(touch_buttons[1]);
 			if(track_type_name._value=='Instrument')
 			{
 				for(var i=0;i<8;i++)
@@ -711,7 +709,6 @@ function setup_modes()
 			{
 				volumeFadersSub.enter_mode();
 			}
-			transport._autowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
@@ -724,9 +721,9 @@ function setup_modes()
 			keys_page_sub.clear_buttons();
 			instrument._quantization.set_controls();
 			instrument._stepsequencer._triplet.set_control();
-			transport._autowrite.set_control();
 			volumeFadersSub.exit_mode();
 			device.set_nav_buttons();
+			device._enabled.set_control();
 			seqPage.enter_mode();
 		}
 	}

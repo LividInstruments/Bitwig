@@ -1871,10 +1871,10 @@ function DeviceComponent(name, size, Device)
 		this._macro[i] = new RangedParameter(this._name + '_Macro_' + i, {num:i, javaObj:this._device.getMacro(i).getAmount(), range:128});
 	}
 
-	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._device, action:'nextParameterPage', monitor:'addNextParameterPageEnabledObserver', onValue:colors.CYAN});
-	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._device, action:'previousParameterPage', monitor:'addPreviousParameterPageEnabledObserver', onValue:colors.CYAN});
-	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._device, action:'selectNext', monitor:'addCanSelectNextObserver', onValue:colors.BLUE});
-	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._device, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
+	this._navUp = new Parameter(this._name + '_NavUp', {num:0, value:1, javaObj:this._device, action:'nextParameterPage', monitor:'addNextParameterPageEnabledObserver', onValue:colors.CYAN});
+	this._navDn = new Parameter(this._name + '_NavDown', {num:1, value:1, javaObj:this._device, action:'previousParameterPage', monitor:'addPreviousParameterPageEnabledObserver', onValue:colors.CYAN});
+	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, value:1, javaObj:this._device, action:'selectNext', monitor:'addCanSelectNextObserver', onValue:colors.BLUE});
+	this._navRt = new Parameter(this._name + '_NavRight', {num:3, value:1, javaObj:this._device, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
 	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:this._device, action:'toggleEnabledState', monitor:'addIsEnabledObserver', onValue:colors.RED});
 	this._mode = new ToggledParameter(this._name + '_Mode', {onValue:colors.BLUE, offValue:colors.CYAN});
 
@@ -1918,6 +1918,10 @@ DeviceComponent.prototype.set_nav_buttons = function(button0, button1, button2, 
 	this._navDn.set_control(button1);
 	this._navLt.set_control(button2);
 	this._navRt.set_control(button3);
+	if(button0 instanceof Button){button0.send(colors.CYAN);}
+	if(button1 instanceof Button){button1.send(colors.CYAN);}
+	if(button2 instanceof Button){button2.send(colors.BLUE);}
+	if(button3 instanceof Button){button3.send(colors.BLUE);}
 }
 
 DeviceComponent.prototype.set_shared_controls = function(controls)
