@@ -20,7 +20,9 @@ var midiCCBuffer = {};
 var recalculate_translation_map = true;
 
 var Note_Translation_Table = [];
-for (var i=0;i<128;i++) {Note_Translation_Table[i] = -1}
+var Velocity_Translation_Table = [];
+for (var i=0;i<128;i++) {Note_Translation_Table[i] = -1; Velocity_Translation_Table[i] = i;}
+
 
 //this function initializes all the prototype core processes.  It should be called during init().
 function initialize_prototypes()
@@ -153,6 +155,7 @@ function flush()
 	{
 		//post('Note_Translation_Table:', Note_Translation_Table);
 		noteInput.setKeyTranslationTable(Note_Translation_Table);
+		noteInput.setVelocityTranslationTable(Velocity_Translation_Table);
 		recalculate_translation_map = false;
 	}
 }
@@ -702,7 +705,10 @@ Grid.prototype.clear_translations = function()
 	var buttons = this.controls();
 	for(var index in buttons)
 	{
-		buttons[index].set_translation(-1);
+		if(buttons[index])
+		{
+			buttons[index].set_translation(-1);
+		}
 	}
 }
 
@@ -2148,9 +2154,6 @@ function DrumRackComponent(name, _color)
 	this._shift = new ToggledParameter(this._name + '_Shift');
 	this._shift.add_listener(this._update);
 	this._select = new ToggledParameter(this._name + '_Select', {value:1});
-
-
-
 }
 
 DrumRackComponent.prototype.assign_grid = function(grid)
@@ -2172,7 +2175,7 @@ DrumRackComponent.prototype.assign_grid = function(grid)
 		}
 	}
 	this._update();
-	if((this._grid instanceof Grid)&&(this._stepsequencer instanceof StepSequencerComponent))
+	if((this._grid instanceof Grid)&&(this._stepsequencer instanceof StepSequencerComponent)&&(this._last_pressed_button._translation > -1))
 	{
 		this._stepsequencer.key_offset.set_value(this._last_pressed_button._translation);
 	}
@@ -2354,7 +2357,7 @@ ScaleComponent.prototype.assign_grid = function(grid)
 	if(this._grid instanceof Grid)
 	{
 		this._grid.clear_translations();
-		this._grid.remove_target(this._button_press);
+		this._grid.remove_listener(this._button_press);
 	}
 	this._grid = grid;
 	if(this._grid instanceof Grid)
@@ -2366,7 +2369,7 @@ ScaleComponent.prototype.assign_grid = function(grid)
 		}
 	}
 	this._update();
-	if((this._grid instanceof Grid)&&(this._stepsequencer instanceof StepSequencerComponent))
+	if((this._grid instanceof Grid)&&(this._stepsequencer instanceof StepSequencerComponent)&&(this._last_pressed_button._translation > -1))
 	{
 		this._stepsequencer.key_offset.set_value(this._last_pressed_button._translation);
 	}
@@ -2426,6 +2429,7 @@ function StepSequencerComponent(name, steps)
 				//post('sequencer button pressed:', button._name);
 				var step = self._offset._value + button._x(self._grid) + self.width()*button._y(self._grid);  // + this.viewOffset();
 				self._cursorClip.toggleStep(step, self.key_offset._value, self._velocity_offset._value);
+				//post('toggling:', step, self.key_offset._value, self._velocity_offset._value);
 			}
 		}
 		else
@@ -2499,7 +2503,8 @@ function StepSequencerComponent(name, steps)
 	}
 	this._onKeyChange = function(obj)
 	{
-		//self._cursorClip.scrollToKey(self.key_offset._value);
+		//post('onKeyChange', obj._value);
+		//self._cursorClip.scrollToKey(self.key_offset._value);		//don't use this method here, it adds an offset to note creation.
 		self.update();
 	}
 	this._onFlipChange = function(obj)
@@ -2582,8 +2587,6 @@ function StepSequencerComponent(name, steps)
 
 StepSequencerComponent.prototype.assign_grid = function(grid)
 {
-	if(grid instanceof Grid){post('assign grid', grid);}
-	//post('this is', this._name);
 	if(this._grid instanceof Grid)
 	{
 		this._grid.remove_target(this.receive_grid);
@@ -2672,7 +2675,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	}
 	this._quantization = new RadioComponent(this._name + '_Quantization', 0, 6, 3, this._on_quantization_changed, colors.YELLOW, colors.OFF); 
 
-	this._primary_instrument = new Parameter(this._name + 'primary_instrument_listener', {javaObj:cursorTrack.getPrimaryInstrument()});
+	this._primary_instrument = new Parameter(this._name + '_PrimaryInstrumentListener', {javaObj:cursorTrack.getPrimaryInstrument()});
 	cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);
 
 	this._lcd_listener = function(obj)
@@ -2778,8 +2781,8 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 
 	this._selectListener = function(obj)
 	{
-		if(self._keys){self._keys._select._value = obj._value;}
-		if(self._drums){self._drums._select._value = obj._value;}
+		if(self._keys){self._keys._select.set_value(obj._value);}
+		if(self._drums){self._drums._select.set_value(obj._value);}
 	}
 	this._select = new ToggledParameter(this._name + '_Select');
 	this._select.add_listener(this._selectListener);
@@ -2806,10 +2809,12 @@ AdaptiveInstrumentComponent.prototype.assign_grid = function(grid)
 
 AdaptiveInstrumentComponent.prototype.assign_explicit_grids = function(drum_grid, keys_grid, drumseq_grid, keysseq_grid)
 {
-	//this._drum_sub.clear_buttons();
-	//this._keys_sub.clear_buttons();
-	//this._drumseq_sub.clear_buttons();
-	//this._keysseq_sub.clear_buttons();
+	var subs = [this._drum_sub, this._keys_sub, this._drumseq_sub, this._keysseq_sub];
+	for(var i in subs)
+	{
+		subs[i].clear_translations();
+		subs[i].clear_buttons();
+	}
 	this._explicit_grid_assignments = false;
 	this._explicit_drum_grid = undefined;
 	this._explicit_keys_grid = undefined;

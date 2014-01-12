@@ -469,8 +469,8 @@ function setup_modes()
 		session._record_clip.set_control();
 		session._create_clip.set_control();
 		session._slot_select.set_inc_dec_buttons();
+		//instrument._stepsequencer.set_nav_buttons();
 		instrument.assign_grid();
-		instrument._stepsequencer.set_nav_buttons();
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control();
@@ -626,8 +626,8 @@ function setup_modes()
 			altClipLaunchSub.enter_mode();
 			sendSysex(LIVEBUTTONMODE);	
 			//instrument._splitMode.set_value(1);  //this is causing issues 
-			instrument._splitMode._value = 1;
 			//instrument._stepsequencer._accent.set_control(faders[0]);
+			instrument._splitMode._value = 1;
 			instrument._select.set_value(1);
 			instrument.assign_grid(grid);
 		}
@@ -654,6 +654,7 @@ function setup_modes()
 		instrument._stepsequencer._flip.set_control();
 		instrument._stepsequencer.set_nav_buttons();
 		instrument._select.set_value(0);
+		instrument.assign_explicit_grids();
 		instrument.assign_grid();
 		instrument._splitMode._value = 0;
 		//instrument._splitMode.set_value(0);  //this is causing issues
@@ -717,10 +718,10 @@ function setup_modes()
 			instrument._shift._value = 0;
 			instrumentControlsSub.exit_mode();
 			instrument.assign_explicit_grids();
-			//drum_sub.clear_buttons();
-			//keys_sub.clear_buttons();
-			//drum_page_sub.clear_buttons();
-			//keys_page_sub.clear_buttons();
+			drum_sub.clear_buttons();
+			keys_sub.clear_buttons();
+			drum_page_sub.clear_buttons();
+			keys_page_sub.clear_buttons();
 			instrument._quantization.set_controls();
 			instrument._stepsequencer._triplet.set_control();
 			transport._autowrite.set_control();
@@ -750,7 +751,7 @@ function setup_modes()
 
 function setup_usermodes()
 {
-	user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
+	/*user1Input = host.getMidiInPort(0).createNoteInput("BaseUser1", "80????", "90????", "D0????", "E0????");
 	userbank1 = new UserBankComponent('UserBank1', 48, user1Input);
 	user1Input.setShouldConsumeEvents(false);
 
@@ -870,7 +871,7 @@ function setup_usermodes()
 		UserModes.current_page().exit_mode();
 		UserModes.set_mode_buttons();
 	}
-
+	*/
 
 }
 
@@ -881,19 +882,11 @@ function setup_fixed_controls()
 
 function setup_listeners()
 {
-	selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
-	selected_track.add_listener(on_selected_track_changed);
-	
-	primary_instrument = new Parameter('primary_instrument_listener');
-	cursorTrack.getPrimaryInstrument().addNameObserver(10, 'None', primary_instrument.receive);
-	primary_instrument.add_listener(on_primary_instrument_name_changed);
-
 	track_type_name = new Parameter('track_type_name_listener');
 	cursorTrack.addTrackTypeObserver(20, 'None', track_type_name.receive);
 	track_type_name.add_listener(on_track_type_name_changed);
 
 	track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
-	track_type.add_listener(on_track_type_changed);
 
 	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
 	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
@@ -908,31 +901,10 @@ function onSceneOffsetChanged(i)
 	post('onSceneOffsetChanged', i);
 }
 
-function on_selected_track_changed(obj)
-{
-	/*if(obj._value)
-	{
-		//post('onSelectedTrackChanged:', obj, obj._value);
-		detect_new_instrument();
-	}*/
-	//cursorTrack.getClipLauncher()
-	
-}
-
 function on_selected_track_selected_clipslot_changed(obj)
 {
-	post('on_selected_track_selected_clipslot_changed:', obj._value);
-	cursorTrack.getClipLauncher().select(obj._value);
-}
-
-function on_primary_instrument_name_changed(new_name)
-{
-	post('on_primary_instrument_name_changed:', new_name._value);
-}
-
-function on_track_type_changed(is_midi)
-{
-	post('on_track_type_changed:', is_midi._value);
+	//post('on_selected_track_selected_clipslot_changed:', obj._value);
+	//cursorTrack.getClipLauncher().select(obj._value);
 }
 
 //this reports "Instrument" or "Audio" depending on the type of track selected
@@ -943,12 +915,6 @@ function on_track_type_name_changed(type_name)
 	{
 		page.refresh_mode();
 	}
-}
-
-function detect_new_instrument()
-{
-	var ins = cursorTrack.getPrimaryInstrument();
-	post(ins);
 }
 
 function exit()
@@ -973,7 +939,7 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	printSysex(data);
+	//printSysex(data);
 }
 
 const MODE_CHARS = ['L', 'S', 'D', 'Y'];
@@ -994,11 +960,7 @@ function display_mode()
 
 function setupTests()
 {
-	//function_buttons[0].add_listener(poster);
-	//trackBank.getTrack(0).getMute().addValueObserver(tester);
-	//cursorTrack.addNameObserver(10, 'None', tester);
-	//tasks.addTask(tester, ['peakaboo'], true);
-	
+
 }
 
 

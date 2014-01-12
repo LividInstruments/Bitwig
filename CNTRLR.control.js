@@ -92,10 +92,8 @@ function init()
 	setup_instrument_control();
 	setup_tasks();
 	setup_modes();
-	setup_fixed_controls();
 	setup_listeners();
 	setupTests();
-
 	//LOCAL_OFF();
 	MainModes.change_mode(0, true);
 	post('CNTRLR script loaded! ------------------------------------------------');
@@ -294,7 +292,6 @@ function setup_modes()
 		session.assign_grid();
 	}
 
-	
 	//Page 0:  Send Control and Instrument throughput
 	clipPage = new Page('ClipPage');
 	clipPage.enter_mode = function()
@@ -420,7 +417,6 @@ function setup_modes()
 		}
 	}
 
-
 	//Page 1:  Sequencer
 	sequencerPage = new Page('Sequencer');
 	sequencerPage.enter_mode = function()
@@ -537,10 +533,6 @@ function setup_modes()
 	script["MainModes"] = new PageStack(2, "Main Modes");
 	MainModes.add_mode(0, clipPage);
 	MainModes.add_mode(1, sequencerPage);
-	/*MainModes.add_mode(2, devicePage);
-	MainModes.add_mode(3, userPage);*/
-	//MainModes.set_mode_buttons([encoder_buttons[2], encoder_buttons[3]]); //, function_buttons[2], function_buttons[3]]);
-	//MainModes.add_listener(display_mode);
 
 }
 
@@ -551,74 +543,37 @@ function setup_fixed_controls()
 
 function setup_listeners()
 {
-	selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
-	selected_track.add_listener(on_selected_track_changed);
-	
-	primary_instrument = new Parameter('primary_instrument_listener');
-	cursorTrack.getPrimaryInstrument().addNameObserver(10, 'None', primary_instrument.receive);
-	primary_instrument.add_listener(on_primary_instrument_name_changed);
-
 	track_type_name = new Parameter('track_type_name_listener');
 	cursorTrack.addTrackTypeObserver(20, 'None', track_type_name.receive);
 	track_type_name.add_listener(on_track_type_name_changed);
 
 	track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
-	track_type.add_listener(on_track_type_changed);
 
 	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
 	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
 
-
-}
-
-function on_selected_track_changed(obj)
-{
-	/*if(obj._value)
-	{
-		//post('onSelectedTrackChanged:', obj, obj._value);
-		detect_new_instrument();
-	}*/
-	//cursorTrack.getClipLauncher()
-	
 }
 
 function on_selected_track_selected_clipslot_changed(obj)
 {
-	post('on_selected_track_selected_clipslot_changed:', obj._value);
-	cursorTrack.getClipLauncher().select(obj._value);
-}
-
-function on_primary_instrument_name_changed(new_name)
-{
-	post('on_primary_instrument_name_changed:', new_name._value);
-}
-
-function on_track_type_changed(is_midi)
-{
-	post('on_track_type_changed:', is_midi._value);
+	//post('on_selected_track_selected_clipslot_changed:', obj._value);
+	//cursorTrack.getClipLauncher().select(obj._value);
 }
 
 //this reports "Instrument" or "Audio" depending on the type of track selected
 function on_track_type_name_changed(type_name)
 {
 	var page = MainModes.current_page();
-	/*if((page == sendPage)||(page == devicePage))
+	if(page == sequencerPage)
 	{
 		page.refresh_mode();
-	}*/
-}
-
-function detect_new_instrument()
-{
-	var ins = cursorTrack.getPrimaryInstrument();
-	post(ins);
+	}
 }
 
 function exit()
 {
 	//resetAll();
 }
-
 
 function onMidi(status, data1, data2)
 {
@@ -637,21 +592,13 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	printSysex(data);
+	//printSysex(data);
 }
-
 
 function display_mode(){}
 
-
 function setupTests()
 {
-	//function_buttons[0].add_listener(poster);
-	//trackBank.getTrack(0).getMute().addValueObserver(tester);
-	//cursorTrack.addNameObserver(10, 'None', tester);
-	//tasks.addTask(tester, ['peakaboo'], true);
-
-
 	
 }
 

@@ -66,7 +66,6 @@ load("Prototypes.js");
 
 function init()
 {
-
 	////////////////////////////////////////////////////////////////////////////////
 	application = host.createApplication();
 	cursorDevice = host.createCursorDeviceSection(8);
@@ -76,9 +75,7 @@ function init()
 	trackBank = host.createMainTrackBank(8, 8, 8);
 	returnBank = host.createEffectTrackBank(4, 8);
 	////////////////////////////////////////////////////////////////////////////////
-	
 	post('OhmRGB script loading ------------------------------------------------');
-
 	host.getMidiInPort(0).setMidiCallback(onMidi);
 	host.getMidiInPort(0).setSysexCallback(onSysex);
 	initialize_noteInput();
@@ -93,10 +90,8 @@ function init()
 	setup_instrument_control();
 	setup_tasks();
 	setup_modes();
-	setup_fixed_controls();
 	setup_listeners();
 	setupTests();
-
 	//LOCAL_OFF();
 	MainModes.change_mode(0, true);
 	post('OhmRGB script loaded! ------------------------------------------------');
@@ -106,7 +101,6 @@ function initialize_noteInput()
 {
 	noteInput = host.getMidiInPort(0).createNoteInput("OhmRGBInstrument", "80????", "90????", "D0????", "E0????");
 	noteInput.setShouldConsumeEvents(false);
-
 }
 
 function initialize_surface()
@@ -222,7 +216,7 @@ function setup_tasks()
 
 function setup_usermodes()
 {
-	user1Input = host.getMidiInPort(0).createNoteInput("OhmRGBUser1", "80????", "90????", "D0????", "E0????");
+	/*user1Input = host.getMidiInPort(0).createNoteInput("OhmRGBUser1", "80????", "90????", "D0????", "E0????");
 	userbank1 = new UserBankComponent('UserBank1', 48, user1Input);
 	user1Input.setShouldConsumeEvents(false);
 
@@ -236,7 +230,7 @@ function setup_usermodes()
 
 	user4Input = host.getMidiInPort(0).createNoteInput("OhmRGBUser4", "80????", "90????", "D0????", "E0????");
 	userbank4 = new UserBankComponent('UserBank4', 48, user4Input);
-	user4Input.setShouldConsumeEvents(false);
+	user4Input.setShouldConsumeEvents(false);*/
 }
 
 function setup_modes()
@@ -532,75 +526,33 @@ function setup_modes()
 
 }
 
-function setup_fixed_controls()
-{
-	//mixer._masterstrip._volume.set_control(faders[7]);
-}
-
 function setup_listeners()
 {
-	selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
-	selected_track.add_listener(on_selected_track_changed);
-	
-	primary_instrument = new Parameter('primary_instrument_listener');
-	cursorTrack.getPrimaryInstrument().addNameObserver(10, 'None', primary_instrument.receive);
-	primary_instrument.add_listener(on_primary_instrument_name_changed);
-
 	track_type_name = new Parameter('track_type_name_listener');
 	cursorTrack.addTrackTypeObserver(20, 'None', track_type_name.receive);
 	track_type_name.add_listener(on_track_type_name_changed);
 
 	track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
-	track_type.add_listener(on_track_type_changed);
 
-	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsSelectedObserver'});
+	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
 	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
 
-
-}
-
-function on_selected_track_changed(obj)
-{
-	/*if(obj._value)
-	{
-		//post('onSelectedTrackChanged:', obj, obj._value);
-		detect_new_instrument();
-	}*/
-	//cursorTrack.getClipLauncher()
-	//post('----new track', session._selectedTrack._selected_slot);
-	
 }
 
 function on_selected_track_selected_clipslot_changed(obj)
 {
-	//ost('on_selected_track_selected_clipslot_changed:', obj._value);
+	//post('on_selected_track_selected_clipslot_changed:', obj._value);
 	//cursorTrack.getClipLauncher().select(obj._value);
-}
-
-function on_primary_instrument_name_changed(new_name)
-{
-	//post('on_primary_instrument_name_changed:', new_name._value);
-}
-
-function on_track_type_changed(is_midi)
-{
-	//post('on_track_type_changed:', is_midi._value);
 }
 
 //this reports "Instrument" or "Audio" depending on the type of track selected
 function on_track_type_name_changed(type_name)
 {
 	var page = MainModes.current_page();
-	/*if((page == sendPage)||(page == devicePage))
+	if(page == sequencerPage)
 	{
 		page.refresh_mode();
-	}*/
-}
-
-function detect_new_instrument()
-{
-	var ins = cursorTrack.getPrimaryInstrument();
-	post(ins);
+	}
 }
 
 function exit()
@@ -625,18 +577,14 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	printSysex(data);
+	//printSysex(data);
 }
 
 function display_mode(){}
 
 function setupTests()
 {
-	//function_buttons[0].add_listener(poster);
-	//trackBank.getTrack(0).getMute().addValueObserver(tester);
-	//cursorTrack.addNameObserver(10, 'None', tester);
-	//tasks.addTask(tester, ['peakaboo'], true);
-	
+
 }
 
 
