@@ -68,13 +68,14 @@ const _base_translations =	{'0': 0,
 const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
 const LAYERSPLASH = [63, 69, 70, 65]
-const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
-const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
-const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
-const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
-const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
-const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
-const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
+const USERBUTTONMODE = "F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7";
+const MIDIBUTTONMODE = "F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7";
+const LIVEBUTTONMODE = "F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7";
+const SPLITBUTTONMODEDRUMS = "F0 00 01 61 0C 42 01 01 01 01 05 05 05 05 01 01 01 01 05 05 05 05 01 01 01 01 05 05 05 05 01 01 01 01 05 05 05 05 F7";
+const SPLITBUTTONMODEKEYS = "F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05F7";
+const STREAMINGON = "F0 00 01 61 0C 42 7F F7";
+const STREAMINGOFF = "F0 00 01 61 0C 42 00 F7";
+const LINKFUNCBUTTONS = "F0 00 01 61 0C 44 01 F7";
 const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
@@ -529,7 +530,7 @@ function setup_modes()
 		if(track_type_name._value=='Instrument')
 		{
 			altClipLaunchSub.enter_mode();
-			sendSysex(MIDIBUTTONMODE);
+			sendSysex(USERBUTTONMODE);
 			instrument.assign_grid(grid);
 		}
 		else
@@ -619,8 +620,8 @@ function setup_modes()
 		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
 		if(track_type_name._value=='Instrument')
 		{
-			altClipLaunchSub.enter_mode();
-			sendSysex(LIVEBUTTONMODE);	
+			instrument._primary_instrument._value == 'DrumMachine' ? sendSysex(SPLITBUTTONMODEDRUMS) : sendSysex(SPLITBUTTONMODEKEYS);
+			altClipLaunchSub.enter_mode();	
 			//instrument._splitMode.set_value(1);  //this is causing issues 
 			//instrument._stepsequencer._accent.set_control(faders[0]);
 			instrument._splitMode._value = 1;
@@ -936,7 +937,7 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	//printSysex(data);
+	printSysex(data);
 }
 
 const MODE_CHARS = ['L', 'S', 'D', 'Y'];

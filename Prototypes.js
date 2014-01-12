@@ -2060,7 +2060,6 @@ function DrumRackComponent(name, _color)
 	{
 		if(button.pressed())
 		{
-			self._last_pressed_button = button;
 			var seq = self._stepsequencer;
 			self._held_notes.unshift(button);
 			if(seq)
@@ -2069,7 +2068,7 @@ function DrumRackComponent(name, _color)
 				{
 					seq.toggle_note(button);
 				}
-				self._set_seq_offset(button._translation);
+				self._set_seq_offset(button);
 				self._update();
 			}
 		}
@@ -2084,11 +2083,12 @@ function DrumRackComponent(name, _color)
 		}
 	}
 
-	this._set_seq_offset = function(val)
+	this._set_seq_offset = function(button)
 	{
 		var seq = self._stepsequencer;
 		if(self._select._value && seq && !seq.notes_in_step().length)
 		{
+			self._last_pressed_button = button;
 			seq.key_offset.set_value(val);
 		}
 	}
@@ -2247,7 +2247,6 @@ function ScaleComponent(name, _colors)
 	{
 		if(button.pressed())
 		{
-			self._last_pressed_button = button;
 			var seq = self._stepsequencer;
 			self._held_notes.unshift(button);
 			if(seq)
@@ -2256,7 +2255,7 @@ function ScaleComponent(name, _colors)
 				{
 					seq.toggle_note(button);
 				}
-				self._set_seq_offset(button._translation);
+				self._set_seq_offset(button);
 				self._update();
 			}
 		}
@@ -2271,12 +2270,13 @@ function ScaleComponent(name, _colors)
 		}
 	}
 
-	this._set_seq_offset = function(val)
+	this._set_seq_offset = function(button)
 	{
 		var seq = self._stepsequencer;
 		if(self._select._value && seq && !seq.notes_in_step().length)
 		{
-			seq.key_offset.set_value(val);
+			self._last_pressed_button = button;
+			seq.key_offset.set_value(button._translation);
 		}
 	}
 
