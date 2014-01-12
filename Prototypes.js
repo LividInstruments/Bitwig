@@ -1449,11 +1449,11 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	this._offsetUpdate = function(i){post('ZoomUpdate', self._trackOffset._value, self._sceneOffset._value);}
 
 	this._trackOffset = new Parameter(this._name + '_trackOffset', {javaObj:this._trackBank});
-	//this._trackOffset._javaObj.addTrackScrollPositionObserver(this._trackOffset.receive, 0);
+	this._trackOffset._javaObj.addTrackScrollPositionObserver(this._trackOffset.receive, 0);
 	this._trackOffset.add_listener(this._offsetUpdate);
 
 	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {javaObj:this._trackBank});
-	//this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
+	this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
 
 	this._onSceneLaunch = function(obj)
@@ -1832,13 +1832,13 @@ function EQDeviceComponent(channelstrip)
 		self._lo.set_control(self._lo_control);
 	}
 
-	//post('DeviceType:', channelstrip._track.getPrimaryDevice().DeviceType);
+	post('DeviceType:', channelstrip._track.getPrimaryDevice().DeviceType);
 	this._canAssignListener = function(val)
 	{
 		post('canAssignListener:', self._name, val);
 	}
 	this._canAssign = new Parameter(this._name + '_Can_Assign_EQ_Observer', {javaObj:this._device});
-	//this._canAssign._javaObj.addCanSwitchToDeviceObserver(this._device.DeviceType.valueOf('EQ'), this._device.ChainLocation.valueOf('FIRST'), this._canAssign.receive);
+	//this._canAssign._javaObj.addCanSwitchToDeviceObserver(this._device.DeviceType.ANY, this._device.ChainLocation.FIRST, this._canAssign.receive);
 	//this._canAssign.add_listener(this._canAssignListener);
 
 }
@@ -2903,7 +2903,7 @@ function TransportComponent(name, transport, _colors)
 	this._record = new ToggledParameter('record_button', {javaObj:transport, action:'record', monitor:'addIsRecordingObserver', onValue:this._colors.recordOnColor, offValue:this._colors.recordOffColor});
 	this._record._Callback = function(obj){if(obj._value){transport.record();}}
 
-	this._overdub = new ToggledParameter('overdub_listener', {javaObj:transport, action:'toggleOverdub', monitor:'addOverdubObserver', onValue:colors.RED});
+	this._overdub = new ToggledParameter('overdub_listener', {javaObj:transport, action:'toggleLauncherOverdub', monitor:'addLauncherOverdubObserver', onValue:colors.RED});
 
 	this._autowrite = new ToggledParameter('autowrite_listener', {javaObj:transport, action:'toggleWriteArrangerAutomation', monitor:'addAutomationWriteModeObserver', onValue:colors.BLUE});
 
