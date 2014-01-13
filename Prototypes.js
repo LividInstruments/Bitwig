@@ -2089,7 +2089,7 @@ function DrumRackComponent(name, _color)
 		if(self._select._value && seq && !seq.notes_in_step().length)
 		{
 			self._last_pressed_button = button;
-			seq.key_offset.set_value(val);
+			seq.key_offset.set_value(button._translation);
 		}
 	}
 
