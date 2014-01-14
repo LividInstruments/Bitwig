@@ -262,6 +262,7 @@ function setup_modes()
 	keys_sub = new Grid(8, 2, 'KeysSub');
 	drum_page_sub = new Grid(4, 2, 'DrumPageSub');
 	keys_page_sub = new Grid(8, 1, 'KeysPageSub');
+	session_sub = new Grid(7, 4, 'SessionHoldSub');
 
 	volumeFadersSub = new Page('VolumeFadersSub');
 	volumeFadersSub.enter_mode = function()
@@ -370,13 +371,17 @@ function setup_modes()
 		sendSysex('F0 00 01 61 0C 3D 07 07 07 07 07 07 07 07 02 F7');
 		grid.reset();
 		faderbank.reset();
-		session.assign_grid(grid);
+		session_sub.sub_grid(grid, 0, 7, 0, 4);
+		session.assign_grid(session_sub);
+		session._scene_launch.set_controls(buttons[7]);
 		session.set_nav_buttons(function_buttons[4], function_buttons[5], function_buttons[7], function_buttons[6]);
 	}
 	clipLaunch.exit_mode = function()
 	{
 		session.assign_grid();
+		session._scene_launch.set_controls();
 		session.set_nav_buttons();
+		session_sub.clear_buttons();
 	}
 			
 	
@@ -387,6 +392,7 @@ function setup_modes()
 		post('clipPage entered');
 		sendSysex('F0 00 01 61 0C 3D 07 07 07 07 07 07 07 07 02 F7');
 		sendSysex(LIVEBUTTONMODE);
+		altClipLaunchSub.enter_mode();
 		grid.reset();
 		faderbank.reset();
 		session.assign_grid(grid);
@@ -410,12 +416,14 @@ function setup_modes()
 		}
 		clipPage.set_shift_button();
 		clipPage.active = false;
+		altClipLaunchSub.exit_mode();
 		post('clipPage exited');
 	}
 	clipPage.update_mode = function()
 	{
 		post('clipPage updated');
 		grid.reset();
+		altClipLaunchSub.exit_mode();
 		if(clipPage._shifted)
 		{
 			session.assign_grid();
@@ -436,9 +444,9 @@ function setup_modes()
 		sendSysex('F0 00 01 61 0C 3D 05 05 05 05 04 04 04 04 02 F7');
 		grid.reset();
 		faderbank.reset();
+		altClipLaunchSub.enter_mode();
 		if(track_type_name._value=='Instrument')
 		{
-			altClipLaunchSub.enter_mode();
 			sendSysex(USERBUTTONMODE);
 			instrument.assign_grid(grid);
 		}
@@ -527,9 +535,9 @@ function setup_modes()
 		sendSysex('F0 00 01 61 0C 3D 06 06 06 06 06 06 06 06 02 F7');
 		grid.reset();
 		faderbank.reset();
+		altClipLaunchSub.enter_mode();
 		if(track_type_name._value=='Instrument')
 		{
-			altClipLaunchSub.enter_mode();
 			sendSysex(USERBUTTONMODE);
 			instrument.assign_grid(grid);
 		}
@@ -618,10 +626,10 @@ function setup_modes()
 		session._record_clip.set_control(function_buttons[4]);
 		session._create_clip.set_control(function_buttons[5]);
 		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
+		altClipLaunchSub.enter_mode();
 		if(track_type_name._value=='Instrument')
 		{
-			instrument._primary_instrument._value == 'DrumMachine' ? sendSysex(SPLITBUTTONMODEDRUMS) : sendSysex(SPLITBUTTONMODEKEYS);
-			altClipLaunchSub.enter_mode();	
+			instrument._primary_instrument._value == 'DrumMachine' ? sendSysex(SPLITBUTTONMODEDRUMS) : sendSysex(SPLITBUTTONMODEKEYS);	
 			//instrument._splitMode.set_value(1);  //this is causing issues 
 			//instrument._stepsequencer._accent.set_control(faders[0]);
 			instrument._splitMode._value = 1;
