@@ -2029,6 +2029,7 @@ function DrumRackComponent(name, _color)
 	this._last_pressed_button;
 	this._held_notes = [];
 	this._update_request = false;
+	this._notes_in_step = Array.apply(null, new Array(128)).map(Number.prototype.valueOf, 0);
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
 	{
@@ -2047,11 +2048,15 @@ function DrumRackComponent(name, _color)
 
 	this._onNote = function(val, num, extra)
 	{
+		post('onNote', val, num, extra);
 		var buf = self._noteMap[num];
 		for(var i in buf)
 		{
-			//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
-			buf[i].send(val ? color.YELLOW : buf[i].scale_color )
+			if(buf[i].scale_color !== color.GREEN)
+			{
+				//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
+				buf[i].send( val ? color.YELLOW : buf[i].scale_color );
+			}
 		}
 	}
 	cursorTrack.addNoteObserver(this._onNote);
@@ -2082,6 +2087,8 @@ function DrumRackComponent(name, _color)
 			}
 		}
 	}
+	
+	this.notes_in_step = function(){return (self._stepsequencer && self._stepsequencer._edit_step._value> -1) ? self._stepsequencer.notes_in_step() : self._notes_in_step;}
 
 	this._set_seq_offset = function(button)
 	{
@@ -2097,18 +2104,13 @@ function DrumRackComponent(name, _color)
 	{
 		self._update_request = false;
 		self._noteMap = new Array(128);
-		var notes_in_step = [];
 		for(var i=0;i<128;i++)
 		{
 			self._noteMap[i] = [];
-			notes_in_step[i] = 0;
 		}
 		if(self._grid instanceof Grid)
 		{
-			if((self._stepsequencer)&&(self._stepsequencer._edit_step._value>-1))
-			{
-				notes_in_step = self._stepsequencer.notes_in_step();
-			}
+			var notes_in_step = self.notes_in_step();
 			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
 			var offset = self._noteOffset._value;
 			var width = self.width();
@@ -2216,6 +2218,7 @@ function ScaleComponent(name, _colors)
 	this._last_pressed_button;
 	this._held_notes = [];
 	this._update_request = true;
+	this._notes_in_step = Array.apply(null, new Array(128)).map(Number.prototype.valueOf, 0);
 	this._noteMap = new Array(128);
 	for(var i=0;i<128;i++)
 	{
@@ -2237,8 +2240,11 @@ function ScaleComponent(name, _colors)
 		var buf = self._noteMap[num];
 		for(var i in buf)
 		{
-			//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
-			buf[i].send(val ? color.YELLOW : buf[i].scale_color);
+			if(buf[i].scale_color != colors.GREEN)
+			{
+				//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
+				buf[i].send(val ? color.YELLOW : buf[i].scale_color);
+			}
 		}
 	}
 	cursorTrack.addNoteObserver(this._onNote);
@@ -2270,6 +2276,8 @@ function ScaleComponent(name, _colors)
 		}
 	}
 
+	this.notes_in_step = function(){return (self._stepsequencer && self._stepsequencer._edit_step._value> -1) ? self._stepsequencer.notes_in_step() : self._notes_in_step;}
+
 	this._set_seq_offset = function(button)
 	{
 		var seq = self._stepsequencer;
@@ -2284,19 +2292,14 @@ function ScaleComponent(name, _colors)
 	{
 		self._update_request = false;
 		self._noteMap = [];
-		var notes_in_step = [];
 		for(var i=0;i<128;i++)
 		{
 			self._noteMap[i] = [];
-			notes_in_step[i] = 0;
 		}
 		if(self._grid instanceof Grid)
 		{
 			var keyoffset = -1;
-			if((self._stepsequencer)&&(self._stepsequencer._edit_step._value>-1))
-			{
-				notes_in_step = self._stepsequencer.notes_in_step();
-			}
+			var notes_in_step = self.notes_in_step();
 			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
 			var width = self.width();
 			var height = self.height();
