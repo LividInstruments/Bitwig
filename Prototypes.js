@@ -481,6 +481,72 @@ Slider.prototype._send = function(value)
 }
 
 
+function PickupSlider(identifier, name, thresh)
+{
+	Control.call( this, identifier, name );
+	var self = this;
+	this._type = CC_TYPE;
+	this._pickup = true;
+	this._thresh = thresh ? thresh : 10;
+	this._dir = 0;
+	this.receive = function(value)
+	{
+		post('pu slider receive', value, 'pickup', self._last_sent_value, 'dir', self._dir);
+		if(self._enabled)
+		{
+			self._value = value;
+			switch(self._dir)
+			{
+				case 0:
+					self.notify();
+					break;
+				case 1:
+					if((self._last_sent_value - value) < self._thresh)
+					{
+						self.notify();
+					}
+					break;
+				case -1:
+					if((value - self._last_sent_value) < self._thresh)
+					{
+						self.notify();
+						break;
+					}
+			}
+		}
+	}
+	register_control(this);
+
+
+}
+
+PickupSlider.prototype = new Control();
+
+PickupSlider.prototype.constructor = PickupSlider;
+
+PickupSlider.prototype._send = function(value)
+{
+	sendChannelController(this._channel, this._id, value);
+}
+
+PickupSlider.prototype.send = function(value)
+{
+	//post('send pu slider', this._name, 'value', value);
+	midiBuffer[this._type][this._id] = [this, value];
+	var dir = (value - this._value) + 1;
+	this._dir = dir/Math.abs(dir);
+	//var dir = Math.pow(this._last_sent_value - value, 0);
+	//tasks.add_task(self.set_dir, [dir], 2, false, this._name + '_takeover');
+	post('pu send, dir:', this._dir, 'old', this._last_sent_value, 'new', value);
+	this._last_sent_value = value;
+}
+
+PickupSlider.prototype.set_dir = function(dir)
+{
+	this._dir = dir;
+}
+
+
 function Encoder(identifier, name)
 {
 	Control.call( this, identifier, name );
