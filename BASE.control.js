@@ -937,7 +937,7 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	printSysex(data);
+	//printSysex(data);
 }
 
 const MODE_CHARS = ['L', 'S', 'D', 'Y'];

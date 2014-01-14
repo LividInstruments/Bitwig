@@ -1407,7 +1407,7 @@ ClipLaunchComponent.prototype.get_clipslot = function(slot)
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks and scenes, assignable to grid
 
-function SessionComponent(name, width, height, trackBank, _colors)
+function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 {
 	var self = this;
 	this._name = name;
@@ -1428,6 +1428,11 @@ function SessionComponent(name, width, height, trackBank, _colors)
 		var track = trackBank.getTrack(t);
 		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncher(), this);
 	}
+	
+	var masterTrack = masterTrack ? masterTrack : host.createMasterTrackSection(height);
+	post('type:', masterTrack.type);
+	this._tracks[width] = new ClipLaunchComponent(this._name + '_ClipLauncher_Master', height, masterTrack.getClipLauncherSlots(), this);
+
 	this.receive_grid = function(button){if(button.pressed()){self._tracks[button._x(self._grid)].launch(button._y(self._grid));}}
 
 
@@ -1446,7 +1451,7 @@ function SessionComponent(name, width, height, trackBank, _colors)
 
 	//this._zoom = new SessionZoomComponent('SessionZoomTrackBank', this, width, height);
 
-	this._offsetUpdate = function(i){post('ZoomUpdate', self._trackOffset._value, self._sceneOffset._value);}
+	this._offsetUpdate = function(i){}//post('ZoomUpdate', self._trackOffset._value, self._sceneOffset._value);}
 
 	this._trackOffset = new Parameter(this._name + '_trackOffset', {javaObj:this._trackBank});
 	this._trackOffset._javaObj.addTrackScrollPositionObserver(this._trackOffset.receive, 0);
@@ -1455,6 +1460,12 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {javaObj:this._trackBank});
 	this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
+
+	this._onSceneLaunch = function(obj)
+	{
+		self._trackBank.launchScene(obj._value);
+	}
+	this._scene_launch = new RadioComponent(this._name + '_SceneLaunch', 0, height, 0, this._onSceneLaunch, colors.BLUE, colors.BLUE);
 
 	this._onSceneLaunch = function(obj)
 	{
@@ -1488,8 +1499,8 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	}
 	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, 256, 0, this._selectNewSlot, colors.YELLOW);
 
-	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext'});
-	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious'});
+	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext', onValue:colors.YELLOW});
+	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious', onValue:colors.YELLOW});
 
 	this._recordClip_listener = function(obj)
 	{
@@ -1500,7 +1511,6 @@ function SessionComponent(name, width, height, trackBank, _colors)
 	this._record_clip.add_listener(this._recordClip_listener);
 
 	this._preset_clip_length = new OffsetComponent(this._name + '_PresetClipLength', 1, 64, 4, undefined, colors.BLUE);
-
 
 	this._createClip_listener = function(obj)
 	{
@@ -1517,7 +1527,6 @@ function SessionComponent(name, width, height, trackBank, _colors)
 		self._selectedSlot._javaObj.select(slot);
 		self._selectedSlot._javaObj.showInEditor(slot);
 	}
-
 	this._selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
 	this._selected_track.add_listener(this._updateSelectedSlot);
 }
@@ -2048,14 +2057,13 @@ function DrumRackComponent(name, _color)
 
 	this._onNote = function(val, num, extra)
 	{
-		post('onNote', val, num, extra);
 		var buf = self._noteMap[num];
 		for(var i in buf)
 		{
-			if(buf[i].scale_color !== color.GREEN)
+			var scale_color = buf[i].scale_color;
+			if(scale_color != colors.GREEN)
 			{
-				//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
-				buf[i].send( val ? color.YELLOW : buf[i].scale_color );
+				buf[i].send(val ? color.YELLOW : scale_color);
 			}
 		}
 	}
@@ -2240,10 +2248,10 @@ function ScaleComponent(name, _colors)
 		var buf = self._noteMap[num];
 		for(var i in buf)
 		{
-			if(buf[i].scale_color != colors.GREEN)
+			var scale_color = buf[i].scale_color;
+			if(scale_color != colors.GREEN)
 			{
-				//buf[i].send(val ? color.YELLOW : buf[i]==self._last_pressed_button ? colors.WHITE : buf[i].scale_color )
-				buf[i].send(val ? color.YELLOW : buf[i].scale_color);
+				buf[i].send(val ? color.YELLOW : scale_color);
 			}
 		}
 	}

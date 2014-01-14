@@ -72,7 +72,7 @@ function init()
 	cursorTrack = host.createCursorTrack(4, 8);
 	masterTrack = host.createMasterTrack(8);
 	//transport = host.createTransport();
-	trackBank = host.createMainTrackBank(8, 8, 8);
+	trackBank = host.createMainTrackBank(7, 8, 8);
 	returnBank = host.createEffectTrackBank(4, 8);
 	////////////////////////////////////////////////////////////////////////////////
 	post('OhmRGB script loading ------------------------------------------------');
@@ -167,13 +167,13 @@ function setup_lcd()
 
 function setup_session()
 {
-	session = new SessionComponent('Session', 8, 8, trackBank);
+	session = new SessionComponent('Session', 7, 8, trackBank);
 	//session2 = new SessionComponent('Session2', 8, 5, trackBank);
 }
 
 function setup_mixer()
 {
-	mixer = new MixerComponent('Mixer', 8, 4, trackBank);
+	mixer = new MixerComponent('Mixer', 7, 4, trackBank);
 }
 
 function setup_device()
@@ -235,7 +235,7 @@ function setup_usermodes()
 
 function setup_modes()
 {
-
+	//script['main_session_grid'] = new Grid(7, 8, 'MainSessionGrid');
 	script['session_grid'] = new Grid(7, 5, 'SessionGrid');
 	script['seq_zoom'] = new Grid(8, 2, 'KeysGrid');
 	script['seq_grid'] = new Grid(8, 4, 'SequenceGrid');
@@ -325,6 +325,7 @@ function setup_modes()
 	{
 		post('clipPage entered');
 		grid.reset();
+		//main_session_grid.sub_grid(grid, 0, 7, 0, 8);
 		session.assign_grid(grid);
 		session.set_nav_buttons(functions[2], functions[5], functions[4], functions[3]);
 		altClipLaunchSub.enter_mode();
@@ -342,7 +343,7 @@ function setup_modes()
 		}
 		transport._play.set_control(functions[0]);
 		transport._stop.set_control(functions[1]);
-		transport._autowrite.set_control(livid);
+		transport._overdub.set_control(livid);
 		mixer._masterstrip._volume.set_control(faders[7]);
 		mixer._masterstrip._select.set_control(buttons[7]);
 		clipPage.set_shift_button(shift_l);
@@ -351,6 +352,7 @@ function setup_modes()
 	clipPage.exit_mode = function()
 	{
 		altClipLaunchSub.exit_mode();
+		//main_session_grid.clear_buttons();
 		session.assign_grid();
 		session.set_nav_buttons();
 		for(var i=0;i<7;i++)
@@ -366,8 +368,8 @@ function setup_modes()
 		device.set_nav_buttons();
 		transport._play.set_control();
 		transport._stop.set_control();
+		transport._overdub.set_control();
 		transport._autowrite.set_control();
-		//session_grid.clear_buttons();
 		clipPage.set_shift_button();
 		clipPage.active = false;
 		post('clipPage exited');
@@ -378,19 +380,19 @@ function setup_modes()
 		grid.reset();
 		if(clipPage._shifted)
 		{
-			session.assign_grid();
+			//session.assign_grid();
 			//session._zoom.assign_grid(grid);
 			device.set_nav_buttons(functions[5], functions[2], functions[4], functions[3]);
 			transport._play.set_control();
 			transport._stop.set_control();
-			transport._autowrite.set_control();
-			transport._overdub.set_control(livid);
+			transport._overdub.set_control();
+			transport._autowrite.set_control(livid);
 			transport._record.set_control(functions[0]);
 		}
 		else
 		{
 			device.set_nav_buttons();
-			transport._overdub.set_control();
+			transport._autowrite.set_control();
 			//session._zoom.assign_grid();
 			transport._record.set_control();
 			transport._stop.set_control();
@@ -422,6 +424,8 @@ function setup_modes()
 		session._slot_select.set_inc_dec_buttons(functions[5], functions[2]);
 		session._track_up.set_control(functions[4]);
 		session._track_down.set_control(functions[3]);
+		functions[4].send(colors.YELLOW);
+		functions[3].send(colors.YELLOW);
 		session._record_clip.set_control(pads[54]);
 		session._create_clip.set_control(pads[62]);
 		for(var i=0;i<7;i++)
@@ -439,7 +443,7 @@ function setup_modes()
 		mixer._masterstrip._select.set_control(buttons[7]);
 		transport._play.set_control(functions[0]);
 		transport._stop.set_control(functions[1]);
-		transport._autowrite.set_control(livid)
+		transport._overdub.set_control(livid)
 		sequencerPage.set_shift_button(shift_r);
 		sequencerPage.active = true;
 	}
@@ -497,7 +501,8 @@ function setup_modes()
 			session._track_down.set_control();
 			instrument._scaleSelector.set_controls([pads[48], pads[49], pads[50], pads[51], pads[52], pads[53]]);
 			device.set_nav_buttons(functions[5], functions[2], functions[4], functions[3]);
-			transport._overdub.set_control(livid);
+			transport._overdub.set_control();
+			transport._autowrite.set_control(livid);
 			//transport._record.set_control(functions[0]);
 			//transport._stop.set_control(functions[1]);
 			device._enabled.set_control(functions[0]);
@@ -512,7 +517,7 @@ function setup_modes()
 			device.set_nav_buttons();
 			device._enabled.set_control();
 			device._mode.set_control();
-			transport._overdub.set_control();
+			transport._autowrite.set_control();
 			transport._record.set_control();
 			transport._stop.set_control();
 			sequencerPage.enter_mode();
