@@ -481,72 +481,6 @@ Slider.prototype._send = function(value)
 }
 
 
-function PickupSlider(identifier, name, thresh)
-{
-	Control.call( this, identifier, name );
-	var self = this;
-	this._type = CC_TYPE;
-	this._pickup = true;
-	this._thresh = thresh ? thresh : 10;
-	this._dir = 0;
-	this.receive = function(value)
-	{
-		post('pu slider receive', value, 'pickup', self._last_sent_value, 'dir', self._dir);
-		if(self._enabled)
-		{
-			self._value = value;
-			switch(self._dir)
-			{
-				case 0:
-					self.notify();
-					break;
-				case 1:
-					if((self._last_sent_value - value) < self._thresh)
-					{
-						self.notify();
-					}
-					break;
-				case -1:
-					if((value - self._last_sent_value) < self._thresh)
-					{
-						self.notify();
-						break;
-					}
-			}
-		}
-	}
-	register_control(this);
-
-
-}
-
-PickupSlider.prototype = new Control();
-
-PickupSlider.prototype.constructor = PickupSlider;
-
-PickupSlider.prototype._send = function(value)
-{
-	sendChannelController(this._channel, this._id, value);
-}
-
-PickupSlider.prototype.send = function(value)
-{
-	//post('send pu slider', this._name, 'value', value);
-	midiBuffer[this._type][this._id] = [this, value];
-	var dir = (value - this._value) + 1;
-	this._dir = dir/Math.abs(dir);
-	//var dir = Math.pow(this._last_sent_value - value, 0);
-	//tasks.add_task(self.set_dir, [dir], 2, false, this._name + '_takeover');
-	post('pu send, dir:', this._dir, 'old', this._last_sent_value, 'new', value);
-	this._last_sent_value = value;
-}
-
-PickupSlider.prototype.set_dir = function(dir)
-{
-	this._dir = dir;
-}
-
-
 function Encoder(identifier, name)
 {
 	Control.call( this, identifier, name );
@@ -2186,6 +2120,7 @@ function DrumRackComponent(name, _color)
 		{
 			var notes_in_step = self.notes_in_step();
 			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
+			var select_only = self._select_only._value;
 			var offset = self._noteOffset._value;
 			var width = self.width();
 			var height = self.height();
@@ -2197,7 +2132,8 @@ function DrumRackComponent(name, _color)
 					var y_val = height;
 					var note = (column%4) + (Math.abs(row-(height-1))*4) + offset + (Math.floor(column/4)*16);
 					var button = self._grid.get_button(column, row);
-					button.set_translation(note%127); 
+					if(!select_only){button.set_translation(note%127);}
+					else{button._translation = note%127}  //you slimy bastard....
 					self._noteMap[note%127].push(button);
 					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : column < 4 ? colors.BLUE : colors.CYAN;
 					button.send(button.scale_color);
@@ -2234,6 +2170,7 @@ function DrumRackComponent(name, _color)
 	this._shift = new ToggledParameter(this._name + '_Shift');
 	this._shift.add_listener(this._update);
 	this._select = new ToggledParameter(this._name + '_Select', {value:1});
+	this._select_only = new ToggledParameter(this._name + '_SelectOnly', {value:0});
 }
 
 DrumRackComponent.prototype.assign_grid = function(grid)
@@ -2375,6 +2312,8 @@ function ScaleComponent(name, _colors)
 			var keyoffset = -1;
 			var notes_in_step = self.notes_in_step();
 			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
+			post('selected:', selected);
+			var select_only = self._select_only._value;
 			var width = self.width();
 			var height = self.height();
 			var offset = self._noteOffset._value;
@@ -2389,7 +2328,8 @@ function ScaleComponent(name, _colors)
 					var note_pos = column + (Math.abs((height-1)-row))*parseInt(vertoffset);
 					var note = offset + SCALES[scale][note_pos%scale_len] + (12*Math.floor(note_pos/scale_len));
 					var button = self._grid.get_button(column, row);
-					button.set_translation(note%127);
+					if(!select_only){button.set_translation(note%127);}
+					else{button._translation = note%127}  //you slimy bastard....
 					self._noteMap[note%127].push(button);
 					//post('note', note, 'keyoffset', keyoffset, note == keyoffset, note === keyoffset);
 					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : KEYCOLORS[((note%12) in WHITEKEYS) + (((note_pos%scale_len)==0)*2)];// + ((notes_in_step[note%127])*4)];
@@ -2429,6 +2369,7 @@ function ScaleComponent(name, _colors)
 	this._shift = new ToggledParameter(this._name + '_Shift');
 	this._shift.add_listener(this._update);
 	this._select = new ToggledParameter(this._name + '_Select', {value:1});
+	this._select_only = new ToggledParameter(this._name + '_SelectOnly', {value:0});
 
 }
 
@@ -2868,6 +2809,13 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	this._select = new ToggledParameter(this._name + '_Select');
 	this._select.add_listener(this._selectListener);
 
+	this._selectOnlyListener = function(obj)
+	{
+		if(self._keys){self._keys._select_only.set_value(obj._value);}
+		if(self._drums){self._drums._select_only.set_value(obj._value);}
+	}
+	this._select_only = new ToggledParameter(this._name + '_SelectOnly');
+	this._select_only.add_listener(this._selectOnlyListener);
 
 }
 
