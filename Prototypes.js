@@ -1322,6 +1322,7 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	this._session = session;
 	this._clipLauncher = clipLauncher;
 	this._selected_slot = 0;
+	this._playing_slot = 0;
 	//this._clipLauncher.setIndication(true);
 	this._clipslots = new Array(height);
 	this.launch = function(clipslot)
@@ -1340,6 +1341,10 @@ function ClipLaunchComponent(name, height, clipLauncher, session)
 	}
 	this._isPlayingListener = function(clipslot, value)
 	{
+		if(value)
+		{
+			self._playing_slot = clipslot;
+		}
 		var clipslot = 	self._clipslots[clipslot];
 		if(clipslot)
 		{
@@ -1451,7 +1456,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 
 	//this._zoom = new SessionZoomComponent('SessionZoomTrackBank', this, width, height);
 
-	this._offsetUpdate = function(i){}//post('ZoomUpdate', self._trackOffset._value, self._sceneOffset._value);}
+	this._offsetUpdate = function(i){post('ZoomUpdate', self._trackOffset._value, self._sceneOffset._value);}
 
 	this._trackOffset = new Parameter(this._name + '_trackOffset', {javaObj:this._trackBank});
 	this._trackOffset._javaObj.addTrackScrollPositionObserver(this._trackOffset.receive, 0);
@@ -1473,9 +1478,9 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 	}
 	this._scene_launch = new RadioComponent(this._name + '_SceneLaunch', 0, height, 0, this._onSceneLaunch, colors.BLUE, colors.BLUE);
 
-	var cursorTrack = host.createCursorTrackSection(0, 256);
+	this._cursorTrack = host.createCursorTrackSection(0, 256);
 
-	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, cursorTrack.getClipLauncher(), this);
+	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, this._cursorTrack.getClipLauncher(), this);
 	this._onSlotChange = function(obj)
 	{
 		self._slot_select._value = self._selectedTrack._clipLauncher._selected_slot;
@@ -1486,6 +1491,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 
 	this._selectNewSlot = function(obj)
 	{
+		//post('select new slot', obj._value);
 		self._selectedSlot._javaObj.select(obj._value);
 		self._selectedSlot._javaObj.showInEditor(obj._value);
 		if(self._selectedTrack._clipslots[obj._value] && self._selectedTrack._clipslots[obj._value].hasContent)
@@ -1499,8 +1505,8 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 	}
 	this._slot_select = new OffsetComponent(this._name + '_SelectedSlot', 0, 256, 0, this._selectNewSlot, colors.YELLOW);
 
-	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:cursorTrack, action:'selectNext', onValue:colors.YELLOW});
-	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:cursorTrack, action:'selectPrevious', onValue:colors.YELLOW});
+	this._track_up = new Parameter(this._name + '_Track_Up', {javaObj:this._cursorTrack, action:'selectNext', onValue:colors.YELLOW});
+	this._track_down = new Parameter(this._name + '_Track_Dn', {javaObj:this._cursorTrack, action:'selectPrevious', onValue:colors.YELLOW});
 
 	this._recordClip_listener = function(obj)
 	{
@@ -1522,13 +1528,41 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 
 	this._updateSelectedSlot = function()
 	{
+		//post('update selected slot');
 		var slot = self._selectedTrack._selected_slot;
 		self._selectedSlot._value = slot;
 		self._selectedSlot._javaObj.select(slot);
 		self._selectedSlot._javaObj.showInEditor(slot);
 	}
-	this._selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
+	this._selected_track = new Parameter('selected_track_listener', {javaObj:this._cursorTrack, monitor:'addIsSelectedObserver'});
 	this._selected_track.add_listener(this._updateSelectedSlot);
+
+	this.select_playing_clip = function()
+	{
+		//post('select_playing_clip');
+		var isPlaying = false;
+		var hasSelection = false;
+		for(var i in self._selectedTrack._clipslots)
+		{
+			if(self._selectedTrack._clipslots[i].isPlaying)
+			{
+				self._cursorTrack.getClipLauncher().select(i);
+				isPlaying = true;
+				break;
+			}
+		}
+		if(!isPlaying)
+		{
+			for(var i in self._selectedTrack._clipslots)
+			{
+				if(self._selectedTrack._clipslots[i].hasContent)
+				{
+					self._cursorTrack.getClipLauncher().select(i);
+				}
+			}
+		}
+	}
+
 }
 
 SessionComponent.prototype.assign_grid = function(new_grid)
@@ -1593,7 +1627,7 @@ SessionComponent.prototype.set_nav_buttons = function(button0, button1, button2,
 	//if(button3){this._navRt._control.add_listener(this._nav_rt_listener);}
 }
 
-
+	
 /////////////////////////////////////////////////////////////////////////////
 //Component for navigating the SessionComponent while shifted
 

@@ -962,7 +962,7 @@ function onSceneOffsetChanged(i)
 	post('onSceneOffsetChanged', i);
 }
 
-function on_selected_track_selected_clipslot_changed(obj)
+function on_selected_track_selected_clipslot_changed(obj)	
 {
 	//post('on_selected_track_selected_clipslot_changed:', obj._value);
 	//cursorTrack.getClipLauncher().select(obj._value);
@@ -976,6 +976,7 @@ function on_track_type_name_changed(type_name)
 	{
 		page.refresh_mode();
 	}
+	tasks.addTask(session.select_playing_clip, [], 1, false, 'select_playing_clip');
 }
 
 function exit()
