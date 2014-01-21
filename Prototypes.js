@@ -125,7 +125,7 @@ function registerControlDicts()
 	for (var i=0;i<128;i++){CC_OBJECTS[i] = new Control(i, 'None');}
 }
 
-//this is called whenever a control object is created, and basically maintains a list of all NOTE_TYPES and CC_TYPES that sever as lookup tables for MIDI input.
+//this is called whenever a control object is created, and basically maintains a list of all NOTE_TYPES and CC_TYPES that serve as lookup tables for MIDI input.
 function register_control(control)
 {
 	if (control._type == NOTE_TYPE)
@@ -659,7 +659,10 @@ Grid.prototype.reset = function()
 	var buttons = this.controls();
 	for (index in buttons)
 	{
-		buttons[index].reset();
+		if(buttons[index] instanceof Notifier)
+		{
+			buttons[index].reset();
+		}
 	}
 }
 
@@ -1465,12 +1468,6 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {javaObj:this._trackBank});
 	this._sceneOffset._javaObj.addSceneScrollPositionObserver(this._sceneOffset.receive, 0);
 	this._sceneOffset.add_listener(this._offsetUpdate);
-
-	this._onSceneLaunch = function(obj)
-	{
-		self._trackBank.launchScene(obj._value);
-	}
-	this._scene_launch = new RadioComponent(this._name + '_SceneLaunch', 0, height, 0, this._onSceneLaunch, colors.BLUE, colors.BLUE);
 
 	this._onSceneLaunch = function(obj)
 	{
