@@ -738,7 +738,7 @@ function Mode(number_of_modes, name)
 		self.change_mode(button._value);
 		self.notify();
 	}
-	this.mode_toggle = new ToggledParameter(this._name + '_Mode_Toggle', {'onValue':colors.BLUE, 'offValue':colors.CYAN});
+	this.mode_toggle = new ToggledParameter(this._name + '_Mode_Toggle', {'onValue':colors.BLUE, 'offValue':colors.CYAN, 'value':1});
 	this.mode_toggle.add_listener(self.toggle_value);
 }
 
@@ -1917,7 +1917,6 @@ function DeviceComponent(name, size, Device)
 	this._navRt = new Parameter(this._name + '_NavRight', {num:3, value:1, javaObj:this._device, action:'selectPrevious', monitor:'addCanSelectPreviousObserver', onValue:colors.BLUE});
 	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:this._device, action:'toggleEnabledState', monitor:'addIsEnabledObserver', onValue:colors.RED});
 	this._mode = new ToggledParameter(this._name + '_Mode', {onValue:colors.BLUE, offValue:colors.CYAN});
-
 	this._update = function()
 	{
 		for(var i in self._parameter)

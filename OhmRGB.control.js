@@ -179,6 +179,7 @@ function setup_mixer()
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
+	device._mode._value = 1;
 }
 
 function setup_transport()
@@ -382,6 +383,7 @@ function setup_modes()
 		{
 			//session.assign_grid();
 			//session._zoom.assign_grid(grid);
+			device._mode.set_value(0);
 			device.set_nav_buttons(functions[5], functions[2], functions[4], functions[3]);
 			transport._play.set_control();
 			transport._stop.set_control();
@@ -391,6 +393,7 @@ function setup_modes()
 		}
 		else
 		{
+			device._mode.set_value(1);
 			device.set_nav_buttons();
 			transport._autowrite.set_control();
 			//session._zoom.assign_grid();

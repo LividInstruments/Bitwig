@@ -553,6 +553,7 @@ function setup_modes()
 			else
 			{
 				volumeFadersSub.enter_mode();
+				channelControlsSub.enter_mode();
 			}
 			device._enabled.set_control(touch_buttons[1]);
 		}
@@ -560,6 +561,7 @@ function setup_modes()
 		{
 			device._enabled.set_control();
 			volumeFadersSub.exit_mode();
+			channelControlsSub.exit_mode();
 			instrumentControlsSub.exit_mode();
 			sendPage.enter_mode();
 		}
@@ -629,7 +631,6 @@ function setup_modes()
 		touch_runners[1].reset();
 		if(devicePage._shifted)
 		{
-			instrument.assign_grid(grid);
 			altClipLaunchSub.exit_mode();
 			device.set_nav_buttons(function_buttons[5], function_buttons[4], function_buttons[7], function_buttons[6]);
 			device._enabled.set_control(touch_buttons[1]);
@@ -640,11 +641,13 @@ function setup_modes()
 				for(var i=0;i<8;i++)
 				{
 					mixer.channelstrip(i)._select.set_control();
+					instrument.assign_grid(grid);
 				}
 			}
 			else
 			{
 				volumeFadersSub.enter_mode();
+				channelControlsSub.enter_mode();
 			}
 		}
 		else
@@ -653,6 +656,7 @@ function setup_modes()
 			device._enabled.set_control();
 			instrumentControlsSub.exit_mode();
 			volumeFadersSub.exit_mode();
+			channelControlsSub.exit_mode();
 			devicePage.enter_mode();
 		}
 	}
@@ -771,6 +775,7 @@ function setup_modes()
 			else
 			{
 				volumeFadersSub.enter_mode();
+				channelControlsSub.enter_mode();
 			}
 		}
 		else
@@ -786,6 +791,7 @@ function setup_modes()
 			instrument._quantization.set_controls();
 			instrument._stepsequencer._triplet.set_control();
 			volumeFadersSub.exit_mode();
+			channelControlsSub.exit_mode();
 			device.set_nav_buttons();
 			device._enabled.set_control();
 			seqPage.enter_mode();

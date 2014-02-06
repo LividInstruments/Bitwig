@@ -513,6 +513,9 @@ function setup_modes()
 				mixer.channelstrip(i)._select.set_control();
 				mixer.channelstrip(i)._mute.set_control();
 			}
+			transport._play.set_control();
+			transport._stop.set_control();
+			session._slot_select.set_inc_dec_buttons(keys[29], keys[28]);
 			instrument._stepsequencer._flip.set_control(keys[30]);
 			instrument._stepsequencer._follow.set_control(keys[23]);
 			instrument._quantization.set_controls([keys[16], keys[17], keys[18], keys[19], keys[20], keys[21]]);

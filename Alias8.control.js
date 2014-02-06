@@ -100,7 +100,7 @@ function init()
 
 function initialize_noteInput()
 {
-	noteInput = host.getMidiInPort(0).createNoteInput("Alias8Instrument", "80????", "90????", "D0????", "E0????");
+	noteInput = host.getMidiInPort(0).createNoteInput("Alias8Instrument", "81????", "82????", "83????", "90????", "91????", "92????", "93????","D0????", "E0????");
 	noteInput.setShouldConsumeEvents(false);
 
 }
@@ -416,8 +416,8 @@ function setup_modes()
 	}
 	
 	script["MainModes"] = new PageStack(2, "Main Modes");
-	MainModes.add_mode(0, seqPage);
-	MainModes.add_mode(1, clipPage);
+	MainModes.add_mode(0, clipPage);
+	MainModes.add_mode(1, seqPage);
 
 }
 
