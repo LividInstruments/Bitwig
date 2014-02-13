@@ -65,12 +65,13 @@ function init()
 
 	////////////////////////////////////////////////////////////////////////////////
 	application = host.createApplication();
-	cursorDevice = host.createCursorDeviceSection(8);
-	cursorTrack = host.createCursorTrack(5, 4);
+	cursorDevice = host.createCursorDevice();
+	//cursorDevice2 = host.createCursorDevice();
+	cursorTrack = host.createCursorTrack(6, 2);
 	masterTrack = host.createMasterTrack(8);
 	//transport = host.createTransport();
-	trackBank = host.createMainTrackBank(8, 2, 8);
-	returnBank = host.createEffectTrackBank(4, 8);
+	trackBank = host.createMainTrackBank(8, 6, 8);
+	returnBank = host.createEffectTrackBank(6, 8);
 	////////////////////////////////////////////////////////////////////////////////
 	
 	post('OhmRGB script loading ------------------------------------------------');
@@ -100,7 +101,7 @@ function init()
 
 function initialize_noteInput()
 {
-	noteInput = host.getMidiInPort(0).createNoteInput("Alias8Instrument", "81????", "82????", "83????", "90????", "91????", "92????", "93????","D0????", "E0????");
+	noteInput = host.getMidiInPort(0).createNoteInput("Alias8Instrument", "8?????", "9?????", "D?????", "E?????");
 	noteInput.setShouldConsumeEvents(false);
 
 }
@@ -159,13 +160,17 @@ function setup_session()
 
 function setup_mixer()
 {
-	mixer = new MixerComponent('Mixer', 8, 4);
+	mixer = new MixerComponent('Mixer', 8, 6);
+	mixer.returnstrip(0).createEQDeviceComponent();
+	mixer.returnstrip(1).createEQDeviceComponent();
 }
 
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
-	device._mode.set_value(1);
+	device._mode.set_value(0);
+	//device2 = new DeviceComponent('Device2', 8, cursorDevice2);
+	//device2._mode.set_value(0);
 }
 
 function setup_transport()
@@ -179,7 +184,7 @@ function setup_instrument_control()
 	var DRUMOFFSETS = [1, 4, 8, 16];
 
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[7, 1, 0, 1], 'keys':[7, 1, 0, 1], 'drumseq':[8, 1, 0, 0], 'keysseq':[8, 1, 0, 0]});
-
+	funstep = new FunSequencerComponent('Fun', 16);
 	//we're not using this, but it could easily be added back into the script.  you'd need to remove assignments for the intervalSelector.
 	instrument._scaleSelector_callback = function(){instrument._keys._scaleOffset.set_value(instrument._scaleSelector._value);}
 	instrument._scaleSelector = new RadioComponent(instrument._keys._name + '_scaleSelector', 0, 5, 0, instrument._scaleSelector_callback, colors.BLUE, colors.OFF);
@@ -193,7 +198,40 @@ function setup_instrument_control()
 	}
 	instrument._intervalSelector = new RadioComponent(instrument._name + '_intervalSelector', 0, 4, 0, instrument._intervalSelector_callback, colors.MAGENTA, colors.OFF);
 
-
+	//this is needed to deal with the stretched out drum assignments...the instrument component is expecting at least a 4xn grid, we've given it 7x1.
+	instrument._drums._update = function()
+	{
+		instrument._drums._update_request = false;
+		instrument._drums._noteMap = new Array(128);
+		for(var i=0;i<128;i++)
+		{
+			instrument._drums._noteMap[i] = [];
+		}
+		if(instrument._drums._grid instanceof Grid)
+		{
+			var notes_in_step = self.notes_in_step();
+			var selected = instrument._drums._stepsequencer && instrument._drums._select._value ? instrument._drums._stepsequencer.key_offset._value : -1;
+			var select_only = instrument._drums._select_only._value;
+			var offset = instrument._drums._noteOffset._value;
+			var width = instrument._drums.width();
+			var height = instrument._drums.height();
+			for(var column=0;column<width;column++)
+			{
+				for(var row=0;row<height;row++)
+				{
+					var x_val = width;
+					var y_val = height;
+					var note = column;
+					var button = instrument._drums._grid.get_button(column, row);
+					if(!select_only){button.set_translation(note%127);}
+					else{button._translation = note%127}
+					instrument._drums._noteMap[note%127].push(button);
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : colors.BLUE;
+					button.send(button.scale_color);
+				}
+			}
+		}
+	}
 }
 
 function setup_tasks()
@@ -285,12 +323,13 @@ function setup_modes()
 
 	top_sub = new Grid(8, 1, 'TopSub');
 	bottom_sub = new Grid(7, 1, 'BottomSub');
+	session_sub = new Grid(6, 2, 'SessionSub');
 
 	//Page 0:  Send Control and Instrument throughput
-	clipPage = new Page('ClipPage');
-	clipPage.enter_mode = function()
+	curMixPage = new Page('CurrentMix');
+	curMixPage.enter_mode = function()
 	{
-		post('clipPage entered');
+		post('curMixPage entered');
 		grid.reset();
 		for(var i=0;i<8;i++)
 		{
@@ -305,9 +344,9 @@ function setup_modes()
 		}
 		device.set_shared_controls(knobs.slice(0, 8));
 		mixer._masterstrip._volume.set_control(faders[8]);
-		clipPage.active = true;
+		curMixPage.active = true;
 	}
-	clipPage.exit_mode = function()
+	curMixPage.exit_mode = function()
 	{
 		for(var i=0;i<8;i++)
 		{
@@ -322,20 +361,20 @@ function setup_modes()
 		}
 		device.set_shared_controls();
 		mixer._masterstrip._volume.set_control();
-		clipPage.set_shift_button();
-		clipPage.active = false;
-		post('clipPage exited');
+		curMixPage.set_shift_button();
+		curMixPage.active = false;
+		post('curMixPage exited');
 	}
-	clipPage.update_mode = function()
+	curMixPage.update_mode = function()
 	{
-		post('clipPage updated');
+		post('curMixPage updated');
 		grid.reset();
-		if(clipPage._shifted)
+		if(curMixPage._shifted)
 		{
 		}
 		else
 		{
-			clipPage.enter_mode();
+			curMixPage.enter_mode();
 		}
 	}
 
@@ -414,10 +453,265 @@ function setup_modes()
 			seqPage.enter_mode();
 		}
 	}
-	
-	script["MainModes"] = new PageStack(2, "Main Modes");
+
+	//Page 2:  Send Control, Mute and Solos
+	chMixPage = new Page('ChannelMixPage');
+	chMixPage.enter_mode = function()
+	{
+		post('chMixPage entered');
+		grid.reset();
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._solo.set_control(pads[i]);
+			mixer.channelstrip(i)._mute.set_control(pads[i+8]);
+			mixer.channelstrip(i)._send[0].set_control(knobs[i]);
+			mixer.channelstrip(i)._send[1].set_control(knobs[i]);
+		}
+		mixer._masterstrip._volume.set_control(faders[8]);
+		chMixPage.active = true;
+	}
+	chMixPage.exit_mode = function()
+	{
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control();
+			mixer.channelstrip(i)._solo.set_control();
+			mixer.channelstrip(i)._mute.set_control();
+			mixer.channelstrip(i)._send[0].set_control();
+			mixer.channelstrip(i)._send[1].set_control();
+		}
+		mixer._masterstrip._volume.set_control();
+		chMixPage.set_shift_button();
+		chMixPage.active = false;
+		post('chMixPage exited');
+	}
+	chMixPage.update_mode = function()
+	{
+		post('chMixPage updated');
+		grid.reset();
+		if(chMixPage._shifted)
+		{
+		}
+		else
+		{
+			chMixPage.enter_mode();
+		}
+	}
+
+	//Page 3:  Clip Launching and Return Controls 
+	clipPage = new Page('clipPage');
+	clipPage.enter_mode = function()
+	{
+		post('clipPage entered');
+		grid.reset();
+		session_sub.sub_grid(grid, 0, 6, 0, 2);
+		session.assign_grid(session_sub);
+		session.set_nav_buttons(pads[14], pads[15]);
+		for(var i=0;i<6;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._send[0].set_control(knobs[i]);
+			mixer.channelstrip(i)._send[1].set_control(knobs[i+14]);
+		}
+		for(var i=0;i<2;i++)
+		{
+			mixer.returnstrip(i)._select.set_control(pads[i+6]);
+			mixer.returnstrip(i)._volume.set_control(faders[i+6]);
+			mixer.returnstrip(i)._device.set_controls(knobs[i+6], knobs[i+14]);
+		}
+		mixer._masterstrip._volume.set_control(faders[8]);
+		clipPage.active = true;
+	}
+	clipPage.exit_mode = function()
+	{
+		session_sub.clear_buttons;
+		session.assign_grid();
+		session.set_nav_buttons();
+		for(var i=0;i<6;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control();
+		}
+		for(var i=0;i<2;i++)
+		{
+			mixer.returnstrip(i)._select.set_control();
+			mixer.returnstrip(i)._volume.set_control();
+		}
+		mixer._masterstrip._volume.set_control();
+		clipPage.active = false;
+		post('clipPage exited');
+	}
+	clipPage.update_mode = function()
+	{
+		post('clipPage updated');
+		grid.reset();
+		if(clipPage._shifted)
+		{
+		}
+		else
+		{
+			clipPage.enter_mode();
+		}
+	}
+
+	//Page 4:  Device control
+	devPage = new Page('clipPage');
+	devPage.enter_mode = function()
+	{
+		post('devPage entered');
+		grid.reset();
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._select.set_control(pads[i]);
+		}
+		device.set_macro_controls(knobs.slice(0, 8));
+		device.set_parameter_controls(knobs.slice(8, 16));
+		device.set_nav_buttons(pads[13], pads[12], pads[15], pads[14]);
+		device._enabled.set_control(pads[11]);
+		mixer._masterstrip._volume.set_control(faders[8]);
+		devPage.active = true;
+	}
+	devPage.exit_mode = function()
+	{
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control();
+			mixer.channelstrip(i)._select.set_control();
+		}
+		device.set_macro_controls();
+		device.set_parameter_controls();
+		device.set_nav_buttons();
+		device._enabled.set_control();
+		mixer._masterstrip._volume.set_control();
+		devPage.set_shift_button();
+		devPage.active = false;
+		post('devPage exited');
+	}
+	devPage.update_mode = function()
+	{
+		post('devPage updated');
+		grid.reset();
+		if(devPage._shifted)
+		{
+		}
+		else
+		{
+			devPage.enter_mode();
+		}
+	}
+
+	//Page 5:  Sequencer with wacky knobs
+	funPage = new Page('funPage');
+	funPage.enter_mode = function()
+	{
+		post('funPage entered');
+		grid.reset();
+		grid.add_control(7, 1, pads[15]);
+		funstep.assign_grid(grid);
+		funstep.assign_knobs(knobs);
+		funstep.key_offset_dial.set_control(faders[8]);
+		device.set_shared_controls(faders.slice(0, 8));
+		funPage.active = true;
+	}
+	funPage.exit_mode = function()
+	{
+		funstep.assign_grid();
+		funstep.assign_knobs();
+		funstep.key_offset_dial.set_control();
+		device.set_shared_controls();
+		funPage.set_shift_button();
+		funPage.active = false;
+		post('funPage exited');
+	}
+	funPage.update_mode = function()
+	{
+		post('funPage updated');
+		grid.reset();
+		if(funPage._shifted)
+		{
+		}
+		else
+		{
+			funPage.enter_mode();
+		}
+	}
+
+	//Page 6:  Momentary Send Controls
+	momPage = new Page('momPage');
+	momPage.enter_mode = function()
+	{
+		post('momPage entered');
+		grid.reset();
+		for(var i=0;i<6;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control(faders[i]);
+			mixer.channelstrip(i)._select.set_control(pads[i]);
+			mixer.channelstrip(i)._mute.set_control(pads[i+8]);
+			mixer.channelstrip(i)._send[0].set_control(knobs[i]);
+			mixer.channelstrip(i)._send[1].set_control(knobs[i+14]);
+		}
+		for(var i=0;i<2;i++)
+		{
+			mixer.returnstrip(i)._volume.set_control(faders[i+6]);
+			mixer.returnstrip(i+2)._volume.set_control(knobs[i+6]);
+			mixer.returnstrip(i+4)._volume.set_control(knobs[i+14]);
+		}
+		mixer.selectedstrip()._send[0].set_control(pads[6]);
+		mixer.selectedstrip()._send[1].set_control(pads[7]);
+		mixer.selectedstrip()._send[2].set_control(pads[14]);
+		mixer.selectedstrip()._send[3].set_control(pads[15]);
+		mixer._masterstrip._volume.set_control(faders[8]);
+		momPage.active = true;
+	}
+	momPage.exit_mode = function()
+	{
+		for(var i=0;i<6;i++)
+		{
+			mixer.channelstrip(i)._volume.set_control();
+			mixer.channelstrip(i)._select.set_control();
+			mixer.channelstrip(i)._mute.set_control();
+			mixer.channelstrip(i)._send[0].set_control();
+			mixer.channelstrip(i)._send[1].set_control();
+		}
+		for(var i=0;i<2;i++)
+		{
+			mixer.returnstrip(i)._volume.set_control();
+			mixer.returnstrip(i+2)._volume.set_control();
+			mixer.returnstrip(i+4)._volume.set_control();
+		}
+		mixer.selectedstrip()._send[0].set_control();
+		mixer.selectedstrip()._send[1].set_control();
+		mixer.selectedstrip()._send[2].set_control();
+		mixer.selectedstrip()._send[3].set_control();
+		mixer._masterstrip._volume.set_control();
+		momPage.set_shift_button();
+		momPage.active = false;
+		post('sendPage exited');
+	}
+	momPage.update_mode = function()
+	{
+		post('sendPage updated');
+		grid.reset();
+		if(momPage._shifted)
+		{
+		}
+		else
+		{
+			momPage.enter_mode();
+		}
+	}
+
+
+
+	script["MainModes"] = new PageStack(7, "Main Modes");
 	MainModes.add_mode(0, clipPage);
 	MainModes.add_mode(1, seqPage);
+	MainModes.add_mode(2, chMixPage);
+	MainModes.add_mode(3, clipPage);
+	MainModes.add_mode(4, devPage);
+	MainModes.add_mode(5, funPage);
+	MainModes.add_mode(6, momPage);
 
 }
 
@@ -432,6 +726,9 @@ function change_channel(num)
 	{
 		CC_OBJECTS[i]._channel = num;
 	}
+	//the MasterFader doesn't change channels with the rest of the hardware on Alias, so we do this:
+	faders[8]._channel = 0;
+	register_control(faders[8]);
 }
 
 function setup_fixed_controls()
@@ -512,7 +809,7 @@ function exit()
 function onMidi(status, data1, data2)
 {
 	 //printMidi(status, data1, data2);
-	if (isChannelController(status)&& MIDIChannel(status) == current_channel)
+	if (isChannelController(status))//&& MIDIChannel(status) == current_channel)   //removing status check to include MasterFader
 	{
 		//post('CC: ' + status + ' ' + data1 + ' ' + data2);
 		CC_OBJECTS[data1].receive(data2);
@@ -532,7 +829,7 @@ function onSysex(data)
 		change_channel(new_mode);
 		MainModes.change_mode(new_mode);
 	}
-	printSysex(data);
+	//printSysex(data);
 }
 
 function display_mode(){}
