@@ -88,6 +88,7 @@ function init()
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
+	setup_notifications();
 	setup_tasks();
 	setup_modes();
 	//setup_fixed_controls();
@@ -95,6 +96,7 @@ function init()
 	setupTests();
 
 	//LOCAL_OFF();
+	sendSysex('F0 00 01 61 0B 16 01 F7');
 	MainModes.change_mode(0, true);
 	post('OhmRGB script loaded! ------------------------------------------------');
 }
@@ -232,6 +234,11 @@ function setup_instrument_control()
 			}
 		}
 	}
+}
+
+function setup_notifications()
+{
+	notifier = new NotificationDisplayComponent();
 }
 
 function setup_tasks()
@@ -612,10 +619,13 @@ function setup_modes()
 		funstep.assign_knobs(knobs);
 		funstep.key_offset_dial.set_control(faders[8]);
 		device.set_shared_controls(faders.slice(0, 8));
+		notifier.show_message('funPage entered');
+		notifier.add_subject(funstep.key_offset_dial);
 		funPage.active = true;
 	}
 	funPage.exit_mode = function()
 	{
+		notifier.remove_subject(funstep.key_offset_dial);
 		funstep.assign_grid();
 		funstep.assign_knobs();
 		funstep.key_offset_dial.set_control();
@@ -642,6 +652,7 @@ function setup_modes()
 	momPage.enter_mode = function()
 	{
 		post('momPage entered');
+		
 		grid.reset();
 		for(var i=0;i<6;i++)
 		{

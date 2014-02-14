@@ -3377,3 +3377,60 @@ TaskServer.prototype.removeTask = function(callback, arguments, name)
 	}
 }
 
+
+function NotificationDisplayComponent()
+{
+	self = this;
+	this._subjects = [];
+	this._show_message = function(obj)
+	{
+		var name = obj._name;
+		var value = obj._value;
+		var message = name + ' : ' + value;
+		host.showPopupNotification(message);
+	}
+	this.show_message = function(message)
+	{
+		host.showPopupNotification(message);
+	}
+}
+
+NotificationDisplayComponent.prototype.add_subject = function(obj)
+{
+	if(obj instanceof Notifier)
+	{
+		if(!(obj in this._subjects))
+		{
+			obj.add_listener(this._show_message);
+			this._subjects.push(obj)x;
+		}
+	}
+}
+
+NotificationDisplayComponent.prototype.remove_subject = function(obj)
+{
+	if(obj instanceof Notifier)
+	{
+		for(var subject in this._subjects)
+		{
+			if(subject === obj)
+			{
+				obj.remove_listener(this._show_message);
+				this._subjects.splice(subject, 1);
+			}
+		}
+	}
+}
+
+NotificationDisplayComponent.prototype.clear_subjects = function()
+{
+	for(var item in this._subjects)
+	{
+		var obj = this._subjects[item];
+		if(obj instanceof Notifier)
+		{
+			obj.remove_listener(this._show_message);
+		}
+	}
+	this._subjects = {};
+}
