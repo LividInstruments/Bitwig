@@ -1,16 +1,8 @@
 
 
-const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
+
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
-const LAYERSPLASH = [63, 69, 70, 65]
-const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
-const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
-const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
-const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
-const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
-const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
-const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
-const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
+
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
 isShift = false;
@@ -59,7 +51,7 @@ var script = this;
 var session;
 
 var DEBUG = true;	//post() doesn't work without this
-
+var VERSION = '1.0'
 
 load("Prototypes.js");
 
@@ -90,6 +82,7 @@ function init()
 	setup_transport();
 	setup_groove();
 	setup_instrument_control();
+	setup_notifications();
 	setup_tasks();
 	setup_modes();
 	setup_listeners();
@@ -97,6 +90,7 @@ function init()
 	//LOCAL_OFF();
 	MainModes.change_mode(0, true);
 	post('CNTRLR script loaded! ------------------------------------------------');
+	notifier.show_message('CNTRLR Script version ' + VERSION +' loaded.');
 }
 
 function initialize_noteInput()
@@ -207,6 +201,11 @@ function setup_instrument_control()
 {
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[4, 4, 0, 0], 'drumseq':[16, 1, 0, 0], 'keysseq':[16, 1, 0, 0]});
 	instrument._drums._noteOffset._increment = 16;
+}
+
+function setup_notifications()
+{
+	notifier = new NotificationDisplayComponent();
 }
 
 function setup_tasks()
@@ -451,8 +450,9 @@ function setup_modes()
 		}
 		mixer._masterstrip._volume.set_control(faders[7]);
 		mixer._masterstrip._device.set_controls(right_knobs[3], right_knobs[7], right_knobs[11]);
-		instrument.set_scale_offset_buttons(keys[27], keys[26]);
 		instrument.set_note_offset_buttons(keys[25], keys[24]);
+		session._record_clip.set_control(keys[26]);
+		session._create_clip.set_control(keys[27]);
 		seq_grid.sub_grid(keygrid, 0, 16, 0, 1);
 		instrument.assign_explicit_grids(grid, grid, seq_grid, seq_grid);
 		sequencerPage.active = true;
@@ -515,6 +515,8 @@ function setup_modes()
 			}
 			transport._play.set_control();
 			transport._stop.set_control();
+			instrument.set_note_offset_buttons();
+			instrument.set_scale_offset_buttons(keys[25], keys[24]);
 			session._slot_select.set_inc_dec_buttons(keys[29], keys[28]);
 			instrument._stepsequencer._flip.set_control(keys[30]);
 			instrument._stepsequencer._follow.set_control(keys[23]);
@@ -529,6 +531,7 @@ function setup_modes()
 			instrument._stepsequencer._follow.set_control();
 			instrument._quantization.set_controls();
 			instrument._stepsequencer._triplet.set_control();
+			instrument.set_scale_offset_buttons();
 			instrument._shift._value = false;
 			sequencerPage.enter_mode();
 		}
@@ -575,7 +578,7 @@ function on_track_type_name_changed(type_name)
 
 function exit()
 {
-	//resetAll();
+	resetAll();
 }
 
 function onMidi(status, data1, data2)

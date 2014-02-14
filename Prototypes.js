@@ -2977,6 +2977,7 @@ AdaptiveInstrumentComponent.prototype.set_octave_offset_buttons = function(_octa
 	this._octave_dn_button = _octave_dn;
 }
 
+
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing
 
@@ -3152,8 +3153,6 @@ FunSequencerComponent.prototype.assign_grid = function(grid)
 	}
 
 }
-
-
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3402,7 +3401,7 @@ NotificationDisplayComponent.prototype.add_subject = function(obj)
 		if(!(obj in this._subjects))
 		{
 			obj.add_listener(this._show_message);
-			this._subjects.push(obj)x;
+			this._subjects.push(obj);
 		}
 	}
 }

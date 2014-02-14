@@ -125,7 +125,7 @@ var script = this;
 var session;
 
 var DEBUG = true;		//post() doesn't work without this
-
+var VERSION = '1.0';
 
 load("Prototypes.js");
 
@@ -142,7 +142,7 @@ function init()
 	trackBank = host.createTrackBankSection(8, 4, 4);
 	////////////////////////////////////////////////////////////////////////////////
 	
-	post('BASE8 script loading ------------------------------------------------');
+	post('BASE script loading ------------------------------------------------');
 
 	host.getMidiInPort(0).setMidiCallback(onMidi);
 	host.getMidiInPort(0).setSysexCallback(onSysex);
@@ -157,7 +157,8 @@ function init()
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
-	//setup_tasks();
+	setup_notifications();
+	setup_tasks();
 	setup_modes();
 	//setup_usermodes();
 	setup_fixed_controls();
@@ -166,7 +167,8 @@ function init()
 
 	LOCAL_OFF();
 	MainModes.change_mode(0, true);
-	post('BASE8 script loaded! ------------------------------------------------');
+	post('BASE script loaded! ------------------------------------------------');
+	notifier.show_message('Base Script version ' + VERSION +' loaded.');
 }
 
 function initialize_noteInput()
@@ -258,6 +260,11 @@ function setup_instrument_control()
 	instrument._splitMode.set_value(0);
 	instrument._select.set_value(0);
 	instrument._drums._noteOffset._increment = 16;
+}
+
+function setup_notifications()
+{
+	notifier = new NotificationDisplayComponent();
 }
 
 function setup_tasks()

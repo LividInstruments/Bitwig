@@ -1,16 +1,8 @@
 
 
-const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
+
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
-const LAYERSPLASH = [63, 69, 70, 65]
-const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
-const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
-const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
-const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
-const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
-const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
-const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
-const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
+
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
 isShift = false;
@@ -57,6 +49,7 @@ var session;
 
 var DEBUG = true;	//post() doesn't work without this
 var current_channel = 0;
+var VERSION = '1.0';
 
 load("Prototypes.js");
 
@@ -74,7 +67,7 @@ function init()
 	returnBank = host.createEffectTrackBank(6, 8);
 	////////////////////////////////////////////////////////////////////////////////
 	
-	post('OhmRGB script loading ------------------------------------------------');
+	post('Alias8 script loading ------------------------------------------------');
 
 	host.getMidiInPort(0).setMidiCallback(onMidi);
 	host.getMidiInPort(0).setSysexCallback(onSysex);
@@ -98,7 +91,8 @@ function init()
 	//LOCAL_OFF();
 	sendSysex('F0 00 01 61 0B 16 01 F7');
 	MainModes.change_mode(0, true);
-	post('OhmRGB script loaded! ------------------------------------------------');
+	post('Alias8 script loaded! ------------------------------------------------');
+	notifier.show_message('Alias8 Script version ' + VERSION +' loaded.');
 }
 
 function initialize_noteInput()

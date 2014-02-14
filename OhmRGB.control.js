@@ -1,16 +1,8 @@
 
 
-const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
+
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
-const LAYERSPLASH = [63, 69, 70, 65]
-const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
-const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
-const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
-const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
-const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
-const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
-const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
-const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
+
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
 isShift = false;
@@ -60,7 +52,7 @@ var script = this;
 var session;
 
 var DEBUG = true;	//post() doesn't work without this
-
+var VERSION = '1.0';
 
 load("Prototypes.js");
 
@@ -88,6 +80,7 @@ function init()
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
+	setup_notifications();
 	setup_tasks();
 	setup_modes();
 	setup_listeners();
@@ -95,6 +88,7 @@ function init()
 	//LOCAL_OFF();
 	MainModes.change_mode(0, true);
 	post('OhmRGB script loaded! ------------------------------------------------');
+	notifier.show_message('OhmRGB Script version ' + VERSION +' loaded.');
 }
 
 function initialize_noteInput()
@@ -208,6 +202,11 @@ function setup_instrument_control()
 	instrument._intervalSelector = new RadioComponent(instrument._name + '_intervalSelector', 0, 4, 0, instrument._intervalSelector_callback, colors.MAGENTA, colors.OFF);
 
 
+}
+
+function setup_notifications()
+{
+	notifier = new NotificationDisplayComponent();
 }
 
 function setup_tasks()
@@ -389,7 +388,7 @@ function setup_modes()
 			transport._stop.set_control();
 			transport._overdub.set_control();
 			transport._autowrite.set_control(livid);
-			transport._record.set_control(functions[0]);
+			device._enabled.set_control(functions[0]);
 		}
 		else
 		{
@@ -399,6 +398,7 @@ function setup_modes()
 			//session._zoom.assign_grid();
 			transport._record.set_control();
 			transport._stop.set_control();
+			device._enabled.set_control();
 			clipPage.enter_mode();
 		}
 	}
@@ -483,6 +483,8 @@ function setup_modes()
 		transport._autowrite.set_control();
 		session.set_nav_buttons();
 		session._slot_select.set_inc_dec_buttons();
+		session._record_clip.set_control();
+		session._create_clip.set_control();
 		sequencerPage.set_shift_button();
 		sequencerPage.active = false;
 		post('sequencerPage exited');
