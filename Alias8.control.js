@@ -50,6 +50,7 @@ var session;
 var DEBUG = true;	//post() doesn't work without this
 var current_channel = 0;
 var VERSION = '1.0';
+var VERBOSE = false;
 
 load("Prototypes.js");
 
@@ -75,7 +76,7 @@ function init()
 	initialize_prototypes();
 	initialize_surface();
 	setup_controls();
-	//resetAll();
+	resetAll();
 	setup_session();
 	setup_mixer();
 	setup_device();
@@ -84,7 +85,6 @@ function init()
 	setup_notifications();
 	setup_tasks();
 	setup_modes();
-	//setup_fixed_controls();
 	setup_listeners();
 	setupTests();
 
@@ -143,15 +143,11 @@ function setup_controls()
 	post('setup_controls successful');
 }
 
-function setup_lcd()
-{
-	lcd = new DisplaySection('LCD', 2, 34, _base_translations, 42);
-}
-
 function setup_session()
 {
 	session = new SessionComponent('Session', 8, 2, trackBank);
 	session._slot_select._onValue = colors.WHITE;
+	session.set_verbose(VERBOSE);
 }
 
 function setup_mixer()
@@ -159,6 +155,7 @@ function setup_mixer()
 	mixer = new MixerComponent('Mixer', 8, 6);
 	mixer.returnstrip(0).createEQDeviceComponent();
 	mixer.returnstrip(1).createEQDeviceComponent();
+	mixer.set_verbose(VERBOSE);
 }
 
 function setup_device()
@@ -167,11 +164,13 @@ function setup_device()
 	device._mode.set_value(0);
 	//device2 = new DeviceComponent('Device2', 8, cursorDevice2);
 	//device2._mode.set_value(0);
+	device.set_verbose(VERBOSE);
 }
 
 function setup_transport()
 {
 	transport = new TransportComponent('Transport', host.createTransport());
+	transport.set_verbose(VERBOSE);
 }
 
 function setup_instrument_control()
@@ -228,6 +227,8 @@ function setup_instrument_control()
 			}
 		}
 	}
+	
+	instrument.set_verbose(VERBOSE);
 }
 
 function setup_notifications()
@@ -261,66 +262,6 @@ function setup_usermodes()
 
 function setup_modes()
 {
-
-	
-	/*script['session_grid'] = new Grid(8, 5, 'SessionGrid');
-	script['seq_zoom'] = new Grid(8, 2, 'KeysGrid');
-	script['seq_grid'] = new Grid(8, 4, 'SequenceGrid');
-
-	altClipLaunchSub = new Page('AltClipLaunchSub');
-	altClipLaunchSub._last_pressed;
-	altClipLaunchSub._alt = function(obj)
-	{
-		if(obj._value)
-		{
-			tasks.addTask(altClipLaunchSub.Alt, [obj], 3, false, 'AltClipLaunchSub');
-		}
-		else if(obj == altClipLaunchSub._last_pressed)
-		{
-			altClipLaunchSub._last_pressed = undefined;
-			clipLaunch.exit_mode();
-			MainModes.current_page().enter_mode();
-		}
-	}
-	altClipLaunchSub.Alt = function(obj)
-	{
-		if(obj._value)
-		{
-			altClipLaunchSub._last_pressed = obj;
-			MainModes.current_page().exit_mode();
-			clipLaunch.enter_mode();
-		}
-	}
-	altClipLaunchSub.enter_mode = function()
-	{
-		for(var i=0;i<8;i++)
-		{
-			pads[i].add_listener(altClipLaunchSub._alt)
-		}
-	}
-	altClipLaunchSub.exit_mode = function()
-	{
-		if(!altClipLaunchSub._last_pressed)
-		{
-			for(var i=0;i<8;i++)
-			{
-				buttons[i].remove_listener(altClipLaunchSub._alt)
-			}
-		}
-	}
-
-	clipLaunch = new Page('ClipLaunch');
-	clipLaunch.enter_mode = function()
-	{
-		post('cliplaunch enter mode');
-		grid.reset();
-		session.assign_grid(grid);
-	}
-	clipLaunch.exit_mode = function()
-	{
-		session.assign_grid();
-	}
-	*/
 
 	top_sub = new Grid(8, 1, 'TopSub');
 	bottom_sub = new Grid(7, 1, 'BottomSub');
@@ -614,7 +555,7 @@ function setup_modes()
 		funstep.key_offset_dial.set_control(faders[8]);
 		device.set_shared_controls(faders.slice(0, 8));
 		notifier.show_message('funPage entered');
-		notifier.add_subject(funstep.key_offset_dial);
+		notifier.add_subject(funstep.key_offset_dial, 'Key Offset');
 		funPage.active = true;
 	}
 	funPage.exit_mode = function()
@@ -722,6 +663,7 @@ function setup_modes()
 
 function change_channel(num)
 {
+	post('channel is:', num);
 	current_channel = num;
 	for(var i in NOTE_OBJECTS)
 	{
@@ -732,8 +674,8 @@ function change_channel(num)
 		CC_OBJECTS[i]._channel = num;
 	}
 	//the MasterFader doesn't change channels with the rest of the hardware on Alias, so we do this:
-	faders[8]._channel = 0;
-	register_control(faders[8]);
+	//faders[8]._channel = 0;
+	//register_control(faders[8]);
 }
 
 function setup_fixed_controls()

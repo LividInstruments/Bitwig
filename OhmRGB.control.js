@@ -163,22 +163,26 @@ function setup_session()
 {
 	session = new SessionComponent('Session', 7, 8, trackBank);
 	//session2 = new SessionComponent('Session2', 8, 5, trackBank);
+	session.set_verbose(VERBOSE);
 }
 
 function setup_mixer()
 {
 	mixer = new MixerComponent('Mixer', 7, 4, trackBank);
+	mixer.set_verbose(VERBOSE);
 }
 
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
 	device._mode._value = 1;
+	device.set_verbose(VERBOSE);
 }
 
 function setup_transport()
 {
 	transport = new TransportComponent('Transport', host.createTransport());
+	transport.set_verbose(VERBOSE);
 }
 
 function setup_instrument_control()
@@ -200,7 +204,7 @@ function setup_instrument_control()
 		instrument._drums._noteOffset._increment = DRUMOFFSETS[instrument._intervalSelector._value];
 	}
 	instrument._intervalSelector = new RadioComponent(instrument._name + '_intervalSelector', 0, 4, 0, instrument._intervalSelector_callback, colors.MAGENTA, colors.OFF);
-
+	instrument.set_verbose(VERBOSE);
 
 }
 

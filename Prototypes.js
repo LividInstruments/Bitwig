@@ -173,6 +173,24 @@ function resetAll()
 	}
 }
 
+var holdMessages = false;
+function displayMessage(message, force)
+{
+	host.showPopupNotification(message);
+	/*if((force)||(!holdMessages))
+	{
+		host.showPopupNotification(message);
+		holdMessages = true;
+	}
+	tasks.addTask(clearMessages, undefined, 1);*/
+}
+
+function clearMessages()
+{
+	post('clearMessages');
+	holdMessages = false;
+}
+
 /////////////////////////////////////////////////////////////////////////
 //This is the root object to be used for all controls, or objects that 
 //will serve as notifiers to other objects.  It maintains a list of listeners as well as a
@@ -187,6 +205,7 @@ function Notifier(name)
 	this._listeners = [];
 	this._target_heap = [];
 	this._enabled = true;
+	this._display_value = false;
 	this.instance = function(){return self;}
 }
 
@@ -309,12 +328,17 @@ Notifier.prototype.notify = function(obj)
 			post('-> for', this._name,' : ',cb);
 		}
 	}
+	if(this._display_value>0)
+	{
+		displayMessage(this._name + ' : ' + this._value);
+	}
 }
 
 Notifier.prototype.set_enabled = function(val)
 {
 	this._enabled = (val>0);
 }
+
 
 //////////////////////////////////////////////////////////////////////////
 //A Notifier representing a physical control that can send and receive MIDI 
@@ -738,7 +762,7 @@ function Mode(number_of_modes, name)
 		self.change_mode(button._value);
 		self.notify();
 	}
-	this.mode_toggle = new ToggledParameter(this._name + '_Mode_Toggle', {'onValue':colors.BLUE, 'offValue':colors.CYAN, 'value':1});
+	this.mode_toggle = new ToggledParameter(this._name + '_Mode_Toggle', {'onValue':colors.BLUE, 'offValue':colors.CYAN, 'value':0});
 	this.mode_toggle.add_listener(self.toggle_value);
 }
 
@@ -1628,7 +1652,21 @@ SessionComponent.prototype.set_nav_buttons = function(button0, button1, button2,
 	//if(button3){this._navRt._control.add_listener(this._nav_rt_listener);}
 }
 
-	
+SessionComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._navUp._display_value = val;
+	this._navDn._display_value = val;
+	this._navLt._display_value = val;
+	this._navRt._display_value = val;
+	this._create_clip._display_value = val;
+	this._record_clip._display_value = val;
+	this._track_up._display_value = val;
+	this._track_down._display_value = val;
+	this._slot_select._display_value = val;
+	this._scene_launch._display_value = val;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 //Component for navigating the SessionComponent while shifted
 
@@ -1780,6 +1818,20 @@ MixerComponent.prototype.assign_return_controls = function(controls)
 
 MixerComponent.prototype.set_return_control = function(num, controls){}
 
+MixerComponent.prototype.set_verbose = function(val)
+{
+	val = val>0;
+	for(var i in this._channelstrips)
+	{
+		this._channelstrips[i].set_verbose(val);
+	}
+	for(var i in this._returnstrips)
+	{
+		this._returnstrips[i].set_verbose(val);
+	}
+	//this._selectedstrip.set_verbose(val);
+	this._masterstrip.set_verbose(val);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding controls, values
@@ -1847,6 +1899,21 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 }
 
+ChannelStripComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._volume._display_value = val;
+	this._pan._display_value = val;
+	this._mute._display_value = val;
+	this._solo._display_value = val;
+	this._arm._display_value = val;
+	this._select._display_value = val;
+	this._stop._display_value = val;
+	for(var i in this._send)
+	{
+		this._send[i]._diosplay_val = val;
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component to control the first three Macros of a channelstrip
@@ -2014,6 +2081,25 @@ DeviceComponent.prototype.set_macro_controls = function(controls)
 	this._update();
 }
 
+DeviceComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	for(var i in this._parameter)
+	{
+		this._parameter[i]._display_value = val;
+	}
+	for(var i in this._macro)
+	{
+		this._macro[i]._display_value = val;
+	}
+	this._navUp._display_value = val;
+	this._navDn._display_value = val;
+	this._navLt._display_value = val;
+	this._navRt._display_value = val;
+	this._enabled._display_value = val;
+	this._mode._display_value = val;
+}
+
 
 /////////////////////////////////////////////////////////////////////////////
 //Component containing controls for currently controlled primaryDevice for a track
@@ -2028,6 +2114,15 @@ function ChannelDeviceComponent(name, size, channelstrip)
 	for(var i=0;i<size;i++)
 	{
 		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._device.getParameter(i), range:128});
+	}
+}
+
+ChannelDeviceComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	for(var i in this._parameter)
+	{
+		this._parameter[i]._display_value = val;
 	}
 }
 
@@ -2286,6 +2381,12 @@ DrumRackComponent.prototype.set_stepsequencer = function(stepsequencer)
 	this.assign_grid(this._grid);
 }
 
+DrumRackComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._noteOffset._display_value = val;
+	this._octaveOffset._display_value = val;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Container that holds a grid and assigns it to specific note values for triggering an Instrument
@@ -2482,6 +2583,15 @@ ScaleComponent.prototype.set_stepsequencer = function(stepsequencer)
 		this._stepsequencer._edit_step.add_listener(this._update);
 	}
 	this.assign_grid(this._grid);
+}
+
+ScaleComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._vertOffset._display_value = val;
+	this._scaleOffset._display_value = val;
+	this._noteOffset._display_value = val;
+	this._octaveOffset._display_value = val;
 }
 
 
@@ -2721,6 +2831,16 @@ StepSequencerComponent.prototype.set_nav_buttons = function(button0, button1, bu
 	this._velocity_offset.set_inc_dec_buttons(button2, button3);
 }
 
+StepSequencerComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._follow._display_value = val;
+	this._size_offset._display_value = val;
+	this._velocity_offset._display_value = val;
+	this._flip._display_value = val;
+	this._triplet._display_value = val;
+
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for combining the StepSequencer with different instrument components
@@ -2977,6 +3097,13 @@ AdaptiveInstrumentComponent.prototype.set_octave_offset_buttons = function(_octa
 	this._octave_dn_button = _octave_dn;
 }
 
+AdaptiveInstrumentComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._stepsequencer.set_verbose(val);
+	this._keys.set_verbose(val);
+	this._drums.set_verbose(val);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for step sequencing
@@ -3154,6 +3281,20 @@ FunSequencerComponent.prototype.assign_grid = function(grid)
 
 }
 
+FunSequencerComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._follow._display_value = val;
+	this._offset._display_value = val;
+	this._size_offset._display_value = val;
+	this._velocity_offset._display_value = val;
+	this._flip._display_value = val;
+	this._triplet._display_value = val;
+	for(var i = 0; i<steps; i++)
+	{
+		this._pitches[i]._display_value = val;
+	}
+}
 
 /////////////////////////////////////////////////////////////////////////////
 //Component for access to Transport functions
@@ -3186,6 +3327,19 @@ function TransportComponent(name, transport, _colors)
 
 }
 
+TransportComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._play._display_value = val;
+	this._stop._display_value = val;
+	this._record._display_value = val;
+	this._overdub._display_value = val;
+	this._autowrite._display_value = val;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//Component for access to Groove functions
+
 function GrooveComponent(name, groove)
 {
 	var self = this;
@@ -3212,7 +3366,19 @@ function GrooveComponent(name, groove)
 			self._enabled._javaObj.set(self._enabled._value, 2);
 		}
 	}
-	
+
+}
+
+GrooveComponent.prototype.set_verbose = function(val)
+{
+	val = val > 0;
+	this._accentAmount._display_value = val;
+	this._accentPhase._display_value = val;
+	this._accentRate._display_value = val;
+	this._shuffleAmount._display_value = val;
+	this._shuffleRate._display_value = val;
+	this._enabled._display_value = val;
+
 }
 
 
@@ -3349,6 +3515,8 @@ TaskServer.prototype.addTask = function(callback, arguments, interval, repeat, n
 {
 	if(typeof(callback)==='function')
 	{
+		interval = interval||1;
+		repeat = repeat||false;
 		if(!name){name = 'task'+this._qeue.length;}
 		this._qeue[name] = {'callback':callback, 'arguments':arguments, 'interval':interval, 'repeat':repeat, 'ticks':0};
 	}
@@ -3380,13 +3548,25 @@ TaskServer.prototype.removeTask = function(callback, arguments, name)
 function NotificationDisplayComponent()
 {
 	self = this;
-	this._subjects = [];
+	this._subjects = {};
 	this._show_message = function(obj)
 	{
-		var name = obj._name;
-		var value = obj._value;
+		post('show_message', obj._name);
+		entry_name = obj._name;
+		if(entry_name in self._subjects)
+		{
+			var entry = self._subjects[entry_name];
+			var name = entry.display_name;
+			var value = entry.parameter();
+		}
+		else
+		{
+			var name = obj._name;
+			var value = obj._value;
+		}
 		var message = name + ' : ' + value;
 		host.showPopupNotification(message);
+		
 	}
 	this.show_message = function(message)
 	{
@@ -3394,14 +3574,17 @@ function NotificationDisplayComponent()
 	}
 }
 
-NotificationDisplayComponent.prototype.add_subject = function(obj)
+NotificationDisplayComponent.prototype.add_subject = function(obj, display_name, parameters, priority)
 {
 	if(obj instanceof Notifier)
 	{
-		if(!(obj in this._subjects))
+		if(!(obj._name in this._subjects))
 		{
+			priority = priority||0;
+			display_name = display_name||obj._name;
+			parameter_function = this.make_parameter_function(obj, parameters);
+			this._subjects[obj._name] = {'obj': obj, 'display_name':display_name, 'parameter':parameter_function, 'priority':priority};
 			obj.add_listener(this._show_message);
-			this._subjects.push(obj);
 		}
 	}
 }
@@ -3412,10 +3595,10 @@ NotificationDisplayComponent.prototype.remove_subject = function(obj)
 	{
 		for(var subject in this._subjects)
 		{
-			if(subject === obj)
+			if(subject === obj._name)
 			{
-				obj.remove_listener(this._show_message);
-				this._subjects.splice(subject, 1);
+				subject.obj.remove_listener(this._show_message);
+				delete this._subjects[subject];
 			}
 		}
 	}
@@ -3425,7 +3608,7 @@ NotificationDisplayComponent.prototype.clear_subjects = function()
 {
 	for(var item in this._subjects)
 	{
-		var obj = this._subjects[item];
+		var obj = this._subjects[item].obj;
 		if(obj instanceof Notifier)
 		{
 			obj.remove_listener(this._show_message);
@@ -3433,3 +3616,26 @@ NotificationDisplayComponent.prototype.clear_subjects = function()
 	}
 	this._subjects = {};
 }
+
+NotificationDisplayComponent.prototype.make_parameter_function = function(obj, parameter_values)
+{
+	if((parameter_values)&&(parameter_values instanceof Array))
+	{
+		var parameter_function = function()
+		{
+			return parameter_values[obj._value%(parameter_values.length -1)];
+		}
+		return parameter_function;
+	}
+	else
+	{
+		var parameter_function = function()
+		{
+			return obj._value;
+		}
+		return parameter_function;
+	}
+}
+
+
+	

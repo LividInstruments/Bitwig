@@ -52,6 +52,7 @@ var session;
 
 var DEBUG = true;	//post() doesn't work without this
 var VERSION = '1.0'
+var VERBOSE = true;
 
 load("Prototypes.js");
 
@@ -171,6 +172,7 @@ function setup_lcd()
 function setup_session()
 {
 	session = new SessionComponent('Session', 4, 4, trackBank);
+	session.set_verbose(VERBOSE);
 }
 
 function setup_mixer()
@@ -180,27 +182,32 @@ function setup_mixer()
 	mixer.returnstrip(1).createEQDeviceComponent();
 	mixer.returnstrip(2).createEQDeviceComponent();
 	mixer._masterstrip.createEQDeviceComponent();
+	mixer.set_verbose(VERBOSE);
 }
 
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
+	device.set_verbose(VERBOSE);
 }
 
 function setup_transport()
 {
 	transport = new TransportComponent('Transport', host.createTransport());
+	transport.set_verbose(VERBOSE);
 }
 
 function setup_groove()
 {
-	groove = new GrooveComponent();
+	groove = new GrooveComponent('Groove');
+	groove.set_verbose(VERBOSE);
 }
 
 function setup_instrument_control()
 {
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[4, 4, 0, 0], 'drumseq':[16, 1, 0, 0], 'keysseq':[16, 1, 0, 0]});
 	instrument._drums._noteOffset._increment = 16;
+	instrument.set_verbose(VERBOSE);
 }
 
 function setup_notifications()
@@ -336,7 +343,7 @@ function setup_modes()
 		mixer._masterstrip._select.set_control(keys[15]);
 		transport._play.set_control(keys[28]);
 		transport._stop.set_control(keys[29]);
-		instrument._stepsequencer._flip.set_control(keys[30]);
+		//instrument._stepsequencer._flip.set_control(keys[30]);
 		clipPage.active = true;
 		clipPage.set_shift_button(keys[31]);
 		MainModes.mode_toggle.set_control(keys[30]);
@@ -432,8 +439,8 @@ function setup_modes()
 		groove._enabled.set_control(encoder_buttons[3]);
 		transport._overdub.set_control(encoder_buttons[6]);
 		transport._autowrite.set_control(encoder_buttons[7]);
-		transport._play.set_control(keys[28]);
-		transport._stop.set_control(keys[29]);
+		//transport._play.set_control(keys[28]);
+		//transport._stop.set_control(keys[29]);
 		for(var i=0;i<4;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
@@ -451,8 +458,9 @@ function setup_modes()
 		mixer._masterstrip._volume.set_control(faders[7]);
 		mixer._masterstrip._device.set_controls(right_knobs[3], right_knobs[7], right_knobs[11]);
 		instrument.set_note_offset_buttons(keys[25], keys[24]);
-		session._record_clip.set_control(keys[26]);
-		session._create_clip.set_control(keys[27]);
+		session._record_clip.set_control(keys[28]);
+		session._create_clip.set_control(keys[29]);
+		session._slot_select.set_inc_dec_buttons(keys[27], keys[26]);
 		seq_grid.sub_grid(keygrid, 0, 16, 0, 1);
 		instrument.assign_explicit_grids(grid, grid, seq_grid, seq_grid);
 		sequencerPage.active = true;
@@ -489,6 +497,9 @@ function setup_modes()
 		instrument._stepsequencer._follow.set_control();
 		instrument._quantization.set_controls();
 		instrument._stepsequencer._triplet.set_control();
+		session._record_clip.set_control();
+		session._create_clip.set_control();
+		session._slot_select.set_inc_dec_buttons(	);
 		instrument.assign_explicit_grids();
 		sequencerPage.set_shift_button();
 		sequencerPage.active = false;
@@ -517,7 +528,6 @@ function setup_modes()
 			transport._stop.set_control();
 			instrument.set_note_offset_buttons();
 			instrument.set_scale_offset_buttons(keys[25], keys[24]);
-			session._slot_select.set_inc_dec_buttons(keys[29], keys[28]);
 			instrument._stepsequencer._flip.set_control(keys[30]);
 			instrument._stepsequencer._follow.set_control(keys[23]);
 			instrument._quantization.set_controls([keys[16], keys[17], keys[18], keys[19], keys[20], keys[21]]);

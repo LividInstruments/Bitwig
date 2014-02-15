@@ -236,22 +236,26 @@ function setup_lcd()
 function setup_session()
 {
 	session = new SessionComponent('Session', 8, 4, trackBank);
+	session.set_verbose(VERBOSE);
 }
 
 function setup_mixer()
 {
 	mixer = new MixerComponent('Mixer', 8, 4, trackBank, undefined, cursorTrack, masterTrack);
+	mixer.set_verbose(VERBOSE);
 }
 
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
 	device._enabled._onValue = colors.GREEN;
+	device.set_verbose(VERBOSE);
 }
 
 function setup_transport()
 {
-	transport = new TransportComponent();
+	transport = new TransportComponent('Transport');
+	transport.set_verbose(VERBOSE);
 }
 
 function setup_instrument_control()
@@ -260,6 +264,7 @@ function setup_instrument_control()
 	instrument._splitMode.set_value(0);
 	instrument._select.set_value(0);
 	instrument._drums._noteOffset._increment = 16;
+	instrument.set_verbose(VERBOSE);
 }
 
 function setup_notifications()
