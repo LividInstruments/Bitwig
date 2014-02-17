@@ -52,7 +52,7 @@ var session;
 
 var DEBUG = true;	//post() doesn't work without this
 var VERSION = '1.0'
-var VERBOSE = true;
+var VERBOSE = false;
 
 load("Prototypes.js");
 
@@ -83,9 +83,9 @@ function init()
 	setup_transport();
 	setup_groove();
 	setup_instrument_control();
-	setup_notifications();
 	setup_tasks();
 	setup_modes();
+	setup_notifications();
 	setup_listeners();
 	setupTests();
 	//LOCAL_OFF();
@@ -213,6 +213,24 @@ function setup_instrument_control()
 function setup_notifications()
 {
 	notifier = new NotificationDisplayComponent();
+	notifier.add_subject(MainModes, 'Mode', ['Clip Page', 'Sequencer Page'], 9);
+	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
+	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
+	notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
+	for(var i=0;i<8;i++)
+	{
+		notifier.add_subject(device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
+		notifier.add_subject(device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
+		notifier.add_subject(device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
+	}
+
+	notifier.add_subject(instrument._stepsequencer._flip, 'Flip Mode', undefined, 4);
+	notifier.add_subject(instrument._drums._noteOffset, 'Root Note', NOTENAMES, 4, 'Drums');
+	notifier.add_subject(instrument._keys._noteOffset, 'Root Note', NOTENAMES, 4, 'Keys');
+	notifier.add_subject(instrument._keys._scaleOffset, 'Scale', SCALENAMES, 4, 'Keys');
+	notifier.add_subject(instrument._keys._vertOffset, 'Vertical Offset', undefined, 4, 'Keys');
+
+
 }
 
 function setup_tasks()

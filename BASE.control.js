@@ -126,6 +126,7 @@ var session;
 
 var DEBUG = true;		//post() doesn't work without this
 var VERSION = '1.0';
+var VERBOSE = false;
 
 load("Prototypes.js");
 
@@ -157,9 +158,9 @@ function init()
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
-	setup_notifications();
 	setup_tasks();
 	setup_modes();
+	setup_notifications();
 	//setup_usermodes();
 	setup_fixed_controls();
 	setup_listeners();
@@ -243,6 +244,7 @@ function setup_mixer()
 {
 	mixer = new MixerComponent('Mixer', 8, 4, trackBank, undefined, cursorTrack, masterTrack);
 	mixer.set_verbose(VERBOSE);
+
 }
 
 function setup_device()
@@ -270,6 +272,24 @@ function setup_instrument_control()
 function setup_notifications()
 {
 	notifier = new NotificationDisplayComponent();
+	notifier.add_subject(MainModes, 'Mode', ['ClipPage', 'SendPage', 'DevicePage', 'SeqPage'], 9);
+	notifier.add_subject(instrument._stepsequencer._flip, 'Flip Mode', undefined, 4);
+	notifier.add_subject(instrument._keys._noteOffset, 'Root Note', NOTENAMES, 4, 'Keys');
+	notifier.add_subject(instrument._drums._noteOffset, 'Root Note', NOTENAMES, 4, 'Drums');
+
+	notifier.add_subject(instrument._keys._scaleOffset, 'Scale', SCALENAMES, 4, 'Keys');
+	notifier.add_subject(instrument._keys._vertOffset, 'Vertical Offset', undefined, 4, 'Keys');
+	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
+	notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
+	for(var i=0;i<8;i++)
+	{
+		notifier.add_subject(device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
+		notifier.add_subject(device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
+		notifier.add_subject(device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
+	}
+	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
+	notifier.add_subject(session._trackOffset, 'Track', undefined, 3, 'Nav');
+	notifier.add_subject(session._sceneOffset, 'Scene', undefined, 3, 'Nav');
 }
 
 function setup_tasks()
@@ -818,6 +838,7 @@ function setup_modes()
 	MainModes.set_mode_buttons([function_buttons[0], function_buttons[1], function_buttons[2], function_buttons[3]]);
 	MainModes.add_listener(display_mode);
 
+
 	function_buttons[0].set_on_off_values(colors.WHITE);
 	function_buttons[1].set_on_off_values(colors.CYAN);
 	function_buttons[2].set_on_off_values(colors.BLUE);
@@ -980,7 +1001,7 @@ function onSceneOffsetChanged(i)
 	post('onSceneOffsetChanged', i);
 }
 
-function on_selected_track_selected_clipslot_changed(obj)	
+function on_selected_track_selected_clipslot_changed(obj)
 {
 	//post('on_selected_track_selected_clipslot_changed:', obj._value);
 	//cursorTrack.getClipLauncher().select(obj._value);

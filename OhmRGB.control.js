@@ -53,6 +53,7 @@ var session;
 
 var DEBUG = true;	//post() doesn't work without this
 var VERSION = '1.0';
+var VERBOSE = false;
 
 load("Prototypes.js");
 
@@ -74,15 +75,15 @@ function init()
 	initialize_prototypes();
 	initialize_surface();
 	setup_controls();
-	//resetAll();
+	resetAll();
 	setup_session();
 	setup_mixer();
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
-	setup_notifications();
 	setup_tasks();
 	setup_modes();
+	setup_notifications();
 	setup_listeners();
 	setupTests();
 	//LOCAL_OFF();
@@ -154,11 +155,6 @@ function setup_controls()
 	post('setup_controls successful');
 }
 
-function setup_lcd()
-{
-	lcd = new DisplaySection('LCD', 2, 34, _base_translations, 42);
-}
-
 function setup_session()
 {
 	session = new SessionComponent('Session', 7, 8, trackBank);
@@ -177,6 +173,7 @@ function setup_device()
 	device = new DeviceComponent('Device', 8, cursorDevice);
 	device._mode._value = 1;
 	device.set_verbose(VERBOSE);
+
 }
 
 function setup_transport()
@@ -205,12 +202,29 @@ function setup_instrument_control()
 	}
 	instrument._intervalSelector = new RadioComponent(instrument._name + '_intervalSelector', 0, 4, 0, instrument._intervalSelector_callback, colors.MAGENTA, colors.OFF);
 	instrument.set_verbose(VERBOSE);
-
 }
 
 function setup_notifications()
 {
 	notifier = new NotificationDisplayComponent();
+	notifier.add_subject(MainModes, 'Mode', ['Clip Page', 'Sequencer Page'], 9);
+	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
+	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
+	notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
+	for(var i=0;i<8;i++)
+	{
+		notifier.add_subject(device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
+		notifier.add_subject(device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
+		notifier.add_subject(device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
+	}
+
+	notifier.add_subject(instrument._stepsequencer._flip, 'Flip Mode', undefined, 4);
+	notifier.add_subject(instrument._drums._noteOffset, 'Root Note', NOTENAMES, 4, 'Drums');
+	notifier.add_subject(instrument._keys._noteOffset, 'Root Note', NOTENAMES, 4, 'Keys');
+	notifier.add_subject(instrument._keys._scaleOffset, 'Scale', SCALENAMES, 4, 'Keys');
+	notifier.add_subject(instrument._keys._vertOffset, 'Vertical Offset', undefined, 4, 'Keys');
+
+
 }
 
 function setup_tasks()
