@@ -1,8 +1,16 @@
 
 
-
+const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
-
+const LAYERSPLASH = [63, 69, 70, 65]
+const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
+const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
+const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
+const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
+const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
+const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
+const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
+const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
 isShift = false;
@@ -47,10 +55,8 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = true;	//post() doesn't work without this
-var alias_channel = 0;
-var VERSION = '1.0';
-var VERBOSE = false;
+var DEBUG = false;	//post() doesn't work without this
+var current_channel = 0;
 
 load("Prototypes.js");
 
@@ -68,7 +74,7 @@ function init()
 	returnBank = host.createEffectTrackBank(6, 8);
 	////////////////////////////////////////////////////////////////////////////////
 	
-	post('Alias8 script loading ------------------------------------------------');
+	post('OhmRGB script loading ------------------------------------------------');
 
 	host.getMidiInPort(0).setMidiCallback(onMidi);
 	host.getMidiInPort(0).setSysexCallback(onSysex);
@@ -76,23 +82,23 @@ function init()
 	initialize_prototypes();
 	initialize_surface();
 	setup_controls();
-	resetAll();
+	//resetAll();
 	setup_session();
 	setup_mixer();
 	setup_device();
 	setup_transport();
 	setup_instrument_control();
+	setup_notifications();
 	setup_tasks();
 	setup_modes();
-	setup_notifications();
+	//setup_fixed_controls();
 	setup_listeners();
 	setupTests();
 
 	//LOCAL_OFF();
-	//sendSysex('F0 00 01 61 0B 16 01 F7');
+	sendSysex('F0 00 01 61 0B 16 01 F7');
 	MainModes.change_mode(0, true);
-	post('Alias8 script loaded! ------------------------------------------------');
-	notifier.show_message('Alias8 Script version ' + VERSION +' loaded.');
+	post('OhmRGB script loaded! ------------------------------------------------');
 }
 
 function initialize_noteInput()
@@ -123,16 +129,14 @@ function setup_controls()
 		pads[i] = new Button(PADS[i],  'Pad_'+i);
 	}
 	script['grid'] = new Grid(8, 2, 'Grid');
-	script['seq_grid'] = new Grid(8, 2, 'SeqGrid');
 	for ( var i = 0; i< 8; i++)
 	{
 		for (var j = 0; j< 2; j++)
 		{
 			var number = i + (j*8);
-			grid.add_control(i, j, pads[number]);
 			if(number!=15)
 			{
-				seq_grid.add_control(i, j, pads[number]);
+				grid.add_control(i, j, pads[number]);
 			}
 		}
 	}
@@ -145,11 +149,15 @@ function setup_controls()
 	post('setup_controls successful');
 }
 
+function setup_lcd()
+{
+	lcd = new DisplaySection('LCD', 2, 34, _base_translations, 42);
+}
+
 function setup_session()
 {
 	session = new SessionComponent('Session', 8, 2, trackBank);
 	session._slot_select._onValue = colors.WHITE;
-	session.set_verbose(VERBOSE);
 }
 
 function setup_mixer()
@@ -157,7 +165,6 @@ function setup_mixer()
 	mixer = new MixerComponent('Mixer', 8, 6);
 	mixer.returnstrip(0).createEQDeviceComponent();
 	mixer.returnstrip(1).createEQDeviceComponent();
-	mixer.set_verbose(VERBOSE);
 }
 
 function setup_device()
@@ -166,13 +173,11 @@ function setup_device()
 	device._mode.set_value(0);
 	//device2 = new DeviceComponent('Device2', 8, cursorDevice2);
 	//device2._mode.set_value(0);
-	device.set_verbose(VERBOSE);
 }
 
 function setup_transport()
 {
 	transport = new TransportComponent('Transport', host.createTransport());
-	transport.set_verbose(VERBOSE);
 }
 
 function setup_instrument_control()
@@ -206,7 +211,7 @@ function setup_instrument_control()
 		}
 		if(instrument._drums._grid instanceof Grid)
 		{
-			var notes_in_step = instrument._drums.notes_in_step();
+			var notes_in_step = self.notes_in_step();
 			var selected = instrument._drums._stepsequencer && instrument._drums._select._value ? instrument._drums._stepsequencer.key_offset._value : -1;
 			var select_only = instrument._drums._select_only._value;
 			var offset = instrument._drums._noteOffset._value;
@@ -229,38 +234,11 @@ function setup_instrument_control()
 			}
 		}
 	}
-	
-	instrument.set_verbose(VERBOSE);
 }
 
 function setup_notifications()
 {
 	notifier = new NotificationDisplayComponent();
-	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
-	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
-	notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
-	for(var i=0;i<8;i++)
-	{
-		notifier.add_subject(device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
-		notifier.add_subject(device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
-		notifier.add_subject(device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
-	}
-	notifier.add_subject(instrument._stepsequencer._flip, 'Flip Mode', undefined, 4);
-	notifier.add_subject(instrument._drums._noteOffset, 'Root Note', NOTENAMES, 4, 'Drums');
-	notifier.add_subject(instrument._keys._noteOffset, 'Root Note', NOTENAMES, 4, 'Keys');
-	notifier.add_subject(instrument._keys._scaleOffset, 'Scale', SCALENAMES, 4, 'Keys');
-	notifier.add_subject(instrument._keys._vertOffset, 'Vertical Offset', undefined, 4, 'Keys');
-	notifier.add_subject(MainModes, 'Mode', ['Current Mix', 'Sequencer', 'Channel Mix', 'Clip', 'Device', 'Classeq', 'Momentary Sends'], 9);
-	var notes = [];
-	for(var i=0;i<128;i++)
-	{
-		notes[i] = Math.floor(i/10.66);
-	}
-	for(var i=0;i<16;i++)
-	{
-		notifier.add_subject(funstep._pitches[i], 'Pitch for step '+i, notes, 3, 'Pitch_'+i);
-	}
-	notifier.add_subject(funstep.key_offset_dial, 'Root Note', NOTENAMES, 3);
 }
 
 function setup_tasks()
@@ -289,6 +267,66 @@ function setup_usermodes()
 
 function setup_modes()
 {
+
+	
+	/*script['session_grid'] = new Grid(8, 5, 'SessionGrid');
+	script['seq_zoom'] = new Grid(8, 2, 'KeysGrid');
+	script['seq_grid'] = new Grid(8, 4, 'SequenceGrid');
+
+	altClipLaunchSub = new Page('AltClipLaunchSub');
+	altClipLaunchSub._last_pressed;
+	altClipLaunchSub._alt = function(obj)
+	{
+		if(obj._value)
+		{
+			tasks.addTask(altClipLaunchSub.Alt, [obj], 3, false, 'AltClipLaunchSub');
+		}
+		else if(obj == altClipLaunchSub._last_pressed)
+		{
+			altClipLaunchSub._last_pressed = undefined;
+			clipLaunch.exit_mode();
+			MainModes.current_page().enter_mode();
+		}
+	}
+	altClipLaunchSub.Alt = function(obj)
+	{
+		if(obj._value)
+		{
+			altClipLaunchSub._last_pressed = obj;
+			MainModes.current_page().exit_mode();
+			clipLaunch.enter_mode();
+		}
+	}
+	altClipLaunchSub.enter_mode = function()
+	{
+		for(var i=0;i<8;i++)
+		{
+			pads[i].add_listener(altClipLaunchSub._alt)
+		}
+	}
+	altClipLaunchSub.exit_mode = function()
+	{
+		if(!altClipLaunchSub._last_pressed)
+		{
+			for(var i=0;i<8;i++)
+			{
+				buttons[i].remove_listener(altClipLaunchSub._alt)
+			}
+		}
+	}
+
+	clipLaunch = new Page('ClipLaunch');
+	clipLaunch.enter_mode = function()
+	{
+		post('cliplaunch enter mode');
+		grid.reset();
+		session.assign_grid(grid);
+	}
+	clipLaunch.exit_mode = function()
+	{
+		session.assign_grid();
+	}
+	*/
 
 	top_sub = new Grid(8, 1, 'TopSub');
 	bottom_sub = new Grid(7, 1, 'BottomSub');
@@ -357,7 +395,7 @@ function setup_modes()
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
 		}
-		instrument.assign_grid(seq_grid);
+		instrument.assign_grid(grid);
 		for(var i=0;i<4;i++)
 		{
 			mixer.selectedstrip()._send[i].set_control(knobs[i+8]);
@@ -576,18 +614,21 @@ function setup_modes()
 	{
 		post('funPage entered');
 		grid.reset();
-		//grid.add_control(7, 1, pads[15]);
+		grid.add_control(7, 1, pads[15]);
 		funstep.assign_grid(grid);
 		funstep.assign_knobs(knobs);
 		funstep.key_offset_dial.set_control(faders[8]);
 		device.set_shared_controls(faders.slice(0, 8));
+		notifier.show_message('funPage entered');
+		notifier.add_subject(funstep.key_offset_dial);
 		funPage.active = true;
 	}
 	funPage.exit_mode = function()
 	{
+		notifier.remove_subject(funstep.key_offset_dial);
+		funstep.assign_grid();
 		funstep.assign_knobs();
 		funstep.key_offset_dial.set_control();
-		funstep.assign_grid();
 		device.set_shared_controls();
 		funPage.set_shift_button();
 		funPage.active = false;
@@ -675,7 +716,7 @@ function setup_modes()
 
 
 	script["MainModes"] = new PageStack(7, "Main Modes");
-	MainModes.add_mode(0, curMixPage);
+	MainModes.add_mode(0, clipPage);
 	MainModes.add_mode(1, seqPage);
 	MainModes.add_mode(2, chMixPage);
 	MainModes.add_mode(3, clipPage);
@@ -687,8 +728,7 @@ function setup_modes()
 
 function change_channel(num)
 {
-	//post('channel is:', num);
-	alias_channel = num;
+	current_channel = num;
 	for(var i in NOTE_OBJECTS)
 	{
 		NOTE_OBJECTS[i]._channel = num;
@@ -698,8 +738,8 @@ function change_channel(num)
 		CC_OBJECTS[i]._channel = num;
 	}
 	//the MasterFader doesn't change channels with the rest of the hardware on Alias, so we do this:
-	//faders[8]._channel = 0;
-	//register_control(faders[8]);
+	faders[8]._channel = 0;
+	register_control(faders[8]);
 }
 
 function setup_fixed_controls()
@@ -779,13 +819,13 @@ function exit()
 
 function onMidi(status, data1, data2)
 {
-	printMidi(status, data1, data2)
-	if (isChannelController(status)) //&& MIDIChannel(status) == alias_channel)   //removing status check to include MasterFader
+	 //printMidi(status, data1, data2);
+	if (isChannelController(status))//&& MIDIChannel(status) == current_channel)   //removing status check to include MasterFader
 	{
 		//post('CC: ' + status + ' ' + data1 + ' ' + data2);
 		CC_OBJECTS[data1].receive(data2);
 	}
-	else if (isNoteOn(status)) //&& MIDIChannel(status) == alias_channel)
+	else if (isNoteOn(status) && MIDIChannel(status) == current_channel)
 	{
 		//post('NOTE: ' + status + ' ' + data1 + ' ' + data2);
 		NOTE_OBJECTS[data1].receive(data2);
@@ -799,7 +839,6 @@ function onSysex(data)
 		var new_mode = data[13];
 		change_channel(new_mode);
 		MainModes.change_mode(new_mode);
-		MainModes.notify();
 	}
 	//printSysex(data);
 }

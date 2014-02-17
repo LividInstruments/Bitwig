@@ -1,8 +1,16 @@
 
 
-
+const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
-
+const LAYERSPLASH = [63, 69, 70, 65]
+const USERBUTTONMODE = 'F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 01 F7';
+const MIDIBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 03 F7';
+const LIVEBUTTONMODE = 'F0 00 01 61 0C 42 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 F7';
+const SPLITBUTTONMODE = 'F0 00 01 61 0C 42 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 03 03 03 03 05 05 05 05 F7';
+const STREAMINGON = 'F0 00 01 61 0C 42 7F F7';
+const STREAMINGOFF = 'F0 00 01 61 0C 42 00 F7';
+const LINKFUNCBUTTONS = 'F0 00 01 61 0C 44 01 F7';
+const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
 isShift = false;
@@ -51,9 +59,8 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = true;	//post() doesn't work without this
-var VERSION = '1.0';
-var VERBOSE = false;
+var DEBUG = false;	//post() doesn't work without this
+
 
 load("Prototypes.js");
 
@@ -75,7 +82,7 @@ function init()
 	initialize_prototypes();
 	initialize_surface();
 	setup_controls();
-	resetAll();
+	//resetAll();
 	setup_session();
 	setup_mixer();
 	setup_device();
@@ -83,13 +90,11 @@ function init()
 	setup_instrument_control();
 	setup_tasks();
 	setup_modes();
-	setup_notifications();
 	setup_listeners();
 	setupTests();
 	//LOCAL_OFF();
 	MainModes.change_mode(0, true);
 	post('OhmRGB script loaded! ------------------------------------------------');
-	notifier.show_message('OhmRGB Script version ' + VERSION +' loaded.');
 }
 
 function initialize_noteInput()
@@ -155,31 +160,31 @@ function setup_controls()
 	post('setup_controls successful');
 }
 
+function setup_lcd()
+{
+	lcd = new DisplaySection('LCD', 2, 34, _base_translations, 42);
+}
+
 function setup_session()
 {
 	session = new SessionComponent('Session', 7, 8, trackBank);
 	//session2 = new SessionComponent('Session2', 8, 5, trackBank);
-	session.set_verbose(VERBOSE);
 }
 
 function setup_mixer()
 {
 	mixer = new MixerComponent('Mixer', 7, 4, trackBank);
-	mixer.set_verbose(VERBOSE);
 }
 
 function setup_device()
 {
 	device = new DeviceComponent('Device', 8, cursorDevice);
 	device._mode._value = 1;
-	device.set_verbose(VERBOSE);
-
 }
 
 function setup_transport()
 {
 	transport = new TransportComponent('Transport', host.createTransport());
-	transport.set_verbose(VERBOSE);
 }
 
 function setup_instrument_control()
@@ -201,28 +206,6 @@ function setup_instrument_control()
 		instrument._drums._noteOffset._increment = DRUMOFFSETS[instrument._intervalSelector._value];
 	}
 	instrument._intervalSelector = new RadioComponent(instrument._name + '_intervalSelector', 0, 4, 0, instrument._intervalSelector_callback, colors.MAGENTA, colors.OFF);
-	instrument.set_verbose(VERBOSE);
-}
-
-function setup_notifications()
-{
-	notifier = new NotificationDisplayComponent();
-	notifier.add_subject(MainModes, 'Mode', ['Clip Page', 'Sequencer Page'], 9);
-	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
-	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
-	notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
-	for(var i=0;i<8;i++)
-	{
-		notifier.add_subject(device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
-		notifier.add_subject(device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
-		notifier.add_subject(device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
-	}
-
-	notifier.add_subject(instrument._stepsequencer._flip, 'Flip Mode', undefined, 4);
-	notifier.add_subject(instrument._drums._noteOffset, 'Root Note', NOTENAMES, 4, 'Drums');
-	notifier.add_subject(instrument._keys._noteOffset, 'Root Note', NOTENAMES, 4, 'Keys');
-	notifier.add_subject(instrument._keys._scaleOffset, 'Scale', SCALENAMES, 4, 'Keys');
-	notifier.add_subject(instrument._keys._vertOffset, 'Vertical Offset', undefined, 4, 'Keys');
 
 
 }
@@ -406,7 +389,7 @@ function setup_modes()
 			transport._stop.set_control();
 			transport._overdub.set_control();
 			transport._autowrite.set_control(livid);
-			device._enabled.set_control(functions[0]);
+			transport._record.set_control(functions[0]);
 		}
 		else
 		{
@@ -416,7 +399,6 @@ function setup_modes()
 			//session._zoom.assign_grid();
 			transport._record.set_control();
 			transport._stop.set_control();
-			device._enabled.set_control();
 			clipPage.enter_mode();
 		}
 	}
@@ -501,8 +483,6 @@ function setup_modes()
 		transport._autowrite.set_control();
 		session.set_nav_buttons();
 		session._slot_select.set_inc_dec_buttons();
-		session._record_clip.set_control();
-		session._create_clip.set_control();
 		sequencerPage.set_shift_button();
 		sequencerPage.active = false;
 		post('sequencerPage exited');
