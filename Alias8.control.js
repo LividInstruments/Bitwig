@@ -150,6 +150,23 @@ function setup_session()
 	session = new SessionComponent('Session', 8, 2, trackBank);
 	session._slot_select._onValue = colors.WHITE;
 	session.set_verbose(VERBOSE);
+	session._bank_knob = new RangedParameter(session._name + '_Bank_Knob', {range:128});
+	session._knob_nav = function(obj)
+	{
+		if(obj._value > 64)
+		{
+			session._trackBank.scrollTracksDown();
+		}
+		else if(obj._value < 64)
+		{
+			session._trackBank.scrollTracksUp();
+		}
+		var control = session._bank_knob._control;
+		sendChannelController(0, 42, 64);
+	}
+	session._bank_knob.add_listener(session._knob_nav);
+	session._bank_knob.set_control(encoder);
+	
 }
 
 function setup_mixer()
@@ -158,6 +175,8 @@ function setup_mixer()
 	mixer.returnstrip(0).createEQDeviceComponent();
 	mixer.returnstrip(1).createEQDeviceComponent();
 	mixer.set_verbose(VERBOSE);
+
+
 }
 
 function setup_device()
