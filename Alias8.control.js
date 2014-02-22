@@ -21,6 +21,8 @@ for ( var m = 1; m < 9; m++)
 {
 	host.addDeviceNameBasedDiscoveryPair(["Controls" + m + " (A8a)"], ["Controls" + m + " (A8a)"]);
 }
+
+const RELATIVEENCODER = "F0 00 01 61 0B 11 80 80 F7";
 const PADS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const KNOBS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 const BUTTONS = [65, 73, 66, 74, 67, 75, 68, 76] ;
@@ -104,8 +106,10 @@ function initialize_noteInput()
 
 function initialize_surface()
 {
-	//sendSysex(LINKFUNCBUTTONS);
-	//sendSysex(DISABLECAPFADERNOTES);
+	//we need to put the encoder in relative mode:
+	sendSysex(RELATIVEENCODER);
+	//that doesn't seem to work, so we'll do this for good measure....
+	sendChannelController(15, 42, 88);
 }
 
 function setup_controls()
@@ -153,16 +157,16 @@ function setup_session()
 	session._bank_knob = new RangedParameter(session._name + '_Bank_Knob', {range:128});
 	session._knob_nav = function(obj)
 	{
-		if(obj._value > 64)
+		if(obj._value==1)
 		{
 			session._trackBank.scrollTracksDown();
 		}
-		else if(obj._value < 64)
+		else if(obj._value==127)
 		{
 			session._trackBank.scrollTracksUp();
 		}
 		var control = session._bank_knob._control;
-		sendChannelController(0, 42, 64);
+		//sendChannelController(0, 42, 64);
 	}
 	session._bank_knob.add_listener(session._knob_nav);
 	session._bank_knob.set_control(encoder);
@@ -771,7 +775,7 @@ function onMidi(status, data1, data2)
 	//printMidi(status, data1, data2)
 	if (isChannelController(status)) //&& MIDIChannel(status) == alias_channel)   //removing status check to include MasterFader
 	{
-		post('CC: ' + status + ' ' + data1 + ' ' + data2, CC_OBJECTS[data1]._name);
+		//post('CC: ' + status + ' ' + data1 + ' ' + data2, CC_OBJECTS[data1]._name);
 		CC_OBJECTS[data1].receive(data2);
 	}
 	else if (isNoteOn(status)) //&& MIDIChannel(status) == alias_channel)
