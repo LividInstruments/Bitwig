@@ -969,6 +969,7 @@ function RangedParameter(name, args)
 		{
 			if(self._javaObj)
 			{
+				//post('Callback', self._name, obj._value);
 				self._javaObj.set(obj._value, self._range);
 			}
 			else
@@ -1761,7 +1762,7 @@ function MixerComponent(name, num_channels, num_returns, trackBank, returnBank, 
 	this._name = name;
 
 	this._trackBank = trackBank;
-	if(!this._trackBank){this._trackBank = host.createMainTrackBank(num_channels, 0, 0);}
+	if(!this._trackBank){this._trackBank = host.createMainTrackBank(num_channels, num_returns, 0);}
 
 	this._cursorTrack = cursorTrack;
 	if(!this._cursorTrack){this._cursorTrack = host.createCursorTrackSection(num_channels, 0);}
@@ -2253,6 +2254,7 @@ function DrumRackComponent(name, _color)
 	this._grid;
 	this._last_pressed_button;
 	this._held_notes = [];
+	this._split_column = 4;
 	this._update_request = false;
 	this._notes_in_step = Array.apply(null, new Array(128)).map(Number.prototype.valueOf, 0);
 	this._noteMap = new Array(128);
@@ -2333,25 +2335,27 @@ function DrumRackComponent(name, _color)
 			self._noteMap[i] = [];
 		}
 		if(self._grid instanceof Grid)
-		{
+		{	
+			post('original upate', this.caller);
 			var notes_in_step = self.notes_in_step();
 			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
 			var select_only = self._select_only._value;
 			var offset = self._noteOffset._value;
 			var width = self.width();
 			var height = self.height();
+			var division = self._split_column;
 			for(var column=0;column<width;column++)
 			{
 				for(var row=0;row<height;row++)
 				{
 					var x_val = width;
 					var y_val = height;
-					var note = (column%4) + (Math.abs(row-(height-1))*4) + offset + (Math.floor(column/4)*16);
+					var note = (column%division) + (Math.abs(row-(height-1))*division) + offset + (Math.floor(column/division)*16);
 					var button = self._grid.get_button(column, row);
 					if(!select_only){button.set_translation(note%127);}
 					else{button._translation = note%127}  //you slimy bastard....
 					self._noteMap[note%127].push(button);
-					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : column < 4 ? colors.BLUE : colors.CYAN;
+					button.scale_color = notes_in_step[note%127] ? colors.GREEN : note == selected ? colors.WHITE : column < self._split_column ? colors.BLUE : colors.CYAN;
 					button.send(button.scale_color);
 				}
 			}
@@ -3322,7 +3326,7 @@ function FunSequencerComponent(name, steps)
 	this._last_grid_size = 1;
 	this._cursorClip = host.createCursorClipSection(SEQ_BUFFER_STEPS, 128);
 
-	this._pitch_range = 12;
+	this._pitch_range = 13;
 	this._pitches = [];
 	
 	for(var i = 0; i<steps; i++)
@@ -3342,7 +3346,7 @@ function FunSequencerComponent(name, steps)
 			//post('sequencer button pressed:', button._name);
 			var key = self.key_offset._value;
 			var offset = self._offset._value;
-			post('key is:', key);
+			//post('key is:', key);
 			var pos = button._x(self._grid) + self.width()*button._y(self._grid);  // + this.viewOffset();
 			var step = offset + pos;
 			var isSet = 0;
@@ -3360,10 +3364,12 @@ function FunSequencerComponent(name, steps)
 					if((i!=step_pitch)&&(reg))
 					{
 						self._cursorClip.clearStep(step, pitch);
-						post('turning off:', step, pitch, self._velocity_offset._value);
+						self._stepSet[step * 128 + (key + i)] = 0;
+						//post('turning off:', step, pitch, self._velocity_offset._value);
 					}
 				}
 				self._cursorClip.setStep(step, step_pitch+key, self._velocity_offset._value, .25);
+				self._stepSet[(step * 128) + (step_pitch+key)] = 1;
 			}
 			else
 			{
@@ -3374,6 +3380,7 @@ function FunSequencerComponent(name, steps)
 					if(reg)
 					{
 						self._cursorClip.clearStep(step, pitch);
+						self._stepSet[step * 128 + (key + i)] = 0;
 					}
 				}
 			}
@@ -3404,9 +3411,11 @@ function FunSequencerComponent(name, steps)
 				if((i!=step_pitch)&&(reg))
 				{
 					self._cursorClip.clearStep(step, pitch);
+					self._stepSet[(step * 128) + pitch] = 0;
 				}
 			}
 			self._cursorClip.setStep(step, step_pitch + key, self._velocity_offset._value, .25);
+			self._stepSet[(step * 128) + (step_pitch+key)] = 1 ;
 		}
 	}
 	for(var i = 0; i<steps; i++)
