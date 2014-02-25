@@ -535,6 +535,8 @@ function setup_modes()
 		device.set_nav_buttons(pads[11], pads[10], pads[13], pads[12]);
 		device._nextPreset.set_control(pads[15]);
 		device._previousPreset.set_control(pads[14]);
+		pads[14].send(colors.GREEN);
+		pads[15].send(colors.GREEN);
 		device._enabled.set_control(pads[9]);
 		mixer._masterstrip._volume.set_control(faders[8]);
 		devPage.active = true;
