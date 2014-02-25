@@ -49,7 +49,7 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = true;	//post() doesn't work without this
+var DEBUG = false;	//post() doesn't work without this
 var alias_channel = 0;
 var VERSION = '1.0';
 var VERBOSE = false;
@@ -528,10 +528,14 @@ function setup_modes()
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
 			mixer.channelstrip(i)._select.set_control(pads[i]);
 		}
+		transport._autowrite.set_control(pads[8]);
+
 		device.set_macro_controls(knobs.slice(0, 8));
 		device.set_parameter_controls(knobs.slice(8, 16));
-		device.set_nav_buttons(pads[13], pads[12], pads[15], pads[14]);
-		device._enabled.set_control(pads[11]);
+		device.set_nav_buttons(pads[11], pads[10], pads[13], pads[12]);
+		device._nextPreset.set_control(pads[15]);
+		device._previousPreset.set_control(pads[14]);
+		device._enabled.set_control(pads[9]);
 		mixer._masterstrip._volume.set_control(faders[8]);
 		devPage.active = true;
 	}
@@ -542,10 +546,13 @@ function setup_modes()
 			mixer.channelstrip(i)._volume.set_control();
 			mixer.channelstrip(i)._select.set_control();
 		}
+		transport._autowrite.set_control();
 		device.set_macro_controls();
 		device.set_parameter_controls();
 		device.set_nav_buttons();
 		device._enabled.set_control();
+		device._nextPreset.set_control();
+		device._previousPreset.set_control();
 		mixer._masterstrip._volume.set_control();
 		devPage.set_shift_button();
 		devPage.active = false;

@@ -86,7 +86,7 @@ loadAPI(1);
 //host.defineController("Livid Instruments", "BASE", "1.0", "aa7a2670-9d2c-11e2-9e96-0800200c9a66");
 host.defineController("Livid Instruments", "BASE", "1.0", "ba4ceb20-ca25-11e2-8b8b-0800200c9a66");
 var PRODUCT = "0C"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D"
-var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 0 ?? ?? ?? ?? F7";
+var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 00 ?? ?? ?? ?? F7";
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["Base8"], ["Base8"]);
