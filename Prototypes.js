@@ -989,6 +989,30 @@ RangedParameter.prototype = new Parameter();
 RangedParameter.prototype.constructor = RangedParameter;
 
 
+function DelayedRangedParameter(name, args)
+{
+	this._delay = 1;
+	RangedParameter.call( this, name, args );
+	var self = this;
+	this.receive = function(value)
+	{
+		self._value = value;
+		self.update_control();
+		tasks.addTask(self.delayed_receive, [value], self._delay);
+	}
+	this.delayed_receive = function(value)
+	{
+		if(value == self._value)
+		{
+			self.notify();
+		}
+	}
+}
+
+DelayedRangedParameter.prototype = new RangedParameter();
+
+DelayedRangedParameter.prototype.constructor = DelayedRangedParameter;
+
 /////////////////////////////////////////////////////////////////////////////
 //Notifier that uses two buttons to change an offset value
 
@@ -3341,7 +3365,7 @@ function FunSequencerComponent(name, steps)
 	
 	for(var i = 0; i<steps; i++)
 	{
-		this._pitches[i] = new RangedParameter(this._name + '_Pitch_'+i, {range:128});
+		this._pitches[i] = new DelayedRangedParameter(this._name + '_Pitch_'+i, {range:128});
 	}
 	this.key_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:128});
 	this._on_key_offset_dial_change = function(obj)

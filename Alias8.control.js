@@ -49,12 +49,14 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = false;	//post() doesn't work without this
+
 var alias_channel = 0;
 var VERSION = '1.0';
 var VERBOSE = false;
 
 load("Prototypes.js");
+
+var DEBUG = true;	//post() doesn't work without this
 
 function init()
 {
