@@ -850,6 +850,8 @@ function Parameter(name, args)
 	this._value = 0;
 	this._onValue = 127;
 	this._offValue = 0;
+	this._text_length = 10;
+	this._unassigned = 'None';
 	for (var i in args)
 	{
 		this['_'+i] = args[i];
@@ -887,6 +889,7 @@ function Parameter(name, args)
 	{
 		if(this._action){this._Callback = function(obj){if(obj._value){self._javaObj[self._action]();}}}
 		if(this._monitor){this._javaObj[this._monitor](this.receive);}
+		if(this._monitor_text){this._javaObj[this._monitor_text](this._text_length, this._unassigned, this.receive);}
 	}
 }
 
@@ -985,6 +988,30 @@ RangedParameter.prototype = new Parameter();
 
 RangedParameter.prototype.constructor = RangedParameter;
 
+
+function DelayedRangedParameter(name, args)
+{
+	this._delay = 1;
+	RangedParameter.call( this, name, args );
+	var self = this;
+	this.receive = function(value)
+	{
+		self._value = value;
+		self.update_control();
+		tasks.addTask(self.delayed_receive, [value], self._delay);
+	}
+	this.delayed_receive = function(value)
+	{
+		if(value == self._value)
+		{
+			self.notify();
+		}
+	}
+}
+
+DelayedRangedParameter.prototype = new RangedParameter();
+
+DelayedRangedParameter.prototype.constructor = DelayedRangedParameter;
 
 /////////////////////////////////////////////////////////////////////////////
 //Notifier that uses two buttons to change an offset value
@@ -2035,8 +2062,15 @@ function DeviceComponent(name, size, Device)
 		}
 	}
 	this._selected_page.add_listener(this._on_selected_page_changed);
-	
-	///this._page_names.add_listener(function(obj){post('------page_names:', obj._value)});
+
+	this._nextPreset = new Parameter(this._name + '_Next_Preset', {javaObj:this._device, action:'switchToNextPreset'});
+	this._previousPreset = new Parameter(this._name + '_Previous_Preset', {javaObj:this._device, action:'switchToPreviousPreset'});
+	this._preset_creators = new ArrayParameter(this._name + '_Preset_Creators', {javaObj:this._device, value:[], monitor:'addPresetCreatorsObserver'});
+	this._preset_creator = new Parameter(this._name + '_Preset_Creator', {javaObj:this._device, monitor_text:'addPresetCreatorObserver'});	
+	this._preset_name = new Parameter(this._name + '_Preset_Name', {javaObj:this._device, monitor_text:'addPresetNameObserver'});
+
+
+	//this._preset_creators.add_listener(function(obj){post('------preset_creators:', obj._value)});
 	//this._selected_page.add_listener(function(obj){post('------selected_page:', obj._value)});
 
 	this._update = function()
@@ -3331,7 +3365,7 @@ function FunSequencerComponent(name, steps)
 	
 	for(var i = 0; i<steps; i++)
 	{
-		this._pitches[i] = new RangedParameter(this._name + '_Pitch_'+i, {range:128});
+		this._pitches[i] = new DelayedRangedParameter(this._name + '_Pitch_'+i, {range:128});
 	}
 	this.key_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:128});
 	this._on_key_offset_dial_change = function(obj)
@@ -3609,6 +3643,10 @@ function TransportComponent(name, transport, _colors)
 
 	this._autowrite = new ToggledParameter('autowrite_listener', {javaObj:transport, action:'toggleWriteArrangerAutomation', monitor:'addAutomationWriteModeObserver', onValue:colors.BLUE});
 
+	this._loop = new ToggledParameter('loop_listener', {javaObj:transport, action:'toggleLoop', monitor:'addIsLoopActiveObserver', onValue:colors.YELLOW});
+	
+	this._rewind = new Parameter('rewind_button', {javaObj:transport, action:'rewind'});
+	this._forward = new Parameter('forward_button', {javaObj:transport, action:'fastForward'});
 }
 
 TransportComponent.prototype.set_verbose = function(val)
