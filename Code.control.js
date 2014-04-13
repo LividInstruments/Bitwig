@@ -26,6 +26,7 @@ const ENC_BUTTONS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23
 const SIDE_BUTTONS = [33,34,35,36,37];
 const BTM_BUTTONS = [38,39,40,41,42,43,44,45];
 const ENC_RING = [33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64];
+const CTLCOUNT = 77;
 
 var color =
 {
@@ -233,7 +234,7 @@ function setup_usermodes()
 {
 	//setup a set of controls that will be sent through a User port to BW, where they can be User-mapped.
 	user1Input = host.getMidiInPort(0).createNoteInput("CodeUser1", "80????", "90????", "D0????", "E0????");
-	userbank1 = new UserBankComponent('UserBank1', 4, user1Input);
+	userbank1 = new UserBankComponent('UserBank1', CTLCOUNT, user1Input);
 	user1Input.setShouldConsumeEvents(false);
 }
 
@@ -247,7 +248,7 @@ function setup_fixed_controls()
 	}
 	for(var i=0;i<32;i++)
 	{
-		userbank1.set_control(i+32, encs_buttons[i]);
+		userbank1.set_control(i+32, enc_buttons[i]);
 	}
 	for(var i=0;i<5;i++)
 	{
