@@ -1021,6 +1021,8 @@ function on_track_type_name_changed(type_name)
 function exit()
 {
 	resetAll();
+	flush();
+	flush = function(){}
 }
 
 function onMidi(status, data1, data2)
