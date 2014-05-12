@@ -248,7 +248,7 @@ function setup_fixed_controls()
 	device.set_macro_controls([faders[0], faders[1], faders[2], accels[2], fader_buttons[0], fader_buttons[1], fader_buttons[2], pads[4]]);
 	for(var i=0;i<4;i++)
 	{
-		pads[i].set_translation(36+i);
+		//pads[i].set_translation(36+i);
 		userbank1.set_control(i, buttons[2+i]);
 	}
 	for(var i=0;i<2;i++)
@@ -258,6 +258,7 @@ function setup_fixed_controls()
 	//mixer._selectedstrip._clip_navigator.set_inc_dec_buttons(buttons[0], buttons[1]);
 	session._track_up.set_control(buttons[1]);
 	session._track_down.set_control(buttons[0]);
+	session._scene_launch.set_controls([pads[0], pads[1], pads[2], pads[3]]);
 	transport._stop.set_control(buttons[6]);
 	transport._loop.set_control(buttons[7]);
 	transport._rewind.set_control(buttons[8]);
