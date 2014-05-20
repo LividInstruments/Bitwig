@@ -47,7 +47,7 @@ var script = this;
 var DEBUG = true;		//post() doesn't work without this
 var VERSION = '1.0';
 var VERBOSE = false;
-
+var toggles = [];
 load("Prototypes.js");
 
 function init()
@@ -94,10 +94,18 @@ function init()
 	setup_listeners();          //use this to set up any mode-independent global listeners
 	setupTests();               //use this block to set up any diagnostic routines
 
+  inittogs();
+
 	LOCAL_OFF();
 	//MainModes.change_mode(0, true);     //select the initial mode
 	post('GuitarWing script loaded! ------------------------------------------------');
 	notifier.show_message('GuitarWing Script version ' + VERSION +' loaded.');
+}
+
+function inittogs(){
+  for(var i=0; i<128; i++){
+    toggles[i]=0;
+  }
 }
 
 function initialize_noteInput()
@@ -282,6 +290,7 @@ function exit()
 	resetAll();
 }
 
+
 function onMidi(status, data1, data2)
 {
 	//this is a global callback setup in init(), we could concievably place it in Prototypes instead.
@@ -293,8 +302,24 @@ function onMidi(status, data1, data2)
 	}
 	else if (isNoteOn(status) && MIDIChannel(status) == 0)
 	{
-		//post('NOTE: ' + status + ' ' + data1 + ' ' + data2);
-		NOTE_OBJECTS[data1].receive(data2);
+	  //bottom buttons and sidebuttons are toggles. pads and slider touch notes are momentary
+		if(data1>41 && data1<50){
+		  //bottom and side buttons are toggles
+		  if(data2>0){
+        //post('NOTE TOG: ' + status + ' ' + data1 + ' ' + data2+' tog '+toggles[data1]);
+        var returntog = 1-toggles[data1];
+        toggles[data1] = returntog;
+        if(!returntog){
+  		    NOTE_OBJECTS[data1].receive(0);
+  		  }else{
+  		    NOTE_OBJECTS[data1].receive(data2);
+  		  }
+		  }
+		}else{
+		  //momentary
+      //post('NOTE MOM: ' + status + ' ' + data1 + ' ' + data2);
+      NOTE_OBJECTS[data1].receive(data2);
+    }
 	}
 }
 
