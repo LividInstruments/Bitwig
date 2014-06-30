@@ -62,7 +62,6 @@ function init()
 	////////////////////////////////////////////////////////////////////////////////
 	application = host.createApplication();
 	cursorDevice = host.createCursorDeviceSection(8);
-	drumgrid = cursorDevice.createDrumPadGrid(4, 4);
 	cursorTrack = host.createCursorTrack(4, 8);
 	masterTrack = host.createMasterTrack(0);
 	//transport = host.createTransport();

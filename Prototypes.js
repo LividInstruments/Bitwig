@@ -6,7 +6,7 @@ const NONE_TYPE = 'NONE_TYPE';
 const CHANNEL = 0;
 const NONE = 'NONE';
 
-const colors = {OFF : 0, WHITE : 1, CYAN : 5, MAGENTA : 9, RED : 17, BLUE : 33, YELLOW : 65, GREEN : 127};
+var colors = {OFF : 0, WHITE : 1, CYAN : 5, MAGENTA : 9, RED : 17, BLUE : 33, YELLOW : 65, GREEN : 127};
 
 NOTE_OBJECTS = new Array(128);
 CC_OBJECTS = new Array(128);
@@ -966,6 +966,7 @@ function RangedParameter(name, args)
 {
 	Parameter.call( this, name, args );
 	var self = this;
+	this._range = this._range||128;
 	this._Callback = function(obj)
 	{
 		if(obj._value!=undefined)
@@ -977,11 +978,18 @@ function RangedParameter(name, args)
 			}
 			else
 			{
-				self.receive(obj._value);
+				self.receive(Math.floor((obj._value/127)*self._range));
 			}
 		}
 	}
-	if(this._javaObj){this._javaObj.addValueObserver(this._range, this.receive);}
+	if(this._javaObj)
+	{
+		this._javaObj.addValueObserver(this._range, this.receive);
+	}
+	else
+	{
+		this.update_control = function(){if(self._control){self._control.send(Math.floor((self._value/self._range)*127));}}
+	}
 }
 
 RangedParameter.prototype = new Parameter();
@@ -1679,6 +1687,15 @@ SessionComponent.prototype.assign_grid = function(new_grid)
 	}
 }
 
+SessionComponent.prototype.display_pane = function(state)
+{
+	state = state||false;
+	for (var track in this._tracks)
+	{
+		this._tracks[track].set_indication(state);
+	}
+}
+
 SessionComponent.prototype.colors = function()
 {
 	return this._colors;
@@ -1917,7 +1934,7 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 	this._arm = new ToggledParameter(this._name + '_Arm', {javaObj:this._track.getArm(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.armColor});
 
-	this._select = new Parameter(this._name + '_Select', {javaObj:self._track, action:'select', monitor:'addIsSelectedObserver', onValue:this._colors.selectColor});
+	this._select = new ToggledParameter(this._name + '_Select', {javaObj:self._track, action:'select', monitor:'addIsSelectedObserver', onValue:this._colors.selectColor});
 	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
 
 	this._stop = new ToggledParameter(this._name + '_Stop', {javaObj:self._track, onValue:colors.BLUE, offValue:colors.BLUE});
@@ -1943,9 +1960,13 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 	this.createEQDeviceComponent = function(size)
 	{
-		self._device = new EQDeviceComponent(this);
+		self._device = new EQDeviceComponent(this._name+'_eqDevice', this);
 	}
 
+	this.createChannelDeviceComponent = function(size)
+	{
+		self._device = new ChannelDeviceComponent(this._name+'_channelDevice', size, this);
+	}
 
 }
 
@@ -2189,14 +2210,21 @@ DeviceComponent.prototype.set_verbose = function(val)
 function ChannelDeviceComponent(name, size, channelstrip)
 {
 	var self = this;
+	size = size||8;
 	this._name = name;
 	this._size = size;
 	this._device = channelstrip._track.getPrimaryDevice();
 	this._parameter = [];
+	this._macro = [];
 	for(var i=0;i<size;i++)
 	{
 		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._device.getParameter(i), range:128});
+		this._macro[i] = new RangedParameter(this._name + '_Macro_' + i, {num:i, javaObj:this._device.getMacro(i).getAmount(), range:128});
 	}
+	this._navLt = new Parameter(this._name + '_NavLeft', {num:0, value:1, javaObj:this._device, action:'selectNext', onValue:colors.BLUE});
+	this._navRt = new Parameter(this._name + '_NavRight', {num:1, value:1, javaObj:this._device, action:'selectPrevious', onValue:colors.BLUE});
+	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:this._device, action:'toggleEnabledState', monitor:'addIsEnabledObserver', onValue:colors.RED});
+
 }
 
 ChannelDeviceComponent.prototype.set_verbose = function(val)
@@ -3358,14 +3386,20 @@ function FunSequencerComponent(name, steps)
 	this._grid;
 	this._zoom_grid;
 	this._last_grid_size = 1;
-	this._cursorClip = host.createCursorClipSection(SEQ_BUFFER_STEPS, 128);
+	this._cursorClip = host.createCursorClipSection(steps, 128);
 
-	this._pitch_range = 13;
+	this._pitch_range = 12;
 	this._pitches = [];
 	
 	for(var i = 0; i<steps; i++)
 	{
 		this._pitches[i] = new DelayedRangedParameter(this._name + '_Pitch_'+i, {range:128});
+	}
+	this.octave_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:9});
+	this._on_octave_offset_dial_change = function(obj)
+	{
+		var val = obj._value;
+		self.key_offset.set_value(val*12);
 	}
 	this.key_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:128});
 	this._on_key_offset_dial_change = function(obj)
@@ -3437,7 +3471,10 @@ function FunSequencerComponent(name, steps)
 		}
 		if(isSet)
 		{
-			var step_pitch = (Math.floor((self._pitches[step]._value/128)*self._pitch_range));
+			//var step_pitch = (Math.floor((self._pitches[step]._value/128)*self._pitch_range));
+			var curScale = SCALES[SCALENAMES[self._scaleOffset._value]];
+			//post('scaleOffset is:', self._scaleOffset._value, 'curScale is:', curScale);
+			var step_pitch = curScale[(Math.floor((self._pitches[step]._value/128)*(curScale.length-1)))];
 			for(var i=0;i<=self._pitch_range;i++)
 			{
 				var pitch = i + key;
@@ -3456,8 +3493,9 @@ function FunSequencerComponent(name, steps)
 	{
 		this._pitches[i].add_listener(this._on_pitch_change);
 	}
+	this.octave_offset_dial.add_listener(this._on_octave_offset_dial_change);
 	this.key_offset_dial.add_listener(this._on_key_offset_dial_change);
-
+	
 	this.receive_zoom_grid = function(button)
 	{
 	}
@@ -3508,6 +3546,40 @@ function FunSequencerComponent(name, steps)
 		self._edit_step.set_value(-1);
 	}
 
+	this._onAddNote = function(obj)
+	{
+		if(obj._value)
+		{
+			var key = self.key_offset._value;
+			var offset = self._offset._value;
+			var pos = self.playingStep;  // + this.viewOffset();
+			var step = offset + pos;
+			var isSet = 0;
+			for(var j=0;j<self._pitch_range;j++)
+			{
+				isSet = self._stepSet[step * 128 + (key + j)]||isSet;
+			}
+			var step_pitch = (Math.floor((self._pitches[pos]._value/127)*self._pitch_range));
+			//post('add note:', obj._name, obj._value, 'key', key, 'step', step, 'pos', pos, 'isSet', isSet);
+			if(!isSet)
+			{
+				for(var i=0;i<self._pitch_range;i++)
+				{
+					var pitch = i + key;
+					var reg = self._stepSet[step * 128 + (key + i)];
+					if((i!=step_pitch)&&(reg))
+					{
+						self._cursorClip.clearStep(step, pitch);
+						self._stepSet[step * 128 + (key + i)] = 0;
+						//post('turning off:', step, pitch, self._velocity_offset._value);
+					}
+				}
+				self._cursorClip.setStep(step, step_pitch+key, self._velocity_offset._value, .25);
+				self._stepSet[(step * 128) + (step_pitch+key)] = 1;
+			}
+		}
+	}
+
 	this.update = function()
 	{
 		if(self._grid instanceof Grid)
@@ -3534,7 +3606,6 @@ function FunSequencerComponent(name, steps)
 		}
 	}
 
-
 	this.notes_in_step = function()
 	{
 		var start = self._edit_step._value*128;
@@ -3544,6 +3615,9 @@ function FunSequencerComponent(name, steps)
 	this._cursorClip.addStepDataObserver(this._onStepExists);
 	this._cursorClip.addPlayingStepObserver(this._onStepPlay);
 
+	var scaleRange = SCALENAMES.length - 1;
+	this._scaleOffset = new RangedParameter(this._name + '_Scale_Offset', {range:scaleRange});
+
 	this.key_offset = new OffsetComponent(this._name + 'Key_Offset', 0, 127, 0, this._onKeyChange, colors.CYAN);
 	this._follow = new ToggledParameter(this._name + '_Follow', {value:1, onValue:colors.MAGENTA});
 	this._offset = new OffsetComponent(this._name + '_Offset', 0, 256, 0, this._onOffsetChange, colors.RED);
@@ -3552,10 +3626,13 @@ function FunSequencerComponent(name, steps)
 	this._flip = new ToggledParameter(this._name + '_Flip', {value:0, onValue:colors.CYAN});
 	this._edit_step = new RangedParameter(this._name + '_Edit_Step', {value:-1});
 	this._triplet = new ToggledParameter(this._name + '_Triplet_Enable', {value:1, onValue:colors.OFF, offValue:colors.RED});
-
+	this._add_note = new Parameter(this._name + '_addNote');
+	
+	
 	this._triplet.add_listener(this._onSizeChange);
 	this._flip.add_listener(this.update);
 	this._edit_step.add_listener(this.update);
+	this._add_note.add_listener(this._onAddNote);
 
 	this._shuffleEnabled = new ToggledParameter(this._name + '_Shuffle_Enabled', {javaObj:this._cursorClip.getShuffle(), monitor:'addValueObserver', action:'toggle'});
 	this._accent = new RangedParameter(this._name + '_Accent', {javaObj:this._cursorClip.getAccent(), range:128});
@@ -3888,15 +3965,7 @@ function NotificationDisplayComponent()
 				self._display_messages();
 				tasks.addTask(self._clear_messages_queued, undefined, 5, false, 'display_messages');
 			}
-			else
-			{
-
-			}
 		}
-		/*else
-		{
-			message = obj._name + ' : ' + obj._value;
-		}*/
 	}
 	this._clear_messages_queued = function()
 	{
@@ -4001,7 +4070,7 @@ NotificationDisplayComponent.prototype.make_parameter_function = function(obj, p
 	{
 		var parameter_function = function()
 		{
-			return parameter_values[obj._value%(parameter_values.length -1)];
+			return parameter_values[obj._value%(parameter_values.length)];
 		}
 		return parameter_function;
 	}
