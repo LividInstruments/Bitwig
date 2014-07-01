@@ -443,6 +443,7 @@ function setup_modes()
 		for(var i=0;i<8;i++)
 		{
 			mixer.channelstrip(i)._select.set_control(bottombuttons[i]);
+			mixer.channelstrip(i)._arm.set_control(enc_buttons[i+8]);
 			mixer.channelstrip(i)._device._enabled.set_control(enc_buttons[i]);
 			mixer.channelstrip(i)._device._macro[0].set_control(encs[i]);
 			mixer.channelstrip(i)._device._macro[1].set_control(encs[i+8]);
@@ -459,6 +460,7 @@ function setup_modes()
 		{
 			mixer.channelstrip(i)._device._enabled.set_control();
 			mixer.channelstrip(i)._select.set_control();
+			mixer.channelstrip(i)._arm.set_control();
 			for(var j=0;j<8;j++)
 			{
 				mixer.channelstrip(i)._device._macro[j].set_control();
@@ -487,11 +489,13 @@ function setup_modes()
 				mixer.channelstrip(i)._device._macro[6].set_control(encs[i+16]);
 				mixer.channelstrip(i)._device._macro[7].set_control(encs[i+24]);
 			}
+			transport._autowrite.set_control(enc_buttons[24]);
 			devicePage._shift_button.send(64);
 		}
 		else
 		{
 			session.display_pane(false);
+			transport._autowrite.set_control();
 			for(var i=0;i<8;i++)
 			{
 				mixer.channelstrip(i)._device._macro[4].set_control();
