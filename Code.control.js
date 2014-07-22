@@ -477,9 +477,9 @@ function setup_modes()
 		if(devicePage._shifted)
 		{
 			session.display_pane(true);
-			session.set_nav_buttons(bottombuttons[6], bottombuttons[7], bottombuttons[5], bottombuttons[4]);
 			for(var i=0;i<8;i++)
 			{
+				mixer.channelstrip(i)._select.set_control();
 				mixer.channelstrip(i)._device._macro[0].set_control();
 				mixer.channelstrip(i)._device._macro[1].set_control();
 				mixer.channelstrip(i)._device._macro[2].set_control();
@@ -489,13 +489,14 @@ function setup_modes()
 				mixer.channelstrip(i)._device._macro[6].set_control(encs[i+16]);
 				mixer.channelstrip(i)._device._macro[7].set_control(encs[i+24]);
 			}
-			transport._autowrite.set_control(enc_buttons[24]);
+			session.set_nav_buttons(bottombuttons[6], bottombuttons[7], bottombuttons[5], bottombuttons[4]);
+			transport._clipautowrite.set_control(bottombuttons[0]);
 			devicePage._shift_button.send(64);
 		}
 		else
 		{
 			session.display_pane(false);
-			transport._autowrite.set_control();
+			transport._clipautowrite.set_control();
 			for(var i=0;i<8;i++)
 			{
 				mixer.channelstrip(i)._device._macro[4].set_control();
@@ -503,6 +504,8 @@ function setup_modes()
 				mixer.channelstrip(i)._device._macro[6].set_control();
 				mixer.channelstrip(i)._device._macro[7].set_control();
 			}
+			session.set_nav_buttons();
+			transport._autowrite.set_control();
 			devicePage.enter_mode();
 		}
 	}

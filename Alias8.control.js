@@ -630,10 +630,10 @@ function setup_modes()
 			mixer.returnstrip(i+2)._volume.set_control(knobs[i+6]);
 			mixer.returnstrip(i+4)._volume.set_control(knobs[i+14]);
 		}
-		mixer.selectedstrip()._send[2].set_control(pads[6]);
-		mixer.selectedstrip()._send[3].set_control(pads[7]);
-		mixer.selectedstrip()._send[4].set_control(pads[14]);
-		mixer.selectedstrip()._send[5].set_control(pads[15]);
+		mixer.selectedstrip()._send[0].set_control(pads[6]);
+		mixer.selectedstrip()._send[1].set_control(pads[7]);
+		mixer.selectedstrip()._send[2].set_control(pads[14]);
+		mixer.selectedstrip()._send[3].set_control(pads[15]);
 		mixer._masterstrip._volume.set_control(faders[8]);
 		momPage.active = true;
 	}
@@ -653,10 +653,10 @@ function setup_modes()
 			mixer.returnstrip(i+2)._volume.set_control();
 			mixer.returnstrip(i+4)._volume.set_control();
 		}
+		mixer.selectedstrip()._send[0].set_control();
+		mixer.selectedstrip()._send[1].set_control();
 		mixer.selectedstrip()._send[2].set_control();
 		mixer.selectedstrip()._send[3].set_control();
-		mixer.selectedstrip()._send[4].set_control();
-		mixer.selectedstrip()._send[5].set_control();
 		mixer._masterstrip._volume.set_control();
 		momPage.set_shift_button();
 		momPage.active = false;

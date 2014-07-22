@@ -76,7 +76,7 @@ const SPLITBUTTONMODEKEYS = "F0 00 01 61 0C 42 01 01 01 01 01 01 01 01 01 01 01 
 const STREAMINGON = "F0 00 01 61 0C 42 7F F7";
 const STREAMINGOFF = "F0 00 01 61 0C 42 00 F7";
 const LINKFUNCBUTTONS = "F0 00 01 61 0C 44 01 F7";
-const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 01 01 01 01 01 01 01 01 01 F7';
+const DISABLECAPFADERNOTES = 'F0 00 01 61 0C 3C 00 00 00 00 00 00 00 00 00 F7';
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
 isShift = false;
@@ -1021,8 +1021,6 @@ function on_track_type_name_changed(type_name)
 function exit()
 {
 	resetAll();
-	flush();
-	flush = function(){}
 }
 
 function onMidi(status, data1, data2)

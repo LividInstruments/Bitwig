@@ -1960,7 +1960,7 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 	this.createEQDeviceComponent = function(size)
 	{
-		self._device = new EQDeviceComponent(this._name+'_eqDevice', this);
+		self._device = new EQDeviceComponent(this);
 	}
 
 	this.createChannelDeviceComponent = function(size)
@@ -3719,6 +3719,8 @@ function TransportComponent(name, transport, _colors)
 	this._overdub = new ToggledParameter('overdub_listener', {javaObj:transport, action:'toggleLauncherOverdub', monitor:'addLauncherOverdubObserver', onValue:colors.RED});
 
 	this._autowrite = new ToggledParameter('autowrite_listener', {javaObj:transport, action:'toggleWriteArrangerAutomation', monitor:'addAutomationWriteModeObserver', onValue:colors.BLUE});
+
+	this._clipautowrite = new ToggledParameter('clipautowrite_listener', {javaObj:transport, action:'toggleWriteClipLauncherAutomation', onValue:colors.BLUE});
 
 	this._loop = new ToggledParameter('loop_listener', {javaObj:transport, action:'toggleLoop', monitor:'addIsLoopActiveObserver', onValue:colors.YELLOW});
 	
