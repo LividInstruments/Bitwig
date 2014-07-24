@@ -3723,7 +3723,19 @@ function TransportComponent(name, transport, _colors)
 	this._clipautowrite = new ToggledParameter('clipautowrite_listener', {javaObj:transport, action:'toggleWriteClipLauncherAutomation', onValue:colors.BLUE});
 
 	this._loop = new ToggledParameter('loop_listener', {javaObj:transport, action:'toggleLoop', monitor:'addIsLoopActiveObserver', onValue:colors.YELLOW});
-	
+
+	this.update_tempo = function(obj)
+	{
+		transport.getTempo().set(self._tempo._value, 647);
+	}
+	this._tempo = new OffsetComponent(this._name + 'tempo', 20, 666, 120, this.update_tempo, 0, 127, 1);
+
+	this._update_tempo_internal = function(value)
+	{
+		post('update tempo internal:', value);
+		self._tempo._value = value;
+	}
+	transport.getTempo().addValueObserver(647, this._update_tempo_internal);
 	this._rewind = new Parameter('rewind_button', {javaObj:transport, action:'rewind'});
 	this._forward = new Parameter('forward_button', {javaObj:transport, action:'fastForward'});
 }
