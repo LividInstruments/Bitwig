@@ -1,4 +1,3 @@
-
 const _base_translations =	{'0': 0,
 						'1': 1,
 						'2': 2,
@@ -64,7 +63,7 @@ const _base_translations =	{'0': 0,
 						'_': 39, 
 						'-': 42};
 
-var PRODUCTID = "0C"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D"
+var PRODUCTID = "11"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D"
 const FADER_COLORS = [96, 124, 108, 120, 116, 100, 104, 112]
 const DEFAULT_MIDI_ASSIGNMENTS = {'mode':'chromatic', 'offset':36, 'vertoffset':12, 'scale':'Chromatic', 'drumoffset':0, 'split':false}
 const LAYERSPLASH = [63, 69, 70, 65]
@@ -83,14 +82,13 @@ isShift = false;
 
 loadAPI(1);
 
-//host.defineController("Livid Instruments", "BASE", "1.0", "aa7a2670-9d2c-11e2-9e96-0800200c9a66");
-host.defineController("Livid Instruments", "BASE", "1.0", "ba4ceb20-ca25-11e2-8b8b-0800200c9a66"); 
+host.defineController("Livid Instruments", "BASEII", "1.0", "afdf52d0-32b7-11e4-8c21-0800200c9a66"); 
 var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCTID+" 00 ?? ?? ?? ?? F7";
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
-host.addDeviceNameBasedDiscoveryPair(["Base8"], ["Base8"]);
-host.addDeviceNameBasedDiscoveryPair(["Base8 MIDI 1"], ["Base8 MIDI 1"]);
-host.addDeviceNameBasedDiscoveryPair(["Base8 Base_Controls"], ["Base8 Base_Controls"]);
+host.addDeviceNameBasedDiscoveryPair(["Base2"], ["Base2"]);
+host.addDeviceNameBasedDiscoveryPair(["Base2 MIDI 1"], ["Base2 MIDI 1"]);
+host.addDeviceNameBasedDiscoveryPair(["Base2 Base_Controls"], ["Base2 Base_Controls"]);
 
 for ( var m = 1; m < 9; m++)
 {
