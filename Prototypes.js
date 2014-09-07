@@ -740,6 +740,15 @@ function Mode(number_of_modes, name)
 	this._value = 0;
 	this._mode_callbacks = new Array(number_of_modes);
 	this.mode_buttons = [];
+	this.mode_cycle_button = undefined;
+	this.mode_cycle_value = function(button)
+	{
+		if(button.pressed())
+		{
+			self.change_mode((self._value + 1) % self._mode_callbacks.length)
+			self.notify();
+		}
+	}
 	this.mode_value = function(button)
 	{
 		if(button.pressed())
@@ -828,6 +837,19 @@ Mode.prototype.set_mode_buttons = function(buttons)
 			buttons[i].set_target(this.mode_value);
 		}
 		//post('mode buttons length: ' + this._name + ' ' + this.mode_buttons.length)
+	}
+}
+
+Mode.prototype.set_mode_cycle_button = function(button)
+{
+	if(this.mode_cycle_button)
+	{
+		this.mode_cycle_button.remove_target(this.mode_cycle_value);
+	}
+	this.mode_cycle_button = button;
+	if(button)
+	{
+		button.set_target(this.mode_cycle_value);
 	}
 }
 
