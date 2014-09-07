@@ -93,13 +93,13 @@ function init()
 	setup_transport();
 	setup_tasks();
 	setup_modes();
-	//setup_notifications();
+	setup_notifications();
 	//setup_listeners();
 	//setupTests();
 
-	//LOCAL_OFF();
+	LOCAL_OFF();
 	//sendSysex('F0 00 01 61 0B 16 01 F7');
-	//MainModes.change_mode(0, true);
+	MainModes.change_mode(0, true);
 	post('DS1 script loaded! ------------------------------------------------');
 	//notifier.show_message('DS1 Script version ' + VERSION +' loaded.');
 }
@@ -174,6 +174,7 @@ function setup_session()
 	session._bank_knob = new RangedParameter(session._name + '_Bank_Knob', {range:128});
 	session._knob_nav = function(obj)
 	{
+		post('knob_nav', obj._value);
 		if(obj._value==1)
 		{
 			session._trackBank.scrollTracksDown();
@@ -192,9 +193,7 @@ function setup_session()
 
 function setup_mixer()
 {
-	mixer = new MixerComponent('Mixer', 8, 5, trackBank, returnBank, cursorTrack, masterTrack);
-	//mixer.returnstrip(0).createEQDeviceComponent();
-	//mixer.returnstrip(1).createEQDeviceComponent();
+	mixer = new MixerComponent('Mixer', 8, 4, trackBank, returnBank, cursorTrack, masterTrack);
 	mixer.set_verbose(VERBOSE);
 	
 	for(var i=0;i<8;i++)
@@ -223,15 +222,18 @@ function setup_notifications()
 {
 	notifier = new NotificationDisplayComponent();
 	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
-	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
-	notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
-	for(var i=0;i<8;i++)
+	//notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
+	//notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
+	for(var t=0;t<8;t++)
 	{
-		notifier.add_subject(device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
-		notifier.add_subject(device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
-		notifier.add_subject(device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
+		for(var i=0;i<5;i++)
+		{
+			//notifier.add_subject(mixer.channelstrip(t)._device._parameter[i].displayed_name, 'Parameter', undefined, 5, 'Param_'+i);
+			//notifier.add_subject(mixer.channelstrip(t)._device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
+			notifier.add_subject(mixer.channelstrip(t)._device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
+		}
 	}
-	//notifier.add_subject(MainModes, 'Mode', ['Channel Mix', 'Clip', 'Track Mix', 'Sequence', 'Device', 'ClassSeq', 'Moment'], 9);
+	notifier.add_subject(MainModes, 'Mode', ['Mute/Solo', 'Select', 'ClipLaunch'], 3);
 }
 
 function setup_tasks()
@@ -275,6 +277,10 @@ function setup_modes()
 			}
 		}
 		mixer._masterstrip._volume.set_control(master_fader);
+		mixer.returnstrip(0)._volume.set_control(side_dials[0]);
+		mixer.returnstrip(1)._volume.set_control(side_dials[1]);
+		mixer.returnstrip(2)._volume.set_control(side_dials[2]);
+		mixer.returnstrip(3)._volume.set_control(side_dials[3]);
 		transport._play.set_control(grid_buttons[0][0]);
 		transport._stop.set_control(grid_buttons[1][0]);
 		transport._record.set_control(grid_buttons[2][0]);
@@ -282,6 +288,7 @@ function setup_modes()
 		transport._loop.set_control(grid_buttons[2][1]);
 		session._slot_select.set_inc_dec_buttons(grid_buttons[0][2], grid_buttons[0][1]);
 		session._bank_knob.set_control(encoders[1]);
+		device.set_macro_controls([undefined, undefined, undefined, undefined, undefined, encoders[0], encoders[2], encoders[3]]);
 		staticPage.active = true;
 	}
 	staticPage.exit_mode = function()
@@ -302,6 +309,7 @@ function setup_modes()
 		transport._loop.set_control();
 		session._slot_select.set_inc_dec_buttons();
 		session._bank_knob.set_control();
+		device.set_macro_controls();
 		staticPage.set_shift_button();
 		staticPage.active = false;
 		post('staticPage exited');
@@ -533,13 +541,13 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	if(data.slice(0, 12) == 'f00001610b71')
+	/*if(data.slice(0, 12) == 'f00001610b71')
 	{
 		var new_mode = data[13];
 		change_channel(new_mode);
 		MainModes.change_mode(new_mode);
 		MainModes.notify();
-	}
+	}*/
 	//printSysex(data);
 }
 

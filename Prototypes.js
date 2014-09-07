@@ -2143,17 +2143,22 @@ function DeviceComponent(name, size, Device)
 			{
 				for(var i=0;i<self._size;i++)
 				{
-					post('assigning parameter', i);
-					self._parameter[i].set_control(self._parameter_controls[i]);
-					self._parameter[i]._javaObj.setIndication(true);
+					if(self._parameter_controls[i] instanceof Control)
+					{
+						self._parameter[i].set_control(self._parameter_controls[i]);
+						self._parameter[i]._javaObj.setIndication(true);
+					}
 				}
 			}
 			if(self._size == self._macro_controls.length)
 			{
 				for(var i=0;i<self._size;i++)
 				{
-					self._macro[i].set_control(self._macro_controls[i]);
-					self._macro[i]._javaObj.setIndication(true);
+					if(self._macro_controls[i] instanceof Control)
+					{
+						self._macro[i].set_control(self._macro_controls[i]);
+						self._macro[i]._javaObj.setIndication(true);
+					}
 				}
 			}
 		}
