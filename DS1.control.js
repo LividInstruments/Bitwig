@@ -14,7 +14,7 @@ host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["DS1"], ["DS1"]);
 host.addDeviceNameBasedDiscoveryPair(["DS1 DS1Controls"], ["DS1 DS1Controls"]);
 
-const RELATIVEENCODER = "F0 00 01 61 10 11 0 F7";
+var RELATIVEENCODER = "F0 00 01 61 "+PRODUCT+" 11 02 F7"; //puts top right encoder in relative mode, others in absolute
 
 for ( var m = 1; m < 9; m++)
 {
@@ -100,7 +100,7 @@ function init()
 	//setupTests();
 
 	LOCAL_OFF();
-	//sendSysex('F0 00 01 61 10 16 01 F7');
+	//sendSysex('F0 00 01 61 '+PRODUCT+' 16 01 F7');
 	MainModes.change_mode(0, true);
 	post('DS1 script loaded! ------------------------------------------------');
 	//notifier.show_message('DS1 Script version ' + VERSION +' loaded.');
@@ -116,9 +116,12 @@ function initialize_noteInput()
 function initialize_surface()
 {
 	//we need to put the encoder in relative mode:
-	//sendSysex(RELATIVEENCODER);
+	sendSysex(RELATIVEENCODER);
 	//that doesn't seem to work, so we'll do this for good measure....
-	sendChannelController(15, 42, 88);
+	//sendChannelController(15, 97, 80); //top right relative
+	//sendChannelController(15, 96, 64); //top left abs
+	//sendChannelController(15, 98, 64); //bottom left abs
+	//sendChannelController(15, 99, 64); //bottom right abs
 }
 
 function setup_controls()
