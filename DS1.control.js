@@ -4,21 +4,23 @@
 isShift = false;
 
 loadAPI(1);
-
+ 
 host.defineController("Livid Instruments", "DS1", "1.0", "af6e34a0-2cdc-11e4-8c21-0800200c9a66");
-var PRODUCT = "0D"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D"
+var PRODUCT = "10"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D", DS1="10", BASEII="11"
 var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 00 ?? ?? ?? ?? F7";
+                     //F0 7E 00 06 02 00 01 61 01 00 10          00 05 00 01 00 F7
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["DS1"], ["DS1"]);
 host.addDeviceNameBasedDiscoveryPair(["DS1 DS1Controls"], ["DS1 DS1Controls"]);
+
+const RELATIVEENCODER = "F0 00 01 61 10 11 0 F7";
 
 for ( var m = 1; m < 9; m++)
 {
 	host.addDeviceNameBasedDiscoveryPair(["Controls" + m + " (DS1)"], ["Controls" + m + " (DS1)"]);
 }
 
-const RELATIVEENCODER = "F0 00 01 61 0D 11 80 80 F7";
 
 const BUTTONS = [0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15];
 const GRID = [[16, 19, 22],
@@ -98,7 +100,7 @@ function init()
 	//setupTests();
 
 	LOCAL_OFF();
-	//sendSysex('F0 00 01 61 0B 16 01 F7');
+	//sendSysex('F0 00 01 61 10 16 01 F7');
 	MainModes.change_mode(0, true);
 	post('DS1 script loaded! ------------------------------------------------');
 	//notifier.show_message('DS1 Script version ' + VERSION +' loaded.');
