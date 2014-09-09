@@ -183,26 +183,29 @@ function setup_controls()
 
 function setup_session()
 {
-	session = new SessionComponent('Session', 8, 2, trackBank);
+	session = new SessionComponent('Session', 8, 1, trackBank);
 	session._slot_select._onValue = colors.WHITE;
 	session.set_verbose(VERBOSE);
 	session._bank_knob = new RangedParameter(session._name + '_Bank_Knob', {range:128});
-	session._knob_nav = function(obj)
+	session._bank_knob_nav = function(obj)
 	{
-		post('knob_nav', obj._value);
-		if(obj._value==1)
-		{
-			session._trackBank.scrollTracksDown();
-		}
-		else if(obj._value==64)
-		{
-			session._trackBank.scrollTracksUp();
-		}
+		post('bank_knob_nav', obj._value);
+		obj._value==1 ? session._trackBank.scrollTracksDown() : obj._value == 127 ? session._trackBank.scrollTracksUp() : {};
 		var control = session._bank_knob._control;
 		//sendChannelController(0, 42, 64);
 	}
-	session._bank_knob.add_listener(session._knob_nav);
+	session._bank_knob.add_listener(session._bank_knob_nav);
 	//session._bank_knob.set_control(encoder);
+
+	session._select_knob = new RangedParameter(session._name + '_Select_Knob', {range:128});
+	session._select_knob_nav = function(obj)
+	{
+		post('select_knob_nav', obj._value);
+		obj._value==1 ? session._cursorTrack.trackUp() : obj._value==127 ? session._cursorTrack.trackDown() : {};
+		var control = session._select_knob._control;
+		//sendChannelController(0, 42, 64);
+	}
+	session._select_knob.add_listener(session._select_knob_nav);
 	
 }
 
@@ -306,8 +309,9 @@ function setup_modes()
 		transport._loop.set_control(grid_buttons[2][1]);
 		session._navUp.set_control(grid_buttons[0][1]);
 		session._navDn.set_control(grid_buttons[0][2]);
-		session._bank_knob.set_control(encoders[1]);
+		session._select_knob.set_control(encoders[1]);
 		device.set_macro_controls([undefined, undefined, undefined, undefined, undefined, encoders[0], encoders[2], encoders[3]]);
+		staticPage.set_shift_button(encoder_buttons[1]);
 		staticPage.active = true;
 	}
 	staticPage.exit_mode = function()
@@ -328,11 +332,25 @@ function setup_modes()
 		transport._loop.set_control();
 		session._navUp.set_control()
 		session._navDn.set_control()
-		session._bank_knob.set_control();
+		session._select_knob.set_control();
 		device.set_macro_controls();
 		staticPage.set_shift_button();
 		staticPage.active = false;
 		post('staticPage exited');
+	}
+	staticPage.update_mode = function()
+	{
+		post('staticPage updated');
+		if(staticPage._shifted)
+		{
+			session._select_knob.set_control();
+			session._bank_knob.set_control(encoders[1]);
+		}
+		else
+		{
+			session._bank_knob.set_control();
+			staticPage.enter_mode();
+		}
 	}
 
 	//Page 0: Mute and Solos
