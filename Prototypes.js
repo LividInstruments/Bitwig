@@ -1533,6 +1533,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 					'isEmptyColor' : colors.OFF,
 					'navColor' : colors.BLUE};
 	this._trackBank = trackBank;
+	this._indication_depends_on_grid_assignment = true;
 
 	this._tracks = [];
 	this.width = function(){return width}
@@ -1668,6 +1669,14 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 
 }
 
+SessionComponent.prototype.set_indication = function(value)
+{
+	for (var track in this._tracks)
+	{
+		this._tracks[track].set_indication(value);
+	}
+}
+
 SessionComponent.prototype.assign_grid = function(new_grid)
 {
 	if(this._grid!=undefined)
@@ -1675,6 +1684,7 @@ SessionComponent.prototype.assign_grid = function(new_grid)
 		this._grid.remove_target(this.receive_grid);
 		for (var track in this._tracks)
 		{
+			this._indication_depends_on_grid_assignment ? this._tracks[track].set_indication(false) : {};
 			this._tracks[track].set_indication(false);
 			for(var slot in this._tracks[track]._clipslots)
 			{
@@ -1694,6 +1704,7 @@ SessionComponent.prototype.assign_grid = function(new_grid)
 		this._grid.set_target(this.receive_grid);
 		for (var track in this._tracks)
 		{
+			this._indication_depends_on_grid_assignment ? this._tracks[track].set_indication(true) : {};
 			this._tracks[track].set_indication(true);
 			for(var slot in this._tracks[track]._clipslots)
 			{
