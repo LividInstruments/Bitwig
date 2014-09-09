@@ -6,15 +6,20 @@ isShift = false;
 loadAPI(1);
  
 host.defineController("Livid Instruments", "DS1", "1.0", "af6e34a0-2cdc-11e4-8c21-0800200c9a66");
+
 var PRODUCT = "10"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D", DS1="10", BASEII="11"
+
 var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 00 ?? ?? ?? ?? F7";
                      //F0 7E 00 06 02 00 01 61 01 00 10          00 05 00 01 00 F7
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["DS1"], ["DS1"]);
+//host.addDeviceNameBasedDiscoveryPair(["Daemon Input 0"], ["Daemon Output 0"]);
 host.addDeviceNameBasedDiscoveryPair(["DS1 DS1Controls"], ["DS1 DS1Controls"]);
 
+
 var RELATIVEENCODER = "F0 00 01 61 "+PRODUCT+" 11 02 F7"; //puts top right encoder in relative mode, others in absolute
+
 
 for ( var m = 1; m < 9; m++)
 {
@@ -135,9 +140,14 @@ function setup_controls()
 	}
 	script['master_fader'] = new Slider(MASTER, 'Master_Fader');
 	script['buttons'] = [];
+	script['session_grid'] = new Grid(8, 1, 'SessionGrid');
 	for (var i = 0;i < 16; i++)
 	{
 		buttons[i] = new Button(BUTTONS[i],  'Button_'+i);
+	}
+	for (var i = 0;i < 8; i++)
+	{
+		session_grid.add_control(i, 0, buttons[i])
 	}
 	script['grid_buttons'] = [];
 	script['grid'] = new Grid(3, 3, 'Grid');
@@ -199,6 +209,7 @@ function setup_session()
 function setup_mixer()
 {
 	mixer = new MixerComponent('Mixer', 8, 4, trackBank, returnBank, cursorTrack, masterTrack);
+	mixer._masterstrip.createChannelDeviceComponent(4);
 	mixer.set_verbose(VERBOSE);
 	
 	for(var i=0;i<8;i++)
@@ -268,6 +279,8 @@ function setup_usermodes()
 function setup_modes()
 {
 
+
+
 	//Main Assignments for all pages
 	staticPage = new Page('StaticPage');
 	staticPage.enter_mode = function()
@@ -282,16 +295,17 @@ function setup_modes()
 			}
 		}
 		mixer._masterstrip._volume.set_control(master_fader);
-		mixer.returnstrip(0)._volume.set_control(side_dials[0]);
-		mixer.returnstrip(1)._volume.set_control(side_dials[1]);
-		mixer.returnstrip(2)._volume.set_control(side_dials[2]);
-		mixer.returnstrip(3)._volume.set_control(side_dials[3]);
+		mixer._masterstrip._device._macro[0].set_control(side_dials[0]);
+		mixer._masterstrip._device._macro[1].set_control(side_dials[1]);
+		mixer._masterstrip._device._macro[2].set_control(side_dials[2]);
+		mixer._masterstrip._device._macro[3].set_control(side_dials[3]);
 		transport._play.set_control(grid_buttons[0][0]);
 		transport._stop.set_control(grid_buttons[1][0]);
 		transport._record.set_control(grid_buttons[2][0]);
 		transport._rewind.set_control(grid_buttons[1][2]);
 		transport._loop.set_control(grid_buttons[2][1]);
-		session._slot_select.set_inc_dec_buttons(grid_buttons[0][2], grid_buttons[0][1]);
+		session._navUp.set_control(grid_buttons[0][1]);
+		session._navDn.set_control(grid_buttons[0][2]);
 		session._bank_knob.set_control(encoders[1]);
 		device.set_macro_controls([undefined, undefined, undefined, undefined, undefined, encoders[0], encoders[2], encoders[3]]);
 		staticPage.active = true;
@@ -312,7 +326,8 @@ function setup_modes()
 		transport._record.set_control();
 		transport._rewind.set_control();
 		transport._loop.set_control();
-		session._slot_select.set_inc_dec_buttons();
+		session._navUp.set_control()
+		session._navDn.set_control()
 		session._bank_knob.set_control();
 		device.set_macro_controls();
 		staticPage.set_shift_button();
@@ -337,6 +352,11 @@ function setup_modes()
 	mainPage.exit_mode = function()
 	{
 		staticPage.exit_mode();
+		for(var i=0;i<8;i++)
+		{
+			mixer.channelstrip(i)._solo.set_control();
+			mixer.channelstrip(i)._mute.set_control();
+		}
 		mainPage.set_shift_button();
 		mainPage.active = false;
 		post('mainPage exited');
@@ -398,7 +418,7 @@ function setup_modes()
 		post('clipPage entered');
 		grid_buttons[2][2]._send(color.RED)
 		staticPage.enter_mode();
-		session.assign_grid(grid.sub_grid(0, 8, 0, 0));
+		session.assign_grid(session_grid);
 		for(var i=0;i<8;i++)
 		{
 			mixer.channelstrip(i)._stop.set_control(buttons[i+8]);
