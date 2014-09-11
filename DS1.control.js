@@ -19,7 +19,7 @@ host.addDeviceNameBasedDiscoveryPair(["DS1 DS1Controls"], ["DS1 DS1Controls"]);
 
 
 var RELATIVEENCODER = "F0 00 01 61 "+PRODUCT+" 11 02 F7"; //puts top right encoder in relative mode, others in absolute
-
+var ENCODERSPEED = "F0 00 01 61 "+PRODUCT+" 11 00 00 01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00 09 00 0A 00 0B 00 0C 00 0D 00 0E 00 0F 00 10 00 11 00 12 00 13 00 14 00 15 00 16 00 17 00 18 00 7F 01 1A 00 7F 01 7F 01 FF";
 
 for ( var m = 1; m < 9; m++)
 {
@@ -122,6 +122,7 @@ function initialize_surface()
 {
 	//we need to put the encoder in relative mode:
 	sendSysex(RELATIVEENCODER);
+	sendSysex(ENCODERSPEED);
 	//that doesn't seem to work, so we'll do this for good measure....
 	//sendChannelController(15, 97, 80); //top right relative
 	//sendChannelController(15, 96, 64); //top left abs
