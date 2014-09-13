@@ -1556,13 +1556,13 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 	this._nav_lt_listener = function(obj){if(obj._value){self._trackOffset.set_value(self._trackOffset._value -=1)};}
 	this._nav_rt_listener = function(obj){if(obj._value){self._trackOffset.set_value(self._trackOffset._value +=1)};}
 
-	this._navUp = new Parameter(this._name + '_NavUp', {num:0, javaObj:this._trackBank, action:'scrollScenesUp', monitor:'addCanScrollScenesUpObserver', onValue:this._colors.navColor});
+	this._navUp = new ToggledParameter(this._name + '_NavUp', {num:0, javaObj:this._trackBank, action:'scrollScenesUp', monitor:'addCanScrollScenesUpObserver', onValue:this._colors.navColor});
 
-	this._navDn = new Parameter(this._name + '_NavDown', {num:1, javaObj:this._trackBank, action:'scrollScenesDown', monitor:'addCanScrollScenesDownObserver', onValue:this._colors.navColor});
+	this._navDn = new ToggledParameter(this._name + '_NavDown', {num:1, javaObj:this._trackBank, action:'scrollScenesDown', monitor:'addCanScrollScenesDownObserver', onValue:this._colors.navColor});
 
-	this._navLt = new Parameter(this._name + '_NavLeft', {num:2, javaObj:this._trackBank, action:'scrollTracksDown', monitor:'addCanScrollTracksDownObserver', onValue:this._colors.navColor});
+	this._navLt = new ToggledParameter(this._name + '_NavLeft', {num:2, javaObj:this._trackBank, action:'scrollTracksDown', monitor:'addCanScrollTracksDownObserver', onValue:this._colors.navColor});
 
-	this._navRt = new Parameter(this._name + '_NavRight', {num:3, javaObj:this._trackBank, action:'scrollTracksUp', monitor:'addCanScrollTracksUpObserver', onValue:this._colors.navColor});
+	this._navRt = new ToggledParameter(this._name + '_NavRight', {num:3, javaObj:this._trackBank, action:'scrollTracksUp', monitor:'addCanScrollTracksUpObserver', onValue:this._colors.navColor});
 
 	//this._zoom = new SessionZoomComponent('SessionZoomTrackBank', this, width, height);
 
@@ -1964,14 +1964,42 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 	}
 
 	this._solo = new ToggledParameter(this._name + '_Solo', {javaObj:this._track.getSolo(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.soloColor});
+	this._solo.update_control = function(value)
+	{
+		if(self._solo._control)
+		{
+			self._solo._control.send(!self._exists._value ? colors.OFF : self._solo._value ? self._solo._onValue :  self._solo._offValue );
+		}
+	}
 
 	this._arm = new ToggledParameter(this._name + '_Arm', {javaObj:this._track.getArm(), action:'toggle', monitor:'addValueObserver', onValue:this._colors.armColor});
+	this._arm.update_control = function(value)
+	{
+		if(self._arm._control)
+		{
+			self._arm._control.send(!self._exists._value ? colors.OFF : self._arm._value ? self._arm._onValue :  self._arm._offValue );
+		}
+	}
 
 	this._select = new ToggledParameter(this._name + '_Select', {javaObj:self._track, action:'select', monitor:'addIsSelectedObserver', onValue:this._colors.selectColor});
 	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
+	this._select.update_control = function(value)
+	{
+		if(self._select._control)
+		{
+			self._select._control.send(!self._exists._value ? colors.OFF : self._select._value ? self._select._onValue :  self._select._offValue );
+		}
+	}
 
 	this._stop = new ToggledParameter(this._name + '_Stop', {javaObj:self._track, onValue:colors.BLUE, offValue:colors.BLUE});
 	this._stop._Callback = function(obj){if(obj._value){self._track.stop();}}
+	this._stop.update_control = function(value)
+	{
+		if(self._stop._control)
+		{
+			self._stop._control.send(!self._exists._value ? colors.OFF : self._stop._value ? self._stop._onValue : self._stop._offValue);
+		}
+	}
 
 	this._track_name = new Parameter(this._name + '_Name', {javaObj:self._track});
 	this._track_name._javaObj.addNameObserver(10, 'None', this._track_name.receive);

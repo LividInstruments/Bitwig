@@ -1,8 +1,6 @@
 
 //const QUERYSURFACE = 'F0 7E 7F 06 01 F7';
 
-isShift = false;
-
 loadAPI(1);
  
 host.defineController("Livid Instruments", "DS1", "1.0", "af6e34a0-2cdc-11e4-8c21-0800200c9a66");
@@ -14,13 +12,12 @@ var LIVIDRESPONSE = "F0 7E ?? 06 02 00 01 61 01 00 "+PRODUCT+" 00 ?? ?? ?? ?? F7
 host.defineSysexDiscovery("F0 7E 7F 06 01 F7", LIVIDRESPONSE);
 host.defineMidiPorts(1, 1);
 host.addDeviceNameBasedDiscoveryPair(["DS1"], ["DS1"]);
-//host.addDeviceNameBasedDiscoveryPair(["Daemon Input 0"], ["Daemon Output 0"]);
 host.addDeviceNameBasedDiscoveryPair(["DS1 DS1Controls"], ["DS1 DS1Controls"]);
 
 
 var RELATIVEENCODER = "F0 00 01 61 "+PRODUCT+" 11 02 F7"; //puts top right encoder in relative mode, others in absolute
 var ENCODERSPEED = "F0 00 01 61 "+PRODUCT+" 11 00 00 01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00 09 00 0A 00 0B 00 0C 00 0D 00 0E 00 0F 00 10 00 11 00 12 00 13 00 14 00 15 00 16 00 17 00 18 00 7F 01 1A 00 7F 01 7F 01 FF";
-
+var LOCALOFF = "F0 00 01 61 "+PRODUCT+"08 00 F7";
 for ( var m = 1; m < 9; m++)
 {
 	host.addDeviceNameBasedDiscoveryPair(["Controls" + m + " (DS1)"], ["Controls" + m + " (DS1)"]);
@@ -65,7 +62,7 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = true;	//post() doesn't work without this
+var DEBUG = false;	//post() doesn't work without this
 var ds1_channel = 0;
 var VERSION = '1.0';
 var VERBOSE = false;
@@ -103,12 +100,9 @@ function init()
 	setup_notifications();
 	//setup_listeners();
 	//setupTests();
-
-	LOCAL_OFF();
-	//sendSysex('F0 00 01 61 '+PRODUCT+' 16 01 F7');
 	MainModes.change_mode(0, true);
 	post('DS1 script loaded! ------------------------------------------------');
-	//notifier.show_message('DS1 Script version ' + VERSION +' loaded.');
+	notifier.show_message('DS1 Script version ' + VERSION +' loaded.');
 }
 
 function initialize_noteInput()
@@ -123,6 +117,7 @@ function initialize_surface()
 	//we need to put the encoder in relative mode:
 	sendSysex(RELATIVEENCODER);
 	sendSysex(ENCODERSPEED);
+	sendSysex(LOCALOFF);
 	//that doesn't seem to work, so we'll do this for good measure....
 	//sendChannelController(15, 97, 80); //top right relative
 	//sendChannelController(15, 96, 64); //top left abs
@@ -189,6 +184,8 @@ function setup_session()
 	//session._indication_depends_on_grid_assignment = false;
 	session.set_indication(true);
 	session.set_verbose(VERBOSE);
+	session._scene_launch._onValue = colors.CYAN;
+	session._scene_launch._offValue = colors.CYAN;
 
 	session._bank_knob = new RangedParameter(session._name + '_Bank_Knob', {range:127});
 	session._bank_knob_nav = function(obj)
@@ -199,7 +196,6 @@ function setup_session()
 		//sendChannelController(0, 42, 64);
 	}
 	session._bank_knob.add_listener(session._bank_knob_nav);
-	//session._bank_knob.set_control(encoder);
 
 	session._select_knob = new RangedParameter(session._name + '_Select_Knob', {range:127});
 	session._select_knob_nav = function(obj)
@@ -210,7 +206,11 @@ function setup_session()
 		//sendChannelController(0, 42, 64);
 	}
 	session._select_knob.add_listener(session._select_knob_nav);
-	
+
+	session._navUp._onValue = color.BLUE;
+	session._navUp._offValue = color.BLUE;
+	session._navDn._onValue = color.BLUE;
+	session._navDn._offValue = color.BLUE;
 }
 
 function setup_mixer()
@@ -218,10 +218,19 @@ function setup_mixer()
 	mixer = new MixerComponent('Mixer', 8, 4, trackBank, returnBank, cursorTrack, masterTrack);
 	mixer._masterstrip.createChannelDeviceComponent(4);
 	mixer.set_verbose(VERBOSE);
-	
 	for(var i=0;i<8;i++)
 	{
 		mixer.channelstrip(i).createChannelDeviceComponent(5);
+		mixer.channelstrip(i)._arm._onValue = color.RED;
+		mixer.channelstrip(i)._arm._offValue = color.GREEN;
+		mixer.channelstrip(i)._select._onValue = color.BLUE;
+		mixer.channelstrip(i)._select._offValue = color.MAGENTA;
+		mixer.channelstrip(i)._mute._onValue = color.YELLOW;
+		mixer.channelstrip(i)._mute._offValue = color.WHITE;
+		mixer.channelstrip(i)._solo._onValue = color.BLUE;
+		mixer.channelstrip(i)._solo._offValue = color.CYAN;
+		mixer.channelstrip(i)._stop._onValue = color.BLUE;
+		mixer.channelstrip(i)._stop._offValue = color.BLUE;
 	}
 
 }
@@ -239,13 +248,21 @@ function setup_transport()
 {
 	transport = new TransportComponent('Transport', host.createTransport());
 	transport.set_verbose(VERBOSE);
+	transport._record._onValue = color.RED;
+	transport._record._offValue = color.RED;
+	transport._overdub._onValue = color.MAGENTA;
+	transport._overdub._offValue = color.MAGENTA;
+	transport._clipautowrite._onValue = color.YELLOW;
+	transport._clipautowrite._offValue = color.YELLOW;
+	transport._stop._onValue = color.BLUE;
+	transport._stop._offValue = color.BLUE;
 }
 
 function setup_notifications()
 {
 	notifier = new NotificationDisplayComponent();
 	notifier.add_subject(mixer._selectedstrip._track_name, 'Selected Track', undefined, 8, 'Main');
-	//notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
+	notifier.add_subject(device._device_name, 'Device', undefined, 6, 'Device');
 	//notifier.add_subject(device._bank_name, 'Bank', undefined, 6, 'Device');
 	for(var t=0;t<8;t++)
 	{
@@ -255,6 +272,14 @@ function setup_notifications()
 			//notifier.add_subject(mixer.channelstrip(t)._device._parameter[i].displayed_value, 'Value', undefined, 5, 'Param_'+i);
 			notifier.add_subject(mixer.channelstrip(t)._device._macro[i], 'Macro : ' + i +  '  Value', undefined, 5);
 		}
+	}
+	for(var i=0;i<3;i++)
+	{
+		notifier.add_subject(device._macro[i+5], 'Macro : ' + (i+5) + ' Value', undefined, 6, 'Param_'+(i+5));
+	}
+	for(var i=0;i>4;i++)
+	{
+		notifier.add_subject(mixer._masterstrip._device._macro[i], 'Master Macro : ' + i + ' Value', undefined, 6, 'MasterParam');
 	}
 	notifier.add_subject(MainModes, 'Mode', ['Mute/Solo', 'Select', 'ClipLaunch'], 3);
 }
@@ -286,8 +311,6 @@ function setup_usermodes()
 function setup_modes()
 {
 
-
-
 	//Main Assignments for all pages
 	staticPage = new Page('StaticPage');
 	staticPage.enter_mode = function()
@@ -310,7 +333,8 @@ function setup_modes()
 		transport._stop.set_control(grid_buttons[1][0]);
 		transport._record.set_control(grid_buttons[2][0]);
 		transport._rewind.set_control(grid_buttons[1][2]);
-		transport._loop.set_control(grid_buttons[2][1]);
+		transport._overdub.set_control(grid_buttons[2][1]);
+		transport._clipautowrite.set_control(grid_buttons[1][2]);
 		session._scene_launch.set_controls([grid_buttons[1][1]]);
 		session._navUp.set_control(grid_buttons[0][1]);
 		session._navDn.set_control(grid_buttons[0][2]);
@@ -368,8 +392,8 @@ function setup_modes()
 		staticPage.enter_mode();
 		for(var i=0;i<8;i++)
 		{
-			mixer.channelstrip(i)._solo.set_control(buttons[i]);
-			mixer.channelstrip(i)._mute.set_control(buttons[i+8]);
+			mixer.channelstrip(i)._mute.set_control(buttons[i]);
+			mixer.channelstrip(i)._solo.set_control(buttons[i+8]);
 		}
 		mainPage.active = true;
 	}
@@ -402,7 +426,7 @@ function setup_modes()
 	selectPage.enter_mode = function()
 	{
 		post('selectPage entered');
-		grid_buttons[2][2]._send(color.MAGENTA)
+		grid_buttons[2][2]._send(color.RED)
 		staticPage.enter_mode();
 		for(var i=0;i<8;i++)
 		{
@@ -440,7 +464,7 @@ function setup_modes()
 	clipPage.enter_mode = function()
 	{
 		post('clipPage entered');
-		grid_buttons[2][2]._send(color.RED)
+		grid_buttons[2][2]._send(color.GREEN)
 		staticPage.enter_mode();
 		session.assign_grid(session_grid);
 		for(var i=0;i<8;i++)
@@ -485,7 +509,7 @@ function setup_modes()
 function change_channel(num)
 {
 	//post('channel is:', num);
-	alias_channel = num;
+	ds1_channel = num;
 	for(var i in NOTE_OBJECTS)
 	{
 		NOTE_OBJECTS[i]._channel = num;
@@ -494,9 +518,6 @@ function change_channel(num)
 	{
 		CC_OBJECTS[i]._channel = num;
 	}
-	//the MasterFader doesn't change channels with the rest of the hardware on Alias, so we do this:
-	//faders[8]._channel = 0;
-	//register_control(faders[8]);
 }
 
 function setup_fixed_controls()
@@ -505,67 +526,6 @@ function setup_fixed_controls()
 
 function setup_listeners()
 {
-	/*selected_track = new Parameter('selected_track_listener', {javaObj:cursorTrack, monitor:'addIsSelectedObserver'});
-	selected_track.add_listener(on_selected_track_changed);
-	
-	primary_instrument = new Parameter('primary_instrument_listener');
-	cursorTrack.getPrimaryInstrument().addNameObserver(10, 'None', primary_instrument.receive);
-	primary_instrument.add_listener(on_primary_instrument_name_changed);
-
-	track_type_name = new Parameter('track_type_name_listener');
-	cursorTrack.addTrackTypeObserver(20, 'None', track_type_name.receive);
-	track_type_name.add_listener(on_track_type_name_changed);
-
-	track_type = new Parameter('track_type_listener', {javaObj:cursorTrack.getCanHoldNoteData(), monitor:'addValueObserver'});
-	track_type.add_listener(on_track_type_changed);
-
-	selected_track_selected_clipslot = new Parameter('selected_track_selected_clipslot_listener', {javaObj:cursorTrack.getClipLauncher(), monitor:'addIsPlayingObserver'});
-	selected_track_selected_clipslot.add_listener(on_selected_track_selected_clipslot_changed);
-	*/
-
-}
-
-function on_selected_track_changed(obj)
-{
-	/*if(obj._value)
-	{
-		//post('onSelectedTrackChanged:', obj, obj._value);
-		detect_new_instrument();
-	}*/
-	//cursorTrack.getClipLauncher()
-	
-}
-
-function on_selected_track_selected_clipslot_changed(obj)
-{
-	post('on_selected_track_selected_clipslot_changed:', obj._value);
-	cursorTrack.getClipLauncher().select(obj._value);
-}
-
-function on_primary_instrument_name_changed(new_name)
-{
-	post('on_primary_instrument_name_changed:', new_name._value);
-}
-
-function on_track_type_changed(is_midi)
-{
-	post('on_track_type_changed:', is_midi._value);
-}
-
-//this reports "Instrument" or "Audio" depending on the type of track selected
-function on_track_type_name_changed(type_name)
-{
-	var page = MainModes.current_page();
-	/*if((page == sendPage)||(page == devicePage))
-	{
-		page.refresh_mode();
-	}*/
-}
-
-function detect_new_instrument()
-{
-	var ins = cursorTrack.getPrimaryInstrument();
-	post(ins);
 }
 
 function exit()
@@ -590,13 +550,6 @@ function onMidi(status, data1, data2)
 
 function onSysex(data)
 {
-	/*if(data.slice(0, 12) == 'f00001610b71')
-	{
-		var new_mode = data[13];
-		change_channel(new_mode);
-		MainModes.change_mode(new_mode);
-		MainModes.notify();
-	}*/
 	//printSysex(data);
 }
 
@@ -604,11 +557,6 @@ function display_mode(){}
 
 function setupTests()
 {
-	//function_buttons[0].add_listener(poster);
-	//trackBank.getTrack(0).getMute().addValueObserver(tester);
-	//cursorTrack.addNameObserver(10, 'None', tester);
-	//tasks.addTask(tester, ['peakaboo'], true);
-	
 }
 
 
