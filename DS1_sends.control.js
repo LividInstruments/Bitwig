@@ -340,7 +340,7 @@ function setup_modes()
 		session._navUp.set_control(grid_buttons[0][1]);
 		session._navDn.set_control(grid_buttons[0][2]);
 		session._select_knob.set_control(encoders[1]);
-		device.set_macro_controls([undefined, undefined, undefined, undefined, undefined, encoders[0], encoders[2], encoders[3]]);
+		device.set_macro_controls([encoders[0], encoders[2], encoders[3], undefined, undefined, undefined, undefined, undefined]);
 		staticPage.set_shift_button(encoder_buttons[1]);
 		staticPage.active = true;
 	}
