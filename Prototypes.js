@@ -2279,7 +2279,8 @@ function ChannelDeviceComponent(name, size, channelstrip)
 	size = size||8;
 	this._name = name;
 	this._size = size;
-	this._device = channelstrip._track.getPrimaryDevice();
+	this._device = channelstrip._track.createCursorDevice('Primary');
+	this._device.selectFirstInChannel(this._device.getChannel());
 	this._parameter = [];
 	this._macro = [];
 	for(var i=0;i<size;i++)
@@ -2287,9 +2288,16 @@ function ChannelDeviceComponent(name, size, channelstrip)
 		this._parameter[i] = new RangedParameter(this._name + '_Parameter_' + i, {num:i, javaObj:this._device.getParameter(i), range:128});
 		this._macro[i] = new RangedParameter(this._name + '_Macro_' + i, {num:i, javaObj:this._device.getMacro(i).getAmount(), range:128});
 	}
+
 	this._navLt = new Parameter(this._name + '_NavLeft', {num:0, value:1, javaObj:this._device, action:'selectNext', onValue:colors.BLUE});
 	this._navRt = new Parameter(this._name + '_NavRight', {num:1, value:1, javaObj:this._device, action:'selectPrevious', onValue:colors.BLUE});
 	this._enabled = new ToggledParameter(this._name + '_Enabled', {javaObj:this._device, action:'toggleEnabledState', monitor:'addIsEnabledObserver', onValue:colors.RED});
+	this._name_callback = function(value)
+	{
+		post(self._name, 'device name is:', value);
+	}
+
+	this._device.addNameObserver(32, '', this._name_callback);
 
 }
 

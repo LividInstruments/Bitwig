@@ -3,7 +3,7 @@
 
 loadAPI(1);
  
-host.defineController("Livid Instruments", "DS1", "1.0", "3c8e88a0-93e7-11e4-b4a9-0800200c9a66");
+host.defineController("Livid Instruments", "DS1", "1.0", "af6e34a0-2cdc-11e4-8c21-0800200c9a66");
 
 var PRODUCT = "10"; //BRAIN="01", OHM64="02", BLOCK="03", CODE="04", MCD="05", MCP="06", OHMRGB="07", CNTRLR="08", BRAIN2="09", ENLIGHTEN="0A", ALIAS8="0B", BASE="0C", BRAINJR="0D", DS1="10", BASEII="11"
 
@@ -319,10 +319,11 @@ function setup_modes()
 		for(var i=0;i<8;i++)
 		{
 			mixer.channelstrip(i)._volume.set_control(faders[i]);
-			for(var j=0;j<5;j++)
+			for(var j=0;j<4;j++)
 			{
-				mixer.channelstrip(i)._device._macro[j].set_control(dials[i][j]);
+				mixer.channelstrip(i)._send[j].set_control(dials[i][j]);
 			}
+			mixer.channelstrip(i)._pan.set_control(dials[i][4]);
 		}
 		mixer._masterstrip._volume.set_control(master_fader);
 		mixer._masterstrip._device._macro[0].set_control(side_dials[0]);
