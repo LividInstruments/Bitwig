@@ -3544,15 +3544,15 @@ function FunSequencerComponent(name, steps)
 	
 	for(var i = 0; i<steps; i++)
 	{
-		this._pitches[i] = new DelayedRangedParameter(this._name + '_Pitch_'+i, {range:128});
+		this._pitches[i] = new DelayedRangedParameter(this._name + '_Pitch_'+i, {range:127});
 	}
-	this.octave_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:9});
+	this.octave_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:8});
 	this._on_octave_offset_dial_change = function(obj)
 	{
 		var val = obj._value;
 		self.key_offset.set_value(val*12);
 	}
-	this.key_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:128});
+	this.key_offset_dial = new RangedParameter(this._name + '_KeyDial', {range:127});
 	this._on_key_offset_dial_change = function(obj)
 	{
 		var val = obj._value

@@ -51,7 +51,7 @@ var session;
 
 var DEBUG = false;	//post() doesn't work without this
 var alias_channel = 0;
-var VERSION = '1.0';
+var VERSION = '1.1';
 var VERBOSE = false;
 
 load("Prototypes.js");
@@ -161,7 +161,7 @@ function setup_session()
 		{
 			session._trackBank.scrollTracksDown();
 		}
-		else if(obj._value==127)
+		else if(obj._value > 126)
 		{
 			session._trackBank.scrollTracksUp();
 		}
@@ -405,7 +405,8 @@ function setup_modes()
 			mixer.selectedstrip()._send[i].set_control(knobs[i+8]);
 			mixer.returnstrip(i)._volume.set_control(knobs[i+12]);
 		}
-		device.set_shared_controls(knobs.slice(0, 8));
+		//device.set_shared_controls(knobs.slice(0, 8));
+		device.set_macro_controls(knobs.slice(0, 8));
 		mixer._masterstrip._volume.set_control(faders[8]);
 		curMixPage.active = true;
 	}
@@ -422,7 +423,8 @@ function setup_modes()
 			mixer.selectedstrip()._send[i].set_control();
 			mixer.returnstrip(i)._volume.set_control();
 		}
-		device.set_shared_controls();
+		//device.set_shared_controls();
+		device.set_macro_controls();
 		mixer._masterstrip._volume.set_control();
 		curMixPage.set_shift_button();
 		curMixPage.active = false;
@@ -457,7 +459,8 @@ function setup_modes()
 			mixer.selectedstrip()._send[i].set_control(knobs[i+8]);
 			mixer.returnstrip(i)._volume.set_control(knobs[i+12]);
 		}
-		device.set_shared_controls(knobs.slice(0, 8));
+		//device.set_shared_controls(knobs.slice(0, 8));
+		device.set_macro_controls(knobs.slice(0, 8));
 		mixer._masterstrip._volume.set_control(faders[8]);
 		seqPage.set_shift_button(pads[15]);
 		seqPage.active = true;
@@ -473,7 +476,8 @@ function setup_modes()
 			mixer.selectedstrip()._send[i].set_control();
 			mixer.returnstrip(i)._volume.set_control();
 		}
-		device.set_shared_controls();
+		//device.set_shared_controls();
+		device.set_macro_controls();
 		mixer._masterstrip._volume.set_control();
 		instrument.assign_grid();
 		seqPage.set_shift_button();
@@ -583,7 +587,8 @@ function setup_modes()
 		funstep.assign_grid(grid);
 		funstep.assign_knobs(knobs);
 		funstep.key_offset_dial.set_control(faders[8]);
-		device.set_shared_controls(faders.slice(0, 8));
+		//device.set_shared_controls(faders.slice(0, 8));
+		device.set_macro_controls(faders.slice(0, 8));
 		funPage.active = true;
 	}
 	funPage.exit_mode = function()
@@ -591,7 +596,8 @@ function setup_modes()
 		funstep.assign_knobs();
 		funstep.key_offset_dial.set_control();
 		funstep.assign_grid();
-		device.set_shared_controls();
+		//device.set_shared_controls();
+		device.set_macro_controls();
 		funPage.set_shift_button();
 		funPage.active = false;
 		post('funPage exited');
@@ -622,18 +628,18 @@ function setup_modes()
 			mixer.channelstrip(i)._select.set_control(pads[i]);
 			mixer.channelstrip(i)._mute.set_control(pads[i+8]);
 			mixer.channelstrip(i)._send[0].set_control(knobs[i]);
-			mixer.channelstrip(i)._send[1].set_control(knobs[i+14]);
+			mixer.channelstrip(i)._send[1].set_control(knobs[i+8]);
 		}
 		for(var i=0;i<2;i++)
 		{
-			mixer.returnstrip(i)._volume.set_control(faders[i+6]);
-			mixer.returnstrip(i+2)._volume.set_control(knobs[i+6]);
-			mixer.returnstrip(i+4)._volume.set_control(knobs[i+14]);
+			mixer.returnstrip(i+4)._volume.set_control(faders[i+6]);
+			mixer.returnstrip(i+0)._volume.set_control(knobs[i+6]);
+			mixer.returnstrip(i+2)._volume.set_control(knobs[i+14]);
 		}
-		mixer.selectedstrip()._send[0].set_control(pads[6]);
-		mixer.selectedstrip()._send[1].set_control(pads[7]);
-		mixer.selectedstrip()._send[2].set_control(pads[14]);
-		mixer.selectedstrip()._send[3].set_control(pads[15]);
+		mixer.selectedstrip()._send[2].set_control(pads[6]);
+		mixer.selectedstrip()._send[3].set_control(pads[7]);
+		mixer.selectedstrip()._send[4].set_control(pads[14]);
+		mixer.selectedstrip()._send[5].set_control(pads[15]);
 		mixer._masterstrip._volume.set_control(faders[8]);
 		momPage.active = true;
 	}
@@ -649,14 +655,14 @@ function setup_modes()
 		}
 		for(var i=0;i<2;i++)
 		{
-			mixer.returnstrip(i)._volume.set_control();
+			mixer.returnstrip(i+0)._volume.set_control();
 			mixer.returnstrip(i+2)._volume.set_control();
 			mixer.returnstrip(i+4)._volume.set_control();
 		}
-		mixer.selectedstrip()._send[0].set_control();
-		mixer.selectedstrip()._send[1].set_control();
 		mixer.selectedstrip()._send[2].set_control();
 		mixer.selectedstrip()._send[3].set_control();
+		mixer.selectedstrip()._send[4].set_control();
+		mixer.selectedstrip()._send[5].set_control();
 		mixer._masterstrip._volume.set_control();
 		momPage.set_shift_button();
 		momPage.active = false;
