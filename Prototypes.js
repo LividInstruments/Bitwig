@@ -91,6 +91,24 @@ function extend(destination, source)
 	return destination; 
 }
 
+function override(object, methodName, callback)
+{
+	object[methodName] = callback(object[methodName])
+}
+
+function after(extraBehavior)
+{
+	return function(original)
+	{
+		return function()
+		{
+			var returnValue = original.apply(this, arguments)
+			extraBehavior.apply(this, arguments)
+			return returnValue
+		}
+	}
+}
+
 var toClass = {}.toString
 
 //simple utility function to flatten incoming arguments to a function
@@ -179,6 +197,70 @@ function displayMessage(message)
 }
 
 
+var SETTING_TYPES = {'enum':{func:'getEnumSetting', observer:'addValueObserver', params:['_options', '_initialValue']},
+ 					'number':{func:'getNumberSetting', observer:'addRawValueObserver', params:['_minValue', '_maxValue', '_stepResolution', '_unit', '_initialValue']},
+					'signal':{func:'getSignalSetting', observer:'addSignalObserver', params:['_action']},
+					'string':{func:'getStringSetting', observer:'addValueObserver', params:['_numChars', '_initialText']}};
+
+function Setting(name, type, args)
+{
+	post('Setting:', name, type, args);
+	var self = this;
+	this._name = name;
+	this._category = undefined;
+	this._type = type;
+	this._parameter = undefined;
+	for (var i in args)
+	{
+		this['_'+i] = args[i];
+	}
+	this._Callback = function(val)
+	{
+		post('Value changed for', self._name, 'setting:', val);
+		//add check for _parameter, forward value if value is different than parameter._value is different.
+	}
+	if(this._type in SETTING_TYPES)
+	{
+		var defs = SETTING_TYPES[this._type];
+		var func_args = [], func = defs['func'], observer = defs['observer'], params = defs['params'];
+		func_args.push(this._name);
+		func_args.push(this._category);
+		for(var i=0;i<params.length;i++)
+		{
+			if(this.hasOwnProperty(params[i]))
+			{
+				func_args.push(this[params[i]]);
+			}
+			else
+			{
+				post('missing parameter for creation of setting :', params[i]);
+				func_args.push(undefined);
+			}
+		}
+		var theDocument = host.getDocumentState();
+		this._setting = theDocument[func].apply(theDocument, func_args);
+		post('type', this._type, 'observer', observer);
+		this._setting[observer](this._Callback);
+	}
+}
+
+function OSCDisplay(name)
+{
+	var self = this;
+	this.controls = [];
+	this._enabled = false;
+}
+
+OSCDisplay.prototype.set_enabled = function(val)
+{
+	
+	for(var i in self.controls)
+	{
+		var control = self.controls[i];
+		control.add_listener(this.Callback);
+	}
+}
+
 /////////////////////////////////////////////////////////////////////////
 //This is the root object to be used for all controls, or objects that 
 //will serve as notifiers to other objects.  It maintains a list of listeners as well as a
@@ -194,6 +276,7 @@ function Notifier(name)
 	this._target_heap = [];
 	this._enabled = true;
 	this._display_value = false;
+	this._is_setting = false;
 	this.instance = function(){return self;}
 }
 
@@ -320,13 +403,15 @@ Notifier.prototype.notify = function(obj)
 	{
 		displayMessage(this._name + ' : ' + this._value);
 	}
+	if(this._is_setting>0)
+	{
+	}
 }
 
 Notifier.prototype.set_enabled = function(val)
 {
 	this._enabled = (val>0);
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 //A Notifier representing a physical control that can send and receive MIDI 
@@ -1736,18 +1821,10 @@ SessionComponent.prototype.colors = function()
 
 SessionComponent.prototype.set_nav_buttons = function(button0, button1, button2, button3)
 {
-	//if(this._navUp._control){this._navUp._control.remove_listener(this._nav_up_listener);}
-	//if(this._navDn._control){this._navDn._control.remove_listener(this._nav_dn_listener);}
-	//if(this._navRt._control){this._navLt._control.remove_listener(this._nav_lt_listener);}
-	//if(this._navDn._control){this._navRt._control.remove_listener(this._nav_rt_listener);}
 	this._navUp.set_control(button0);
 	this._navDn.set_control(button1);
 	this._navLt.set_control(button2);
 	this._navRt.set_control(button3);
-	//if(button0){this._navUp._control.add_listener(this._nav_up_listener);}
-	//if(button1){this._navDn._control.add_listener(this._nav_dn_listener);}
-	//if(button2){this._navLt._control.add_listener(this._nav_lt_listener);}
-	//if(button3){this._navRt._control.add_listener(this._nav_rt_listener);}
 }
 
 SessionComponent.prototype.set_verbose = function(val)

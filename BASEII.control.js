@@ -121,7 +121,7 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = false;		//post() doesn't work without this
+var DEBUG = true;		//post() doesn't work without this
 var VERSION = '1.0';
 var VERBOSE = false;
 
@@ -158,7 +158,7 @@ function init()
 	setup_tasks();
 	setup_modes();
 	setup_notifications();
-	//setup_usermodes();
+	setup_usermodes();
 	setup_fixed_controls();
 	setup_listeners();
 	setupTests();
@@ -974,7 +974,7 @@ function setup_usermodes()
 
 function setup_fixed_controls()
 {
-	mixer._masterstrip._volume.set_control(faders[8]);
+	//mixer._masterstrip._volume.set_control(faders[8]);
 }
 
 function setup_listeners()
@@ -1058,8 +1058,21 @@ function display_mode()
 
 function setupTests()
 {
-
+	//testEnumSetting = new Setting('testEnumSetting', 'enum', {category:'testCategory', options:['off', 'on', 'inBetween'], initialValue:'no value'});
+	//testNumberSetting = new Setting('testNumberSetting', 'number', {category:'testCategory', minValue:0, maxValue:127, stepResolution:8, unit:'blahs', initialValue:0});
+	//testSignalSetting = new Setting('testSignalSetting', 'signal', {category:'testCategory', action:'sendSignal'});
+	//testStringSetting = new Setting('testStringSetting', 'string', {category:'testCategory', numChars:8, initialText:'no value'});
 }
 
+function setup_socket()
+{
+	theSocket = createRemoteConnection('remote', 7400);
+	send_hello();
+}
+
+function send_hello()
+{
+	host.sendDatagramPacket('remote', 7400, '/blessed/is/the/data')
+}
 
 
