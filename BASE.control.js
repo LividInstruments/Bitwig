@@ -264,7 +264,7 @@ function setup_instrument_control()
 	instrument = new AdaptiveInstrumentComponent('Instrument', {'drum':[4, 4, 0, 0], 'keys':[8, 2, 0, 2], 'drumseq':[4, 4, 4, 0], 'keysseq':[8, 2, 0, 0]}, lcd);
 	instrument._splitMode.set_value(0);
 	instrument._select.set_value(0);
-	instrument._drums._noteOffset._increment = 16;
+	instrument._drums._noteOffset._increment = 4;
 	instrument.set_verbose(VERBOSE);
 }
 
@@ -528,7 +528,8 @@ function setup_modes()
 			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		transport._overdub.set_control(touch_runners[0]);
-		device._enabled.set_control(touch_runners[1]);
+		transport._autowrite.set_control(touch_runners[1]);
+		//device._enabled.set_control(touch_runners[1]);
 		session._record_clip.set_control(function_buttons[4]);
 		session._create_clip.set_control(function_buttons[5]);
 		session._slot_select.set_inc_dec_buttons(function_buttons[7], function_buttons[6]);
@@ -550,6 +551,7 @@ function setup_modes()
 			mixer.returnstrip(i)._volume.set_control();
 		}
 		transport._overdub.set_control();
+		transport._autowrite.set_control();
 		device._enabled.set_control();
 		sendPage.set_shift_button();
 		sendPage.active = false;
@@ -586,11 +588,13 @@ function setup_modes()
 				volumeFadersSub.enter_mode();
 				channelControlsSub.enter_mode();
 			}
-			device._enabled.set_control(touch_buttons[1]);
+			//device._enabled.set_control(touch_buttons[1]);
+			transport._autowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
-			device._enabled.set_control();
+			//device._enabled.set_control();
+			transport._autowrite.set_control();
 			volumeFadersSub.exit_mode();
 			channelControlsSub.exit_mode();
 			instrumentControlsSub.exit_mode();
