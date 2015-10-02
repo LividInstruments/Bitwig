@@ -2059,13 +2059,24 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 	}
 
 	this._select = new ToggledParameter(this._name + '_Select', {javaObj:self._track, action:'select', monitor:'addIsSelectedObserver', onValue:this._colors.selectColor});
-	this._select._Callback = function(obj){if(obj._value){self._track.select();}}
+	//this._select._Callback = function(obj){if(obj._value){self._track.select();}}
+	this._select._Callback = function(obj){
+		if(obj._value){
+			if(tasks){tasks.addTask(self._delayed_select, [], 1, false, 'select_track');}
+			else{self._track.select();}
+		}
+	}
 	this._select.update_control = function(value)
 	{
 		if(self._select._control)
 		{
 			self._select._control.send(!self._exists._value ? colors.OFF : self._select._value ? self._select._onValue :  self._select._offValue );
 		}
+	}
+
+	this._delayed_select = function()
+	{
+		self._track.select();
 	}
 
 	this._stop = new ToggledParameter(this._name + '_Stop', {javaObj:self._track, onValue:colors.BLUE, offValue:colors.BLUE});
@@ -3214,7 +3225,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 		if((self._grid instanceof Grid)||(self._explicit_grid_assignments))
 		{
 			var sizes = self._sizes;
-			if(self._primary_instrument._value == 'DrumMachine')
+			if(self._primary_instrument._value == 'DrmMachine')
 			{
 				self._drums._noteOffset.add_listener(self._lcd_listener);
 				self._drums._noteOffset.set_inc_dec_buttons(self._note_up_button, self._note_dn_button);

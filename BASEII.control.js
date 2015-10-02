@@ -121,7 +121,7 @@ var LOCAL_OFF = function()
 var script = this;
 var session;
 
-var DEBUG = true;		//post() doesn't work without this
+var DEBUG = false;		//post() doesn't work without this
 var VERSION = '1.0';
 var VERBOSE = false;
 
