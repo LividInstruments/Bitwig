@@ -978,7 +978,7 @@ function setup_usermodes()
 
 function setup_fixed_controls()
 {
-	//mixer._masterstrip._volume.set_control(faders[8]);
+	mixer._masterstrip._volume.set_control(faders[8]);
 }
 
 function setup_listeners()
