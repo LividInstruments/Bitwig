@@ -528,7 +528,7 @@ function setup_modes()
 			mixer.channelstrip(i)._select.set_control(touch_buttons[i]);
 		}
 		transport._overdub.set_control(touch_runners[0]);
-		transport._autowrite.set_control(touch_runners[1]);
+		transport._clipautowrite.set_control(touch_runners[1]);
 		//device._enabled.set_control(touch_runners[1]);
 		session._record_clip.set_control(function_buttons[4]);
 		session._create_clip.set_control(function_buttons[5]);
@@ -551,7 +551,7 @@ function setup_modes()
 			mixer.returnstrip(i)._volume.set_control();
 		}
 		transport._overdub.set_control();
-		transport._autowrite.set_control();
+		transport._clipautowrite.set_control();
 		device._enabled.set_control();
 		sendPage.set_shift_button();
 		sendPage.active = false;
@@ -589,12 +589,12 @@ function setup_modes()
 				channelControlsSub.enter_mode();
 			}
 			//device._enabled.set_control(touch_buttons[1]);
-			transport._autowrite.set_control(touch_buttons[1]);
+			transport._clipautowrite.set_control(touch_buttons[1]);
 		}
 		else
 		{
 			//device._enabled.set_control();
-			transport._autowrite.set_control();
+			transport._clipautowrite.set_control();
 			volumeFadersSub.exit_mode();
 			channelControlsSub.exit_mode();
 			instrumentControlsSub.exit_mode();
@@ -627,6 +627,7 @@ function setup_modes()
 		}
 		transport._overdub.set_control(touch_runners[0]);
 		device._enabled.set_control(touch_runners[1]);
+		//transport._clipautowrite.set_control(touch_runners[1]);
 		device.set_shared_controls(faders.slice(0, 8));
 		device._mode.set_value(0);
 		session._record_clip.set_control(function_buttons[4]);
@@ -638,6 +639,7 @@ function setup_modes()
 	devicePage.exit_mode = function()
 	{
 		transport._overdub.set_control();
+		transport._clipautowrite.set_control();
 		device._enabled.set_control();
 		altClipLaunchSub.exit_mode();
 		session.assign_grid();
@@ -649,7 +651,6 @@ function setup_modes()
 		{
 			mixer.channelstrip(i)._select.set_control();
 		}
-		transport._overdub.set_control();
 		device._enabled.set_control();
 		device.set_shared_controls();
 		device.set_nav_buttons();
@@ -669,6 +670,7 @@ function setup_modes()
 			altClipLaunchSub.exit_mode();
 			device.set_nav_buttons(function_buttons[5], function_buttons[4], function_buttons[7], function_buttons[6]);
 			device._enabled.set_control(touch_buttons[1]);
+			//transport._clipautowrite.set_control(touch_buttons[1]);
 			session.assign_grid();
 			if(track_type_name._value=='Instrument')
 			{
@@ -1006,7 +1008,7 @@ function onSceneOffsetChanged(i)
 
 function on_selected_track_selected_clipslot_changed(obj)
 {
-	//post('on_selected_track_selected_clipslot_changed:', obj._value);
+	post('on_selected_track_selected_clipslot_changed:', obj._value);
 	//cursorTrack.getClipLauncher().select(obj._value);
 }
 

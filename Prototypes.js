@@ -1626,7 +1626,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 	for (var t = 0; t < width; t++)
 	{
 		var track = trackBank.getTrack(t);
-		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncher(), this);
+		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncherSlots(), this);
 	}
 	
 	var masterTrack = masterTrack ? masterTrack : host.createMasterTrackSection(height);
@@ -1669,7 +1669,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 
 	this._cursorTrack = host.createCursorTrackSection(0, 256);
 
-	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, this._cursorTrack.getClipLauncher(), this);
+	this._selectedTrack = new ClipLaunchComponent(this._name + '_SelectedClipLauncher', height, this._cursorTrack.getClipLauncherSlots(), this);
 	this._onSlotChange = function(obj)
 	{
 		self._slot_select._value = self._selectedTrack._clipLauncher._selected_slot;
@@ -1717,15 +1717,18 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 
 	this._updateSelectedSlot = function()
 	{
-		//post('update selected slot');
+		post('update selected slot');
 		var slot = self._selectedTrack._selected_slot;
 		self._selectedSlot._value = slot;
-		self._selectedSlot._javaObj.select(slot);
-		self._selectedSlot._javaObj.showInEditor(slot);
+		if(tasks){tasks.addTask(self._delayed_update_selected_slot, [slot], 1, false, 'select_slot');}
+		//if(tasks){tasks.addTask(self._selectedSlot._javaObj.showInEditor, [slot], 1, false, 'display_slot');}
+		//self._selectedSlot._javaObj.select(slot);
+		//self._selectedSlot._javaObj.showInEditor(slot);
 	}
 	this._selected_track = new Parameter('selected_track_listener', {javaObj:this._cursorTrack, monitor:'addIsSelectedObserver'});
 	this._selected_track.add_listener(this._updateSelectedSlot);
 
+	this._selected_track_is_group = new Parameter('selected_track_is_group_listener', {javaObj:this._cursorTrack, monitor:'addIsGroupObserver'});
 	this.select_playing_clip = function()
 	{
 		//post('select_playing_clip');
@@ -1735,7 +1738,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 		{
 			if(self._selectedTrack._clipslots[i].isPlaying)
 			{
-				self._cursorTrack.getClipLauncher().select(i);
+				self._cursorTrack.getClipLauncherSlots().select(i);
 				isPlaying = true;
 				break;
 			}
@@ -1746,12 +1749,26 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 			{
 				if(self._selectedTrack._clipslots[i].hasContent)
 				{
-					self._cursorTrack.getClipLauncher().select(i);
+					self._cursorTrack.getClipLauncherSlots().select(i);
 				}
 			}
 		}
 	}
 
+	this._delayed_update_selected_slot = function(slot)
+	{
+		if(!self._selected_track_is_group._value)
+		{
+			self._selectedSlot._javaObj.select(slot);
+			self._selectedSlot._javaObj.showInEditor(slot);
+		}
+		else
+		{
+			post('cant update slot because selected track is group, there is a bug in the BWAPI');
+			//self._selectedSlot._javaObj.select(slot);
+			//self._selectedSlot._javaObj.showInEditor(slot);
+		}
+	}
 }
 
 SessionComponent.prototype.set_indication = function(value)
@@ -2027,6 +2044,8 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 
 	this._exists = new Parameter(this._name + '_Exists', {javaObj:this._track.exists(), monitor:'addValueObserver'});
 
+	this._isGroup = new Parameter(this._name + '_Is_Group', {javaObj:self._track, monitor:'addIsGroupObserver'});
+
 	this._volume = new RangedParameter(this._name + '_Volume', {javaObj:this._track.getVolume(), range:128});
 
 	this._pan = new RangedParameter(this._name + '_Pan', {javaObj:this._track.getPan(), range:128});
@@ -2062,8 +2081,16 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 	//this._select._Callback = function(obj){if(obj._value){self._track.select();}}
 	this._select._Callback = function(obj){
 		if(obj._value){
-			if(tasks){tasks.addTask(self._delayed_select, [], 1, false, 'select_track');}
-			else{self._track.select();}
+			//if(tasks){tasks.addTask(self._delayed_select, [], 1, false, 'select_track');}
+			if(self._isGroup._value)
+			{
+				post(self._name, 'is group....');
+				self._track.select();
+			}
+			else
+			{
+				self._track.select();
+			}
 		}
 	}
 	this._select.update_control = function(value)
@@ -3225,6 +3252,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 		if((self._grid instanceof Grid)||(self._explicit_grid_assignments))
 		{
 			var sizes = self._sizes;
+			post('PINS:::::::', self._primary_instrument._value);
 			if(self._primary_instrument._value == 'DrmMachine')
 			{
 				self._drums._noteOffset.add_listener(self._lcd_listener);
@@ -3268,7 +3296,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 		}
 	}
 
-	this._on_primary_instrument_changed = function(new_name){self.update();}
+	this._on_primary_instrument_changed = function(new_name){post('primary instrument changed', self._primary_instrument._value); self.update();}
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
 	this._shift = new ToggledParameter(this._name + '_Shift');
