@@ -3260,6 +3260,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 				self._drums._noteOffset.add_listener(self._lcd_listener);
 				self._drums._noteOffset.set_inc_dec_buttons(self._note_up_button, self._note_dn_button);
 				self._drums._octaveOffset.set_inc_dec_buttons(self._octave_up_button, self._octave_dn_button);
+				self._keys._scaleOffset.set_inc_dec_buttons(self._scale_up_button, self._scale_dn_button);
 				if(!self._splitMode._value)
 				{
 					var grid = self._explicit_drum_grid instanceof Grid ? self._explicit_drum_grid : self._grid;
