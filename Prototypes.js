@@ -2438,7 +2438,8 @@ const NOTES = [24, 25, 26, 27, 28, 29, 30, 31, 16, 17, 18, 19, 20, 21, 22, 23, 8
 const DRUMNOTES = [12, 13, 14, 15, 28, 29, 30, 31, 8, 9, 10, 11, 24, 25, 26, 27, 4, 5, 6, 7, 20, 21, 22, 23, 0, 1, 2, 3, 16, 17, 18, 19];
 const SCALENOTES = [36, 38, 40, 41, 43, 45, 47, 48, 24, 26, 28, 29, 31, 33, 35, 36, 12, 14, 16, 17, 19, 21, 23, 24, 0, 2, 4, 5, 7, 9, 11, 12];
 const KEYCOLORS = [colors.BLUE, colors.CYAN, colors.MAGENTA, colors.RED, colors.GREEN, colors.GREEN, colors.GREEN, colors.GREEN];
-const SCALES = 	{'Chromatic':[0,1,2,3,4,5,6,7,8,9,10,11],
+const SCALES = 	{'DrumPad':[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+			'Chromatic':[0,1,2,3,4,5,6,7,8,9,10,11],
 			'Major':[0,2,4,5,7,9,11],
 			'Minor':[0,2,3,5,7,8,10],
 			'Dorian':[0,2,3,5,7,9,10],
@@ -2475,7 +2476,7 @@ const SCALES = 	{'Chromatic':[0,1,2,3,4,5,6,7,8,9,10,11],
 			'Pelog':[0,1,3,4,7,8],
 			'Spanish':[0,1,3,4,5,6,8,10]};
 
-const SCALEABBREVS = {'Chromatic':'12', 'Major':'M-','Minor':'m-','Dorian':'II','Mixolydian':'V',
+const SCALEABBREVS = {'DrumPad':'_D', 'Chromatic':'12', 'Major':'M-','Minor':'m-','Dorian':'II','Mixolydian':'V',
 			'Lydian':'IV','Phrygian':'IH','Locrian':'VH','Diminished':'d-','Whole-half':'Wh','Whole Tone':'WT','Minor Blues':'mB',
 			'Minor Pentatonic':'mP','Major Pentatonic':'MP','Harmonic Minor':'mH','Melodic Minor':'mM','Dominant Sus':'D+','Super Locrian':'SL',
 			'Neopolitan Minor':'mN','Neopolitan Major':'MN','Enigmatic Minor':'mE','Enigmatic':'ME','Composite':'Cp','Bebop Locrian':'lB',
@@ -3253,7 +3254,8 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 		{
 			var sizes = self._sizes;
 			post('PINS:::::::', self._primary_instrument._value);
-			if(self._primary_instrument._value == 'DrmMachine')
+			post('Scale::::::', self._keys._scaleOffset._value);
+			if(self._primary_instrument._value == 'DrmMachine'||self._keys._scaleOffset._value == 0)
 			{
 				self._drums._noteOffset.add_listener(self._lcd_listener);
 				self._drums._noteOffset.set_inc_dec_buttons(self._note_up_button, self._note_dn_button);
@@ -3296,7 +3298,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 		}
 	}
 
-	this._on_primary_instrument_changed = function(new_name){post('primary instrument changed', self._primary_instrument._value); self.update();}
+	this._on_primary_instrument_changed = function(new_name){post('primary instrument changed', new_name); self.update();}
 	this._primary_instrument.add_listener(this._on_primary_instrument_changed);
 
 	this._shift = new ToggledParameter(this._name + '_Shift');
