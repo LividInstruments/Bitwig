@@ -1,4 +1,4 @@
-// 0613 amounra : http://www.aumhaa.com  
+// 0613 amounra : http://www.aumhaa.com
 
 const NOTE_TYPE = 'NOTE_TYPE';
 const CC_TYPE = 'CC_TYPE';
@@ -13,7 +13,7 @@ CC_OBJECTS = new Array(128);
 
 //var noteInput = {'setNoteKeyMap':function(){}};
 var noteInput = {'setKeyTranslationTable':function(){}};
-var midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}}; 
+var midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}};
 var midiNoteBuffer = {};
 var midiCCBuffer = {};
 
@@ -81,14 +81,14 @@ function FlashTask()
 
 function extend(destination, source)
 {
-	for (var k in source) 
+	for (var k in source)
 	{
 		if (source.hasOwnProperty(k))
 		{
 			destination[k] = source[k];
 		}
 	}
-	return destination; 
+	return destination;
 }
 
 function override(object, methodName, callback)
@@ -168,7 +168,7 @@ function flush()
 			Event[0]._send(Event[1]);
 		}
 	}
-	midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}}; 
+	midiBuffer = {NONE_TYPE:{},CC_TYPE:{},NOTE_TYPE:{}};
 	if(recalculate_translation_map)
 	{
 		//post('Note_Translation_Table:', Note_Translation_Table);
@@ -253,7 +253,7 @@ function OSCDisplay(name)
 
 OSCDisplay.prototype.set_enabled = function(val)
 {
-	
+
 	for(var i in self.controls)
 	{
 		var control = self.controls[i];
@@ -262,9 +262,9 @@ OSCDisplay.prototype.set_enabled = function(val)
 }
 
 /////////////////////////////////////////////////////////////////////////
-//This is the root object to be used for all controls, or objects that 
+//This is the root object to be used for all controls, or objects that
 //will serve as notifiers to other objects.  It maintains a list of listeners as well as a
-//"target_stack" that can be used to push/pop targets to be notified when its value changes 
+//"target_stack" that can be used to push/pop targets to be notified when its value changes
 //(only the first target in the stack is notified).  Notifier is "subclassed" by many other prototypes.
 
 function Notifier(name)
@@ -414,7 +414,7 @@ Notifier.prototype.set_enabled = function(val)
 }
 
 //////////////////////////////////////////////////////////////////////////
-//A Notifier representing a physical control that can send and receive MIDI 
+//A Notifier representing a physical control that can send and receive MIDI
 
 function Control(identifier, name)
 {
@@ -735,7 +735,7 @@ Grid.prototype.add_control = function(x, y, button)
 		}
 	}
 }
-	
+
 Grid.prototype.send = function(x, y, value)
 {
 	this._grid[x][y].send(value);
@@ -885,7 +885,7 @@ Mode.prototype.update = function()
 	{
 		if (i == this._value)
 		{
-			
+
 			this.mode_buttons[i].turn_on();
 		}
 		else
@@ -894,7 +894,7 @@ Mode.prototype.update = function()
 		}
 	}
 }
-		
+
 Mode.prototype.add_mode = function(mode, callback)
 {
 	if (mode < this._mode_callbacks.length)
@@ -1057,7 +1057,7 @@ function ToggledParameter(name, args)
 				self.receive(Math.abs(self._value - 1));
 			}
 		}
-	} 
+	}
 	this.update_control = function(value)
 	{
 		if(self._control){self._control.send(self._value ? self._onValue : self._offValue);}
@@ -1496,9 +1496,9 @@ ClipSlotComponent.prototype.constructor = ClipSlotComponent;
 ClipSlotComponent.prototype.update = function()
 {
 	this._value = this.isRecording ? this._session.colors().isRecordingColor :
-		this.isPlaying ? this._session.colors().isPlayingColor : 
+		this.isPlaying ? this._session.colors().isPlayingColor :
 		this.isQueued ? this._session.colors().isQueuedColor :
-		this.hasContent ? this._session.colors().hasContentColor : 
+		this.hasContent ? this._session.colors().hasContentColor :
 		this._session.colors().isEmptyColor;
 	this.notify();
 }
@@ -1611,8 +1611,8 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 	var self = this;
 	this._name = name;
 	this._grid = undefined;
-	this._colors = _colors||{'hasContentColor': colors.WHITE, 
-					'isPlayingColor':colors.GREEN, 
+	this._colors = _colors||{'hasContentColor': colors.WHITE,
+					'isPlayingColor':colors.GREEN,
 					'isQueuedColor' : colors.YELLOW,
 					'isRecordingColor' : colors.RED,
 					'isEmptyColor' : colors.OFF,
@@ -1628,7 +1628,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 		var track = trackBank.getTrack(t);
 		this._tracks[t] = new ClipLaunchComponent(this._name + '_ClipLauncher_' + t, height, track.getClipLauncherSlots(), this);
 	}
-	
+
 	var masterTrack = masterTrack ? masterTrack : host.createMasterTrackSection(height);
 	//post('type:', masterTrack.type);
 	this._tracks[width] = new ClipLaunchComponent(this._name + '_ClipLauncher_Master', height, masterTrack.getClipLauncherSlots(), this);
@@ -1870,19 +1870,19 @@ function SessionZoomComponent(name, session, width, height, _colors)
 	this.width = function(){return width}
 	this.height = function(){return height}
 	this._grid = undefined;
-	this._colors = _colors||{'hasContentColor': colors.WHITE, 
-					'isPlayingColor':colors.GREEN, 
+	this._colors = _colors||{'hasContentColor': colors.WHITE,
+					'isPlayingColor':colors.GREEN,
 					'isQueuedColor' : colors.YELLOW,
 					'isRecordingColor' : colors.RED,
 					'isEmptyColor' : colors.OFF,
 					'navColor' : colors.BLUE};
 	this._trackBank = host.createMainTrackBankSection(width*width, 0, height*height);
-	
+
 	this._update = function()
 	{
 		post('ZoomUpdate', this._trackOffset._value, this._sceneOffset._value);
 	}
-	
+
 	this._trackOffset = new Parameter(this._name + '_trackOffset', {num:0, javaObj:this._trackBank, monitor:'addTrackScrollPositionObserver'});
 	this._sceneOffset = new Parameter(this._name + '_sceneOffset', {num:0, javaObj:this._trackBank, monitor:'addSceneScrollPositionObserver'});
 
@@ -1957,7 +1957,7 @@ function MixerComponent(name, num_channels, num_returns, trackBank, returnBank, 
 	this._selectedstrip = new ChannelStripComponent(this._name + '_SelectedStrip', -1, this._cursorTrack, num_returns, _colors);
 	this._selectedstrip._clip_navigator = new OffsetComponent(this._name + '_clip_navigator', 0, 119, 4, this._update, colors.MAGENTA);
 	this._masterstrip = new ChannelStripComponent(this._name + '_MasterStrip', -2, this._masterTrack, 0, _colors);
-	
+
 }
 
 MixerComponent.prototype.channelstrip = function(num)
@@ -2027,7 +2027,7 @@ MixerComponent.prototype.set_verbose = function(val)
 /////////////////////////////////////////////////////////////////////////////
 //Component containing tracks from trackbank and their corresponding controls, values
 
-function ChannelStripComponent(name, num, track, num_sends, _colors) 
+function ChannelStripComponent(name, num, track, num_sends, _colors)
 {
 	var self = this;
 	this._name = name;
@@ -2037,8 +2037,8 @@ function ChannelStripComponent(name, num, track, num_sends, _colors)
 	this._device = track.getPrimaryDevice();
 	this._eqdevice;
 
-	this._colors = _colors||{'muteColor': colors.YELLOW, 
-					'soloColor':colors.CYAN, 
+	this._colors = _colors||{'muteColor': colors.YELLOW,
+					'soloColor':colors.CYAN,
 					'armColor' : colors.RED,
 					'selectColor' : colors.WHITE};
 
@@ -2263,7 +2263,7 @@ function DeviceComponent(name, size, Device)
 	this._nextPreset = new Parameter(this._name + '_Next_Preset', {javaObj:this._device, action:'switchToNextPreset'});
 	this._previousPreset = new Parameter(this._name + '_Previous_Preset', {javaObj:this._device, action:'switchToPreviousPreset'});
 	this._preset_creators = new ArrayParameter(this._name + '_Preset_Creators', {javaObj:this._device, value:[], monitor:'addPresetCreatorsObserver'});
-	this._preset_creator = new Parameter(this._name + '_Preset_Creator', {javaObj:this._device, monitor_text:'addPresetCreatorObserver'});	
+	this._preset_creator = new Parameter(this._name + '_Preset_Creator', {javaObj:this._device, monitor_text:'addPresetCreatorObserver'});
 	this._preset_name = new Parameter(this._name + '_Preset_Name', {javaObj:this._device, monitor_text:'addPresetNameObserver'});
 
 
@@ -2291,7 +2291,7 @@ function DeviceComponent(name, size, Device)
 				}
 			}
 		}
-		else 
+		else
 		{
 			if(self._size == self._parameter_controls.length)
 			{
@@ -2565,7 +2565,7 @@ function DrumRackComponent(name, _color)
 			}
 		}
 	}
-	
+
 	this.notes_in_step = function(){return (self._stepsequencer && self._stepsequencer._edit_step._value> -1) ? self._stepsequencer.notes_in_step() : self._notes_in_step;}
 
 	this._set_seq_offset = function(button)
@@ -2587,7 +2587,7 @@ function DrumRackComponent(name, _color)
 			self._noteMap[i] = [];
 		}
 		if(self._grid instanceof Grid)
-		{	
+		{
 			post('original upate', this.caller);
 			var notes_in_step = self.notes_in_step();
 			var selected = self._stepsequencer && self._select._value ? self._stepsequencer.key_offset._value : -1;
@@ -2657,7 +2657,7 @@ DrumRackComponent.prototype.assign_grid = function(grid)
 	//this._stepsequencer.assign_grid();
 	this._grid = grid;
 	if(this._grid instanceof Grid)
-	{	
+	{
 		this._grid.add_listener(this._button_press);
 		if(!(this._last_pressed_button instanceof Button))
 		{
@@ -2937,7 +2937,7 @@ function StepSequencerComponent(name, steps)
 		if(!self._flip._value)
 		{
 			if(button.pressed())
-			{	
+			{
 				//post('sequencer button pressed:', button._name);
 				var step = self._offset._value + button._x(self._grid) + self.width()*button._y(self._grid);  // + this.viewOffset();
 				self._cursorClip.toggleStep(step, self.key_offset._value, self._velocity_offset._value);
@@ -2992,7 +2992,7 @@ function StepSequencerComponent(name, steps)
 		{
 			var size = self._grid instanceof Grid ? self._grid.size() : self._last_grid_size;
 			self._offset.set_value(Math.floor(self.playingStep/size)*size)
-			
+
 		}
 		self.update();
 	}
@@ -3042,7 +3042,7 @@ function StepSequencerComponent(name, steps)
 				var color = isSelected ? self.Colors.Selected : isSet ?
 					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
 					(isPlaying ? self.Colors.PlayingOff : self._flip._value ? self.Colors.Flipped : self.Colors.Off);
-				
+
 				button.send(color);
 
 			}
@@ -3196,7 +3196,7 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 			self._stepsequencer._size_offset.set_value(obj._value);
 		}
 	}
-	this._quantization = new RadioComponent(this._name + '_Quantization', 0, 6, 3, this._on_quantization_changed, colors.YELLOW, colors.OFF); 
+	this._quantization = new RadioComponent(this._name + '_Quantization', 0, 6, 3, this._on_quantization_changed, colors.YELLOW, colors.OFF);
 
 	this._primary_instrument = new Parameter(this._name + '_PrimaryInstrumentListener', {javaObj:cursorTrack.getPrimaryInstrument()});
 	cursorTrack.getPrimaryInstrument().addNameObserver(11, 'None', this._primary_instrument.receive);
@@ -3205,8 +3205,10 @@ function AdaptiveInstrumentComponent(name, sizes, lcd)
 	{
 		if(self._stepsequencer&&self._lcd)
 		{
-			var val = obj._name == (self._stepsequencer._name + '_Scale_Offset') ? SCALEABBREVS[SCALENAMES[obj._value]] : obj._name == (self._stepsequencer._name) + '_Velocity_Offset' ? Math.floor((obj._value/127)*99) : obj._value;
+			var val = obj._name.indexOf('_Scale_Offset') > - 1 ? SCALEABBREVS[SCALENAMES[obj._value]] : obj._name.indexOf('_Velocity_Offset') > -1 ? Math.floor((obj._value/127)*99) : obj._value;
 			//post('lcd val:', self._stepsequencer._name + '_Velocity_Offset', self._stepsequencer._name + '_Velocity_Offset' == obj._name, val);
+			//post('lcd val:', obj._name, self._stepsequencer._name + '_Scale_Offset', self._stepsequencer._name + '_Scale_Offset' == obj._name, val);
+
 			self._lcd._send(val);
 			tasks.addTask(display_mode, [], 10, false, 'display_mode');
 		}
@@ -3337,7 +3339,7 @@ AdaptiveInstrumentComponent.prototype.set_sizes = function(sizes)
 AdaptiveInstrumentComponent.prototype.assign_grid = function(grid)
 {
 	this._grid = grid;
-	this.update();	
+	this.update();
 }
 
 AdaptiveInstrumentComponent.prototype.assign_explicit_grids = function(drum_grid, keys_grid, drumseq_grid, keysseq_grid)
@@ -3423,7 +3425,7 @@ function FunSequencerComponent(name, steps)
 	var self = this;
 	this._pitch_range = 12;
 	this._pitches = [];
-	
+
 	for(var i = 0; i<steps; i++)
 	{
 		this._pitches[i] = new RangedParameter(this._name + '_Pitch_'+i, {range:128});
@@ -3504,7 +3506,7 @@ function FunSequencerComponent(name, steps)
 				var color = isSet ?
 					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
 					(isPlaying ? self.Colors.PlayingOff : self.Colors.Off);
-				
+
 				button.send(color);
 			}
 		}
@@ -3583,7 +3585,7 @@ function FunSequencerComponent(name, steps)
 
 	this._pitch_range = 12;
 	this._pitches = [];
-	
+
 	for(var i = 0; i<steps; i++)
 	{
 		this._pitches[i] = new DelayedRangedParameter(this._name + '_Pitch_'+i, {range:127});
@@ -3688,7 +3690,7 @@ function FunSequencerComponent(name, steps)
 	}
 	this.octave_offset_dial.add_listener(this._on_octave_offset_dial_change);
 	this.key_offset_dial.add_listener(this._on_key_offset_dial_change);
-	
+
 	this.receive_zoom_grid = function(button)
 	{
 	}
@@ -3707,7 +3709,7 @@ function FunSequencerComponent(name, steps)
 		{
 			var size = self._grid instanceof Grid ? self._grid.size() : self._last_grid_size;
 			self._offset.set_value(Math.floor(self.playingStep/size)*size)
-			
+
 		}
 		self.update();
 	}
@@ -3793,7 +3795,7 @@ function FunSequencerComponent(name, steps)
 				var color = isSet ?
 					(isPlaying ? self.Colors.PlayingOn : self.Colors.On) :
 					(isPlaying ? self.Colors.PlayingOff : self.Colors.Off);
-				
+
 				button.send(color);
 			}
 		}
@@ -3820,8 +3822,8 @@ function FunSequencerComponent(name, steps)
 	this._edit_step = new RangedParameter(this._name + '_Edit_Step', {value:-1});
 	this._triplet = new ToggledParameter(this._name + '_Triplet_Enable', {value:1, onValue:colors.OFF, offValue:colors.RED});
 	this._add_note = new Parameter(this._name + '_addNote');
-	
-	
+
+
 	this._triplet.add_listener(this._onSizeChange);
 	this._flip.add_listener(this.update);
 	this._edit_step.add_listener(this.update);
@@ -4053,7 +4055,7 @@ function UserControl(name, control)
 	this._javaControl= control;
 	this._javaControl.setLabel(this._name);
 
-	
+
 	this._onNameChanged = function(name){}//post('onNameChanged:', self._name, name);}
 	this._onValueDisplayChanged = function(value){}//post('onValueDisplayChanged:', self._name, value);}
 	this._onValueChanged = function(value)
@@ -4081,7 +4083,7 @@ function UserControl(name, control)
 	this._javaControl.addValueDisplayObserver(20, ' - ', this._onValueDisplayChanged);
 	this._javaControl.addValueObserver(128, this._onValueChanged);
 
-	
+
 }
 
 
