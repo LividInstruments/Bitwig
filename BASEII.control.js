@@ -310,9 +310,9 @@ function setup_modes()
 		sendSysex(LIVEBUTTONMODE);
 		for(var i=0;i<8;i++)
 		{
-			mixer.channelstrip(i)._mute.set_control(grid.get_button(i, 0));
+			mixer.channelstrip(i)._arm.set_control(grid.get_button(i, 0));
 			mixer.channelstrip(i)._solo.set_control(grid.get_button(i, 1));
-			mixer.channelstrip(i)._arm.set_control(grid.get_button(i, 2));
+			mixer.channelstrip(i)._mute.set_control(grid.get_button(i, 2));
 			mixer.channelstrip(i)._stop.set_control(grid.get_button(i, 3));
 		}
 		channelControlsSub.active = true;
