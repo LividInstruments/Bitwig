@@ -1738,7 +1738,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 		{
 			if(self._selectedTrack._clipslots[i].isPlaying)
 			{
-				self._cursorTrack.getClipLauncherSlots().select(i);
+				self._cursorTrack.getClipLauncherSlots().select(parseInt(i,10));
 				isPlaying = true;
 				break;
 			}
@@ -1749,7 +1749,7 @@ function SessionComponent(name, width, height, trackBank, _colors, mastertrack)
 			{
 				if(self._selectedTrack._clipslots[i].hasContent)
 				{
-					self._cursorTrack.getClipLauncherSlots().select(i);
+					self._cursorTrack.getClipLauncherSlots().select(parseInt(i,10));
 				}
 			}
 		}
